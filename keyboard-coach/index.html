@@ -1,0 +1,686 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Bernard's Keyboard Coach</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one-column phone app — sticky tab bar, one big step card at a time, thumb-sized controls at the bottom of each card */
+:root{
+  --bg:#f3f5f9; --surface:#ffffff; --ink:#141a2b; --muted:#5b6478; --line:#d9deea;
+  --accent:#1f4fa8; --accent-ink:#ffffff; --accent-soft:#e3ebfa;
+  --gold:#c98a12; --gold-soft:#fbefd6;
+  --lh:#7a3fb0; --lh-soft:#efe4f8;
+  --key-white:#ffffff; --key-black:#1b2030; --key-edge:#b9c0cf;
+  --ok:#1d7a4c; --bad:#b4372b;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0e1322; --surface:#161d31; --ink:#e9edf7; --muted:#a3acc2; --line:#29324b;
+  --accent:#7fa6f0; --accent-ink:#0b1020; --accent-soft:#1d2a4a;
+  --gold:#f0b546; --gold-soft:#3a2e14;
+  --lh:#c69bf0; --lh-soft:#2f2343;
+  --key-white:#e8ebf2; --key-black:#05070d; --key-edge:#5d6782;
+  --ok:#5fd19a; --bad:#f08a7e; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0e1322; --surface:#161d31; --ink:#e9edf7; --muted:#a3acc2; --line:#29324b;
+  --accent:#7fa6f0; --accent-ink:#0b1020; --accent-soft:#1d2a4a;
+  --gold:#f0b546; --gold-soft:#3a2e14;
+  --lh:#c69bf0; --lh-soft:#2f2343;
+  --key-white:#e8ebf2; --key-black:#05070d; --key-edge:#5d6782;
+  --ok:#5fd19a; --bad:#f08a7e; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.5;margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+header.top .wrap{padding-block:12px 0}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-weight:800;font-size:1.35rem;margin:0;letter-spacing:-.01em}
+.brand small{color:var(--muted);font-size:.85rem}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;margin-top:10px;scrollbar-width:none}
+nav.tabs button{flex:1 0 auto;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);font:700 .95rem var(--f-body);padding:10px 12px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+button{font-family:var(--f-body)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+h2{font-family:var(--f-display);font-weight:800;font-size:1.5rem;line-height:1.2;margin:0;text-wrap:balance}
+h3{font-family:var(--f-display);font-weight:600;font-size:1.15rem;margin:0;text-wrap:balance}
+.eyebrow{font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stack{display:flex;flex-direction:column;gap:16px;margin-top:18px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:8px 14px;font-weight:700;font-size:.9rem;cursor:pointer;display:flex;gap:8px;align-items:center}
+.chip .tag{font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.chip .tag.review{background:var(--line);color:var(--muted)}
+.chip .tag.next{background:var(--gold-soft);color:var(--gold)}
+.chip[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.lessonhead p{margin:6px 0 0;color:var(--muted)}
+.progress{display:flex;gap:4px;margin-top:12px}
+.progress span{flex:1;height:6px;border-radius:3px;background:var(--line);cursor:pointer}
+.progress span.done{background:var(--ok)}
+.progress span.cur{background:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+.stephead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.min{font-variant-numeric:tabular-nums;font-weight:700;color:var(--muted);white-space:nowrap}
+.body{margin-top:10px}
+.body p{margin:0 0 10px}
+.body ul{margin:0 0 10px;padding-left:20px}
+.body b{color:var(--ink)}
+.say{background:var(--gold-soft);border-radius:10px;padding:10px 12px;margin:10px 0;font-weight:700}
+.diagram{margin-top:14px}
+.diagram .lbl{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.diagram .lbl strong{font-family:var(--f-display);font-size:1.05rem}
+.diagram .notes{color:var(--muted);font-size:.9rem}
+.kb{width:100%;overflow-x:auto}
+.kb svg{display:block;width:100%;height:auto;max-width:100%}
+.legend{display:flex;gap:14px;font-size:.8rem;color:var(--muted);margin-top:6px;flex-wrap:wrap}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.btn{border:0;border-radius:12px;padding:14px 18px;font-weight:700;font-size:1rem;cursor:pointer;background:var(--accent-soft);color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.small{padding:8px 12px;font-size:.88rem;border-radius:10px}
+.btn:disabled{opacity:.4;cursor:default}
+.controls{display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-top:18px}
+.timer{display:flex;align-items:center;gap:12px;margin-top:14px;padding:10px 12px;border-radius:12px;background:var(--bg)}
+.timer .t{font-family:var(--f-display);font-weight:800;font-size:1.6rem;font-variant-numeric:tabular-nums;min-width:4.2ch}
+.timer .t.end{color:var(--ok)}
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.metro{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.metro input[type=range]{flex:1;min-width:120px;accent-color:var(--accent)}
+.metro .bpm{font-variant-numeric:tabular-nums;font-weight:700;min-width:5.5ch}
+.beat{width:14px;height:14px;border-radius:50%;background:var(--line);transition:background .05s}
+.beat.on{background:var(--gold)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.fam{margin-top:22px}
+.fam > p{color:var(--muted);margin:4px 0 10px}
+.notesel{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px}
+.notesel button{padding:14px 0;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;font-size:1rem;cursor:pointer}
+.notesel button[aria-pressed="true"]{background:var(--gold);color:#1a1300;border-color:var(--gold)}
+.fits{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.fit{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.fit .why{color:var(--muted);font-size:.9rem}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:var(--surface);color:var(--muted);padding:9px 14px;font-weight:700;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.song .flow{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.song .flow span{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-weight:700;font-family:var(--f-display)}
+.note{color:var(--muted);font-size:.9rem}
+.roadmap li{margin-bottom:6px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;font-size:.9rem;z-index:20}
+.split{min-width:0}.split > *{min-width:0}
+.walker{margin-top:14px}
+.rearr{margin:6px 0 8px;padding:8px 12px;border-radius:10px;background:var(--accent-soft);color:var(--ink);font-size:.95rem}
+.hands.move{color:var(--ink)}
+/* simple mode: lessons only */
+nav.tabs,.whybox,.autobar label,.autobar .keyctl,.autobar .tempo{display:none}
+header.top .wrap{padding-block:12px}
+.whybox{margin-top:14px;background:var(--gold-soft);border-radius:12px;padding:12px 14px}
+.whybox p{margin:4px 0 0}
+.whybox .eyebrow{color:var(--gold)}
+.now{margin:8px 0 0;min-height:1.5em;color:var(--muted)}
+.now b{color:var(--ink)}
+.walkbox{margin-top:10px}
+.memory{margin-top:12px;padding:22px 14px;border-radius:12px;background:var(--accent-soft);text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
+.memory .big{font-family:var(--f-display);font-weight:800;font-size:3.2rem;line-height:1;color:var(--accent)}
+.memory .note{margin:0}
+.walkbox h3{font-size:1.6rem}
+.hands{margin:4px 0 8px;line-height:1.6}
+.walknav{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.walknav .btn{flex:1 1 auto}
+.autobar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.autobar select{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.keyctl{display:inline-flex;align-items:center;gap:6px}
+.keyctl b{min-width:2.6ch;text-align:center;font-family:var(--f-display);font-size:1.1rem}
+.tempo{display:inline-flex;align-items:center;gap:6px;margin-left:auto}
+.tempo .bpm{font-variant-numeric:tabular-nums;font-weight:700;min-width:5.5ch;text-align:center}
+/* live keyboard listening */
+.midibtn{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:6px 12px;font:700 .85rem var(--f-body);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.midibtn .dot{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.midibtn.on{color:var(--ok);border-color:var(--ok)}.midibtn.on .dot{background:var(--ok)}
+.midihelp{margin-top:14px;background:var(--accent-soft);border-radius:12px;padding:14px 16px}
+.midihelp ol{margin:6px 0 0;padding-left:20px}.midihelp p{margin:4px 0}
+.heard{margin-top:12px;border-radius:12px;padding:12px 14px;background:var(--bg);border:2px solid var(--line);min-height:3.2em}
+.heard.good{border-color:var(--ok)}.heard.bad{border-color:var(--bad)}
+.heard .what{font-family:var(--f-display);font-weight:800;font-size:1.25rem}
+.heard .v{font-weight:700}.heard.good .v{color:var(--ok)}.heard.bad .v{color:var(--bad)}
+.heard .note{margin:2px 0 0}
+.score{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:.92rem}
+.score b{font-variant-numeric:tabular-nums}
+.copybox{width:100%;margin-top:8px;font:.85rem var(--f-body);border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px}
+@media (min-width:860px){
+  body{font-size:19px}
+  .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:28px;align-items:start}
+  .split .diags .diagram:first-child{margin-top:10px}
+  .card{padding:24px}
+  h2{font-size:1.8rem}
+  .controls .btn{padding:18px;font-size:1.1rem}
+  .stack{gap:20px}
+}
+@media (max-width:420px){ .controls{grid-template-columns:1fr 1.6fr} h2{font-size:1.3rem} }
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><h1>Keyboard Coach</h1><button class="midibtn" id="midiBtn" type="button"><span class="dot"></span><span id="midiTxt">Connect keyboard</span></button></div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="lesson" aria-selected="true">Lesson</button>
+      <button role="tab" data-tab="chords" aria-selected="false">Chords</button>
+      <button role="tab" data-tab="fit" aria-selected="false">Find the chord</button>
+      <button role="tab" data-tab="songs" aria-selected="false">Songs</button>
+      <button role="tab" data-tab="why" aria-selected="false">Why it works</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="midihelp" id="midiHelp" hidden></div>
+  <section id="tab-lesson"></section>
+  <section id="tab-chords" hidden></section>
+  <section id="tab-fit" hidden></section>
+  <section id="tab-songs" hidden></section>
+  <section id="tab-why" hidden></section>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ---------- storage (per-device convenience) ---------- */
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+/* ---------- notes ---------- */
+const NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+function midi(n){const m=n.match(/^([A-G]#?)(\d)$/);return NAMES.indexOf(m[1])+12*(+m[2]+1)}
+function pc(n){return n.replace(/\d/,'')}
+const isBlack=m=>[1,3,6,8,10].includes(m%12);
+
+/* ---------- chord voicings ---------- */
+/* r = right hand [note, finger], l = left hand [note, finger] */
+const V={
+  C:{r:[['C4',1],['E4',3],['G4',5]],l:[['C3',5]]},
+  G:{r:[['G3',1],['B3',3],['D4',5]],l:[['G2',5]]},
+  Am:{r:[['A3',1],['C4',3],['E4',5]],l:[['A2',5]]},
+  F:{r:[['F3',1],['A3',3],['C4',5]],l:[['F2',5]]},
+  /* smooth (close) voicings around middle C */
+  Cs:{name:'C',r:[['C4',1],['E4',3],['G4',5]],l:[['C3',5]]},
+  Gs:{name:'G',r:[['B3',1],['D4',2],['G4',5]],l:[['G2',5]]},
+  Ams:{name:'Am',r:[['C4',1],['E4',2],['A4',5]],l:[['A2',5]]},
+  Fs:{name:'F',r:[['C4',1],['F4',3],['A4',5]],l:[['F2',5]]},
+  /* Jewish minor family */
+  Amm:{name:'Am',r:[['A3',1],['C4',3],['E4',5]],l:[['A2',5]]},
+  Dmm:{name:'Dm',r:[['A3',1],['D4',3],['F4',5]],l:[['D3',5]]},
+  Em:{name:'E',r:[['G#3',1],['B3',2],['E4',5]],l:[['E3',5]]},
+  /* key of G (later) */
+  Gg:{name:'G',r:[['B3',1],['D4',2],['G4',5]],l:[['G2',5]]},
+  Dg:{name:'D',r:[['A3',1],['D4',3],['F#4',5]],l:[['D3',5]]},
+  Emg:{name:'Em',r:[['B3',1],['E4',3],['G4',5]],l:[['E3',5]]},
+  AmL:{name:'Am',r:[],l:[['A2',5],['C3',3],['E3',1]]},
+  DmL:{name:'Dm',r:[],l:[['A2',5],['D3',2],['F3',1]]},
+  EL:{name:'E',r:[],l:[['G#2',5],['B2',3],['E3',1]]},
+  Cg:{name:'C',r:[['C4',1],['E4',3],['G4',5]],l:[['C3',5]]},
+};
+const nameOf=k=>V[k].name||k;
+function notesOf(k){return V[k].r.map(x=>pc(x[0])).join(' – ')}
+
+/* ---------- audio ---------- */
+let ctx=null;
+function ac(){if(!ctx){try{ctx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(ctx&&ctx.state==='suspended')ctx.resume();return ctx}
+let XP=0;
+function tone(m,t,dur,vol){const a=ac();if(!a)return;m+=XP;const f=440*Math.pow(2,(m-69)/12);
+  const o=a.createOscillator(),o2=a.createOscillator(),g=a.createGain();o.type='triangle';o2.type='sine';o.frequency.value=f;o2.frequency.value=f*2;
+  const g2=a.createGain();g2.gain.value=.25;o2.connect(g2);g2.connect(g);o.connect(g);g.connect(a.destination);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.01);g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+  o.start(t);o2.start(t);o.stop(t+dur+.05);o2.stop(t+dur+.05)}
+function playChord(k,at,dur=1.6){const a=ac();if(!a)return;const t=at??a.currentTime+.02;
+  V[k].l.forEach(x=>tone(midi(x[0]),t,dur,.16));V[k].r.forEach(x=>tone(midi(x[0]),t,dur,.1))}
+function playSeq(keys,gap=1.1){const a=ac();if(!a)return;let t=a.currentTime+.05;keys.forEach(k=>{playChord(k,t,gap+.4);t+=gap})}
+function playNotes(list,gap=.42){const a=ac();if(!a)return;let t=a.currentTime+.05;list.forEach(n=>{tone(midi(n),t,.5,.14);t+=gap})}
+function click(t,accent){const a=ac();const o=a.createOscillator(),g=a.createGain();o.frequency.value=accent?1500:1000;o.connect(g);g.connect(a.destination);
+  g.gain.setValueAtTime(accent?.3:.18,t);g.gain.exponentialRampToValueAtTime(.001,t+.05);o.start(t);o.stop(t+.06)}
+
+/* ---------- screen wake lock ---------- */
+let wake=null;
+async function keepAwake(){try{if('wakeLock' in navigator&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&(timer.running||metro.on))keepAwake()});
+
+/* ---------- keyboard diagram ---------- */
+function keyboard(marks){
+  /* marks: [{n,f,h:'r'|'l'|'m'}] */
+  const ms=marks.map(x=>midi(x.n));let lo=Math.min(...ms),hi=Math.max(...ms);
+  lo=lo-(lo%12);hi=hi+(11-hi%12);if(hi-lo<23)hi=lo+23;
+  const whites=[];for(let m=lo;m<=hi;m++)if(!isBlack(m))whites.push(m);
+  const W=24,H=100,BW=15,BH=62,width=whites.length*W;
+  const xOf=m=>{if(!isBlack(m))return whites.indexOf(m)*W;return whites.indexOf(m-1)*W+W-BW/2};
+  const byM={};marks.forEach(x=>byM[midi(x.n)]=x);
+  let s=`<svg viewBox="-1 -1 ${width+2} ${H+2}" role="img" aria-label="Keyboard showing ${marks.map(x=>pc(x.n)).join(', ')}">`;
+  const col=h=>h==='l'?'var(--lh)':h==='m'?'var(--gold)':'var(--accent)';
+  whites.forEach((m,i)=>{const mk=byM[m];s+=`<rect x="${i*W}" y="0" width="${W}" height="${H}" rx="3" fill="${mk?(mk.h==='l'?'var(--lh-soft)':mk.h==='m'?'var(--gold-soft)':'var(--accent-soft)'):'var(--key-white)'}" stroke="var(--key-edge)"/>`;
+    if(m%12===0)s+=`<text x="${i*W+W/2}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="sans-serif">C${Math.floor(m/12)-1}</text>`});
+  for(let m=lo;m<=hi;m++)if(isBlack(m)){const mk=byM[m];s+=`<rect x="${xOf(m)}" y="0" width="${BW}" height="${BH}" rx="2" fill="${mk?col(mk.h):'var(--key-black)'}" stroke="var(--key-edge)"/>`}
+  marks.forEach(x=>{const m=midi(x.n);const b=isBlack(m);const cx=b?xOf(m)+BW/2:xOf(m)+W/2;const cy=b?BH-14:H-30;
+    s+=`<circle cx="${cx}" cy="${cy}" r="9" fill="${col(x.h)}"/>`;
+    s+=`<text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--surface)" font-family="sans-serif">${x.f??''}</text>`;
+    if(!b)s+=`<text x="${cx}" y="${cy-14}" text-anchor="middle" font-size="9" font-weight="700" fill="var(--ink)" font-family="sans-serif">${pc(x.n)}</text>`});
+  return s+'</svg>'}
+function chordMarks(k,hands='both'){const m=[];if(hands!=='r')V[k].l.forEach(x=>m.push({n:x[0],f:x[1],h:'l'}));if(hands!=='l')V[k].r.forEach(x=>m.push({n:x[0],f:x[1],h:'r'}));return m}
+const LEGEND=`<div class="legend"><span><i style="background:var(--accent)"></i>Right hand</span><span><i style="background:var(--lh)"></i>Left hand</span><span>Numbers = fingers (1 thumb … 5 pinky)</span></div>`;
+
+/* explain rearranged shapes and finger moves */
+const sn=n=>pc(n).replace('#','♯');
+const FN=['','thumb','index finger','middle finger','ring finger','pinky'];
+function shapeOf(k){return V[k].r.length?V[k].r:V[k].l}
+function rearr(k){const sh=shapeOf(k);if(sh.length<3)return '';const root=midi(V[k].l[0][0])%12;
+  const lowPc=midi(sh[0][0])%12;if(lowPc===root)return '';
+  const order=sh.map(x=>x[0]).sort((a,b)=>((midi(a)-root+120)%12)-((midi(b)-root+120)%12)).map(sn).join(' ');
+  return `<p class="rearr">Same notes as ${nameOf(k)} (${order}), just in a different order: ${sh.map(x=>sn(x[0])).join(' ')}. Rearranged so your hand stays close.</p>`}
+function moveText(pk,k){const a=shapeOf(pk),b=shapeOf(k);if(a.length!==b.length||a.length<3)return '';
+  const parts=b.map((x,j)=>{const from=a[j][0],to=x[0],d=midi(to)-midi(from),f=FN[x[1]];
+    if(d===0)return `${f} stays on ${sn(to)}`;
+    const blk=[1,3,6,8,10].includes(midi(to)%12)?' (black key)':'';
+    return `${f} ${d>0?'up':'down'} to ${sn(to)}${blk}`});
+  return `<b>From ${nameOf(pk)}:</b> ${parts.join(', ')}.`}
+function diagramChord(k,opts={}){const id='p'+Math.random().toString(36).slice(2,7);
+  setTimeout(()=>{const b=document.getElementById(id);if(b)b.onclick=()=>playChord(k)});
+  return `<div class="diagram"><div class="lbl"><div><strong>${nameOf(k)}</strong> <span class="notes">RH ${notesOf(k)} · fingers ${V[k].r.map(x=>x[1]).join('-')}</span></div><button class="btn small" id="${id}">▶ Hear</button></div>${rearr(k)}<div class="kb">${keyboard(chordMarks(k,opts.hands))}</div></div>`}
+function diagramProg(keys,label){const id='q'+Math.random().toString(36).slice(2,7);
+  setTimeout(()=>{const b=document.getElementById(id);if(b)b.onclick=()=>playSeq(keys)});
+  return `<div class="diagram"><div class="lbl"><strong>${label||keys.map(nameOf).join(' → ')}</strong><button class="btn small" id="${id}">▶ Hear the chords</button></div></div>`}
+function handsText(k){const s=n=>pc(n).replace('#','♯');const L=V[k].l.map(x=>`finger ${x[1]} on ${s(x[0])}`).join(', ');return `<b>Left hand:</b> ${L}`+(V[k].r.length?`<br><b>Right hand:</b> ${V[k].r.map(x=>`finger ${x[1]} on ${s(x[0])}`).join(', ')}`:'')}
+/* ---------- guitar backing (plucked-string synth) ---------- */
+const ksCache={};
+function ksBuf(m){const a=ac();if(ksCache[m])return ksCache[m];const sr=a.sampleRate,f=440*Math.pow(2,(m-69)/12),N=Math.max(2,Math.round(sr/f)),len=Math.floor(sr*1.6);
+  const buf=a.createBuffer(1,len,sr),d=buf.getChannelData(0),ring=new Float32Array(N);for(let i=0;i<N;i++)ring[i]=Math.random()*2-1;
+  let p=0;for(let i=0;i<len;i++){const nx=(p+1)%N,v=ring[p];d[i]=v;ring[p]=.996*.5*(v+ring[nx]);p=nx}return ksCache[m]=buf}
+function pluck(m,t,vol,dur){const a=ac();if(!a)return;const s=a.createBufferSource();s.buffer=ksBuf(m+XP);const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3200;
+  const g=a.createGain();g.gain.setValueAtTime(vol,t);g.gain.setTargetAtTime(.0001,t+dur,.04);s.connect(lp);lp.connect(g);g.connect(a.destination);s.start(t);s.stop(t+dur+.4)}
+function guitarNotes(k){let r=midi(V[k].l[0][0]);while(r<40)r+=12;while(r>51)r-=12;const out=[r,r+7,r+12];
+  V[k].r.forEach(x=>{const pcv=midi(x[0])%12;let n=r+12;while(n%12!==pcv)n++;out.push(n)});return [...new Set(out)].sort((a,b)=>a-b)}
+function strumBar(k,t0,spb,beats){const ns=guitarNotes(k);
+  for(let b=0;b<beats;b++){const t=t0+b*spb;ns.forEach((m,i)=>pluck(m,t+i*.012,b%2===0?.16:.12,spb*.95));
+    if(b%2===1)ns.slice(-4).reverse().forEach((m,i)=>pluck(m,t+spb/2+i*.01,.08,spb*.45))}
+  for(let b=0;b<beats;b+=2)tone(ns[0]-12,t0+b*spb,spb*1.8,.2)}
+
+/* ---------- live keyboard (MIDI) ---------- */
+/* Tyros sends your hands on MIDI channels 1-4 (Right 1-3, Left) and the style band on 9-16; we only listen to your hands */
+const MID={ok:false,held:new Map(),subs:new Set(),name:''};
+const nn=m=>NAMES[((m%12)+12)%12].replace('#','♯');
+function paintMidi(){const b=document.getElementById('midiBtn');b.classList.toggle('on',MID.ok);
+  document.getElementById('midiTxt').textContent=MID.ok?'Listening: '+(MID.name.length>22?'keyboard':MID.name):'Connect keyboard'}
+function midiHelp(kind){const h=document.getElementById('midiHelp');h.hidden=false;
+  h.innerHTML=kind==='none'?`<h3>Connected, but no keyboard found</h3><p>Turn the Tyros on, plug in the Bluetooth MIDI dongle (or the USB cable to the iPad), then tap <b>Connect keyboard</b> again.</p><button class="btn small" data-x>Close</button>`
+  :`<h3>This browser can't hear your keyboard</h3><p>Safari on iPad doesn't let web pages hear a MIDI keyboard. Everything else here still works.</p>
+   <ol><li>Install the free <b>Web MIDI Browser</b> app from the App Store.</li><li>Pair the Yamaha Bluetooth MIDI dongle inside that app (or connect the Tyros to the iPad with a USB cable).</li><li>Open this coach page in that app and tap <b>Connect keyboard</b>.</li></ol>
+   <p class="note">On a Mac or Windows laptop, Chrome works without any extra app.</p><button class="btn small" data-x>Close</button>`;
+  h.querySelector('[data-x]').onclick=()=>h.hidden=true}
+function onMidi(e){const d=e.data;if(!d||d.length<3)return;const t=d[0]&0xf0,ch=d[0]&0x0f;if(ch>3)return;
+  if(t===0x90&&d[2]>0)MID.held.set(d[1],performance.now());else if(t===0x80||t===0x90)MID.held.delete(d[1]);else return;
+  MID.subs.forEach(f=>{try{f()}catch(err){}})}
+async function connectMidi(){if(!navigator.requestMIDIAccess){midiHelp('nosupport');return}
+  try{const acc=await navigator.requestMIDIAccess();
+    const hook=()=>{const n=[];acc.inputs.forEach(inp=>{inp.onmidimessage=onMidi;n.push(inp.name)});MID.name=n.join(', ');MID.ok=n.length>0;if(!MID.ok)MID.held.clear();paintMidi();MID.subs.forEach(f=>{try{f()}catch(err){}})};
+    acc.onstatechange=hook;hook();if(MID.ok){document.getElementById('midiHelp').hidden=true;toast('Keyboard connected. Play a chord.')}else midiHelp('none')}
+  catch(err){midiHelp('nosupport')}}
+document.getElementById('midiBtn').onclick=connectMidi;
+/* compare what's held with the chord on screen */
+function judge(k,xp){const want=[...V[k].l,...V[k].r].map(x=>midi(x[0]));const held=[...MID.held.keys()].sort((a,b)=>a-b);
+  if(!held.length)return{state:'idle',held};const hp=new Set(held.map(m=>m%12));
+  const test=sh=>{const wp=new Set(want.map(m=>(m+sh+120)%12));return{sh,missing:[...wp].filter(x=>!hp.has(x)),extra:[...hp].filter(x=>!wp.has(x))}};
+  let r=test(0);if(xp){const r2=test(xp);if(r2.missing.length+r2.extra.length<r.missing.length+r.extra.length)r=r2}
+  if(r.extra.length)return{state:'bad',held,...r};
+  if(r.missing.length)return{state:'part',held,...r};
+  const exact=want.every(m=>MID.held.has(m+r.sh));return{state:exact?'perfect':'ok',held}}
+function heardHTML(j,k){if(!MID.ok)return `<p class="note">Tap <b>Connect keyboard</b> at the top and I'll check each chord as you play it.</p>`;
+  if(j.state==='idle')return `<div class="what">Play ${nameOf(k)}</div><p class="note">Hold the chord down and I'll check it.</p>`;
+  const playing=`<p class="note">You're holding: ${j.held.map(nn).join(' ')}</p>`;
+  if(j.state==='perfect')return `<div class="what"><span class="v">✓ ${nameOf(k)}</span>, right notes in the right spot</div>${playing}`;
+  if(j.state==='ok')return `<div class="what"><span class="v">✓ ${nameOf(k)}</span>, right notes</div><p class="note">Different spot or order than the picture. That counts, but the picture's shape is the easiest move from the last chord.</p>${playing}`;
+  if(j.state==='part')return `<div class="what">Still need: ${j.missing.map(nn).join(', ')}</div>${playing}`;
+  return `<div class="what"><span class="v">✗ Wrong note${j.extra.length>1?'s':''}: ${j.extra.map(nn).join(', ')}</span></div>${j.missing.length?`<p class="note">${nameOf(k)} needs ${j.missing.map(nn).join(', ')} instead.</p>`:''}${playing}`}
+/* results log, kept on this device, written so you can paste it to Claude */
+function logRun(entry){const L=store.get('bkc-midi-log',[]);L.push(entry);store.set('bkc-midi-log',L.slice(-60))}
+function resultsText(){const L=store.get('bkc-midi-log',[]);if(!L.length)return 'No results yet.';
+  return 'My keyboard coach results:\n'+L.slice(-15).map(e=>`${e.d} · ${e.label} · ${e.kind==='auto'?`with the band: ${e.ontime} of ${e.total} chord changes on time`:`${e.clean} of ${e.total} chords played clean`}${e.slips&&e.slips.length?` · slips: ${e.slips.join('; ')}`:''}`).join('\n')}
+function copyResults(btn){const t=resultsText();const done=()=>toast('Copied. Paste it to Claude to shape the next lesson.');
+  const fallback=()=>{let ta=btn.parentElement.querySelector('textarea');if(!ta){ta=document.createElement('textarea');ta.className='copybox';ta.rows=6;ta.id='copybox';btn.parentElement.appendChild(ta)}ta.value=t;ta.focus();ta.select();toast('Select all and copy this text.')};
+  try{navigator.clipboard.writeText(t).then(done,fallback)}catch(err){fallback()}}
+
+let activeAuto=null;
+function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).slice(2,7);
+  let peeks=0,peek=false,auto=false,tmr=null,beats=4,cur=0,sound=store.get('bkc-sound','guitar'),xp=store.get('bkc-xp-'+label,def||0);
+  /* listening state */
+  let listenOn=store.get('bkc-listen',true),clean=0,total=0,slips=[],dirty=false,settle=null,badT=null,advancedAt=0;
+  let bar=null,aTotal=0,aOn=0;
+  const today=()=>new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  const slip=t=>{if(!slips.includes(t))slips.push(t)};
+  const good=j=>j.state==='perfect'||j.state==='ok';
+  const closeBar=()=>{if(!bar)return;aTotal++;if(bar.hit&&!bar.late)aOn++;else slip(nameOf(keys[bar.i])+(bar.hit?': changed late':': missed'));bar=null};
+  const paintScore=()=>{const el=document.getElementById(id);const sc=el&&el.querySelector('[data-score]');if(!sc)return;
+    sc.innerHTML=MID.ok?(auto?`With the band: <b>${aOn} of ${aTotal}</b> changes on time`:`Clean chords this run: <b>${clean} of ${total}</b>`):'';};
+  const sub=()=>{const el=document.getElementById(id);if(!el){MID.subs.delete(sub);return}
+    const k=keys[cur],j=judge(k,xp),box=el.querySelector('[data-h]');
+    if(box){box.className='heard'+(good(j)?' good':j.state==='bad'?' bad':'');box.innerHTML=heardHTML(j,k)}
+    if(!MID.ok)return;
+    if(!el.querySelector('[data-score]')){draw(cur,false,true);return}
+    if(auto){if(bar&&!bar.hit&&good(j)){bar.hit=true;bar.late=performance.now()-bar.t>60000/metro.bpm}paintScore();return}
+    const fresh=j.held.some(m=>(MID.held.get(m)||0)>advancedAt);
+    if(j.state==='bad'&&fresh){if(!badT)badT=setTimeout(()=>{badT=null;const j2=judge(keys[cur],xp);if(j2.state==='bad'){dirty=true;slip(nameOf(keys[cur])+': played '+j2.extra.map(nn).join(' ')+(j2.missing.length?' instead of '+j2.missing.map(nn).join(' '):''))}},450)}
+    else{clearTimeout(badT);badT=null}
+    if(listenOn&&good(j)){if(!settle)settle=setTimeout(()=>{settle=null;if(auto||!good(judge(keys[cur],xp)))return;
+        total++;if(!dirty)clean++;dirty=false;advancedAt=performance.now();
+        if(cur===keys.length-1){logRun({d:today(),label,kind:'steps',clean,total,slips:slips.slice(0,6)});toast(`Done: ${clean} of ${total} clean.${clean===total?' Perfect run!':' Go again?'}`);clean=0;total=0;slips=[];draw(0,false)}
+        else draw(cur+1,false)},350)}
+    else{clearTimeout(settle);settle=null}};
+  MID.subs.add(sub);
+  const keyName=()=>{const r=midi(V[keys[0]].l[0][0])+xp;return NAMES[((r%12)+12)%12].replace('#','♯')+(nameOf(keys[0]).endsWith('m')?'m':'')};
+  const stop=()=>{if(auto&&MID.ok){closeBar();if(aTotal>=keys.length){logRun({d:today(),label,kind:'auto',ontime:aOn,total:aTotal,slips:slips.slice(0,6)});toast(`With the band: ${aOn} of ${aTotal} changes on time.`)}}
+    aTotal=0;aOn=0;bar=null;slips=[];auto=false;clearTimeout(tmr);if(activeAuto===stop)activeAuto=null};
+  const tick=i=>{if(!auto)return;closeBar();bar={i,t:performance.now()+30,hit:false,late:false};draw(i,false);if(good(judge(keys[i],xp)))bar.hit=true;const a=ac();if(!a)return;const spb=60/metro.bpm,t0=a.currentTime+.03;
+    XP=xp;if(sound==='guitar')strumBar(keys[i],t0,spb,beats);else{playChord(keys[i],t0,spb*beats*.95);for(let b=0;b<beats;b++)click(t0+b*spb,b===0)}XP=0;
+    tmr=setTimeout(()=>{if(!auto)return;tick((i+1)%keys.length)},spb*beats*1000)};
+  const start=from=>{if(activeAuto)activeAuto();const a=ac();if(!a)return;keepAwake();auto=true;activeAuto=()=>{stop();draw(cur,false)};
+    const spb=60/metro.bpm,t0=a.currentTime+.05;for(let b=0;b<4;b++)click(t0+b*spb,b===0);toast('Count-in: 1, 2, 3, 4');draw(from,false);
+    tmr=setTimeout(()=>tick(from),spb*4*1000)};
+  const draw=(i,play,keepPeek)=>{if(!keepPeek)peek=false;if(i!==cur)advancedAt=performance.now();cur=i;const el=document.getElementById(id);if(!el)return;const k=keys[i],nx=keys[i+1];const show=!opts.hide||peek;
+    el.innerHTML=`<div class="lbl"><strong>${label}</strong><span class="notes">Chord ${i+1} of ${keys.length}</span></div>
+    <div class="chips" style="margin-top:6px">${keys.map((x,j)=>`<button class="chip" data-j="${j}" aria-pressed="${j===i}">${nameOf(x)}</button>`).join('')}</div>
+    ${show?`<div class="walkbox"><h3>${nameOf(k)}</h3><p class="hands">${handsText(k)}</p>${i>0?`<p class="hands move">${moveText(keys[i-1],k)}</p>`:''}${rearr(k)}</div>
+    <div class="kb">${keyboard(chordMarks(k))}</div>${LEGEND}`:`<div class="memory"><div class="big">${nameOf(k)}</div><p class="note">Play it from memory.</p><button class="btn small" data-a="peek">Stuck? Peek at the picture</button><p class="note">Peeks so far: <b>${peeks}</b></p></div>`}
+    <div class="heard" data-h></div>
+    <div class="walknav"><button class="btn small" data-a="prev" ${i===0?'disabled':''}>◀ Prev chord</button><button class="btn small" data-a="next">${nx?'Next chord: '+nameOf(nx)+' ▶':'Start over ↺'}</button></div>
+    <div class="autobar"><button class="btn ${auto?'':'primary'}" data-a="auto">${auto?'■ Stop':'▶ Auto-play'}</button>
+     <label class="note">Beats per chord <select data-a="beats">${[2,4,8].map(n=>`<option ${n===beats?'selected':''}>${n}</option>`).join('')}</select></label>
+     <label class="note">Sound <select data-a="sound"><option value="guitar" ${sound==='guitar'?'selected':''}>Guitar backing</option><option value="piano" ${sound==='piano'?'selected':''}>Piano + click</option></select></label>
+     <span class="keyctl"><span class="note">Sounds in</span><button class="btn small" data-a="kdn" aria-label="Lower key">−</button><b>${keyName()}</b><button class="btn small" data-a="kup" aria-label="Higher key">+</button></span>
+     <span class="tempo"><button class="btn small" data-a="slower" aria-label="Slower">−</button><span class="bpm">${metro.bpm} bpm</span><button class="btn small" data-a="faster" aria-label="Faster">+</button></span></div>
+    ${MID.ok?`<div class="score"><span data-score></span><button class="btn small" data-a="listen" aria-pressed="${listenOn}">${listenOn?'Auto-advance: on':'Auto-advance: off'}</button><button class="btn small" data-a="copy">Copy my results for Claude</button></div>`:''}`;
+    const la=el.querySelector('[data-a=listen]');if(la)la.onclick=()=>{listenOn=!listenOn;store.set('bkc-listen',listenOn);draw(cur,false,true)};
+    const cp=el.querySelector('[data-a=copy]');if(cp)cp.onclick=()=>copyResults(cp);
+    el.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{stop();draw(+b.dataset.j,true)});
+    el.querySelector('[data-a=prev]').onclick=()=>{stop();draw(Math.max(0,i-1),true)};
+    el.querySelector('[data-a=next]').onclick=()=>{stop();draw((i+1)%keys.length,true)};
+    el.querySelector('[data-a=auto]').onclick=()=>{if(auto){stop();draw(i,false)}else start(i)};
+    const pk=el.querySelector('[data-a=peek]');if(pk)pk.onclick=()=>{peeks++;peek=true;draw(cur,false,true)};
+    const setKey=d=>{xp=Math.min(6,Math.max(-6,xp+d));store.set('bkc-xp-'+label,xp);draw(cur,true)};
+    el.querySelector('[data-a=kdn]').onclick=()=>setKey(-1);el.querySelector('[data-a=kup]').onclick=()=>setKey(1);
+    el.querySelector('[data-a=sound]').onchange=e=>{sound=e.target.value;store.set('bkc-sound',sound)};
+    el.querySelector('[data-a=beats]').onchange=e=>{beats=+e.target.value;store.set('bkc-beats',beats)};
+    const tempo=d=>{metro.bpm=Math.min(140,Math.max(40,metro.bpm+d));store.set('bkc-bpm',metro.bpm);el.querySelector('.tempo .bpm').textContent=metro.bpm+' bpm'};
+    el.querySelector('[data-a=slower]').onclick=()=>tempo(-4);el.querySelector('[data-a=faster]').onclick=()=>tempo(4);
+    if(play){XP=xp;playChord(k);XP=0}
+    paintScore();sub()};
+  setTimeout(()=>draw(0,false));return `<div class="diagram walker card" id="${id}"></div>`}
+function listen(q){return `<p style="margin-top:8px"><a class="btn small" style="display:inline-block;text-decoration:none" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}">Listen to the real song ↗</a> <span class="note">The chord button plays chords only, not the melody.</span></p>`}
+function diagramScale(marks,label,playList){const id='s'+Math.random().toString(36).slice(2,7);
+  setTimeout(()=>{const b=document.getElementById(id);if(!b)return;b.onclick=()=>{const a=ac();if(!a)return;const list=playList||marks.map(x=>x.n),gap=.7,kb=document.getElementById(id+'k'),now=document.getElementById(id+'n');
+    b.disabled=true;const t0=a.currentTime+.05;
+    list.forEach((n,i)=>{tone(midi(n),t0+i*gap,.6,.14);setTimeout(()=>{const mk=marks.find(x=>x.n===n)||{n,h:'r'};kb.innerHTML=keyboard(marks.map(x=>x.n===n?{...x,h:'m'}:x));
+      now.innerHTML=`Now: <b>${mk.h==='l'?'left':'right'} hand, finger ${mk.f}</b> on ${pc(n).replace('#','♯')}`},i*gap*1000+50)});
+    setTimeout(()=>{kb.innerHTML=keyboard(marks);now.textContent='Your turn: play it just like that, same fingers, same speed.';b.disabled=false},list.length*gap*1000+400)}});
+  return `<div class="diagram"><div class="lbl"><strong>${label}</strong><button class="btn small" id="${id}">▶ Watch demo</button></div><div class="kb" id="${id}k">${keyboard(marks)}</div><p class="now" id="${id}n">Tap Watch demo: each key lights up gold as it plays, with the finger to use.</p></div>`}
+
+/* ---------- songs used in lessons ---------- */
+const SONG={
+ siman:()=>listen("siman tov umazal tov")+`<p class="note">Two chord charts I checked disagree on the order, so these are the chords it uses, not the song's order. Use your ear with the recording to find where each one goes.</p>`+walker(['Amm','Dmm','Em','Cs'],'Chords in Siman Tov'),
+ hash2:()=>walker(['Cs','Gs','Ams','Fs'],'C → G → Am → F'),
+ hinei:()=>diagramProg(['Amm','Dmm','Em','Amm'],'Hinei Ma Tov: Am → Dm → E → Am'),
+ hash:()=>listen('חנן בן ארי השיבנו')+walker(['Amm','Gs','Amm','Dmm','Gs','Dmm','Cs','Amm','Gs','Fs','Gs','Amm'],'Hashivenu, all the chords in order',5)
+};
+
+/* ---------- lessons ---------- */
+const RH5=(notes,fs)=>notes.map((n,i)=>({n,f:fs[i],h:'r'}));
+const LESSONS=[
+{id:'l1',title:'Lesson 1 · Four chords in C',status:'review',goal:'Play C, G, Am and F with your right hand and put the root under them with your left.',steps:[
+ {t:'Warm up',min:3,b:`<p>Tap <b>Auto-play</b> and just listen to the four chords you'll learn today. Watch the picture change with each one.</p>`,d:()=>walker(['C','G','Am','F'],'C → G → Am → F')},
+ {t:'Find the four chords',min:5,b:`<p>Right hand only. Thumb on the lowest note, middle finger in the middle, pinky on top. Press all three together, lift, release your hand, repeat.</p>`,d:()=>['C','G','Am','F'].map(k=>diagramChord(k,{hands:'r'})).join('')+LEGEND},
+ {t:'Left hand: just the root',min:5,b:`<p>The <b>root</b> is the note the chord is named after. C chord → play a C. Am → play an A.</p><p>Left hand alone, pinky on each root, slow: <b>C → G → A → F</b>.</p>`,d:()=>diagramScale([{n:'C3',f:5,h:'l'},{n:'G2',f:5,h:'l'},{n:'A2',f:5,h:'l'},{n:'F2',f:5,h:'l'}],'Roots: C · G · A · F',['C3','G2','A2','F2'])},
+ {t:'Hands together',min:8,b:`<p>Play the root and the chord at the same moment. Count 4 slow beats on each chord.</p><div class="say">C (1-2-3-4) → G → Am → F → back to C</div><p>Use the metronome at 60. If you stumble, slow down rather than stopping.</p>`,d:()=>diagramProg(['C','G','Am','F'])+['C','G','Am','F'].map(k=>diagramChord(k)).join('')},
+ {t:'Play along with the guitar',min:5,b:`<p>Tap <b>Auto-play</b> and change chords along with the guitar. Both hands, matching the picture. Every chord starts on its own name note, the same shapes as step 2.</p>`,d:()=>walker(['C','G','Am','F'],'C → G → Am → F')}
+]},
+{id:'l2',title:'Lesson 2 · Smooth accompaniment',status:'review',goal:'Play C → G → Am → F without your right hand jumping around.',steps:[
+ {t:'Warm up',min:3,b:`<p>Right hand, thumb on middle C. Slowly, <b>3–4 times only</b>:</p><div class="say">C D E F G F E D C &nbsp;·&nbsp; 1 2 3 4 5 4 3 2 1</div><p>Hand rounded like you're holding a small ball. Let the pinky sit where it naturally sits. Light presses. Then shake the hand out.</p>`,d:()=>diagramScale(RH5(['C4','D4','E4','F4','G4'],[1,2,3,4,5]),'C five-finger position',['C4','D4','E4','F4','G4','F4','E4','D4','C4'])},
+ {t:'Same chords, closer together',min:6,b:`<p><b>Why this is allowed:</b> a chord is just its three notes. The order doesn't change which chord it is. G is G, B and D, whether you play G B D or B D G. Your left hand plays G underneath, so your ear still hears G.</p><p><b>Try it:</b> left hand on G. Right hand plays G B D, then B D G. Both sound like G.</p><p><b>Why bother:</b> it lets your hand stay put. From C (C E G), the nearest G, B and D are right there: G stays where it is, C slides down to B, E slides down to D. Tiny moves instead of a jump. The same trick keeps C on the bottom for C, Am and F.</p><p>This is how keyboard players sound smooth and change chords fast.</p>`,d:()=>['Cs','Gs','Ams','Fs'].map(k=>diagramChord(k,{hands:'r'})).join('')+LEGEND},
+ {t:'Hands together',min:8,b:`<p>Left hand roots (C, G, A, F) with the pinky, right hand in the smooth shapes. 4 beats per chord, metronome 60–70.</p>`,d:()=>diagramProg(['Cs','Gs','Ams','Fs'])+['Cs','Gs','Ams','Fs'].map(k=>diagramChord(k)).join('')},
+ {t:'Eyes off the page',min:3,b:`<p>Play the four chords 4 times <b>without looking at the screen</b>. Say the chord names out loud as you change.</p><div class="say">C → G → Am → F</div>`},
+ {t:'Play along with the guitar',min:5,b:`<p>Tap <b>Auto-play</b> and play the smooth shapes along with the guitar. Notice how little your right hand moves.</p>`,d:()=>SONG.hash2()}
+]},
+{id:'l3',title:'Lesson 3 · The Jewish minor sound',status:'review',goal:'Play Am → Dm → E → Am, the three chords under a huge number of minor niggunim.',steps:[
+ {t:'Warm up: the four chords you know',min:3,b:`<p>Warm up with Lesson 2's smooth shapes: <b>C → G → Am → F</b>, 4 slow beats each. Tap Auto-play and change chords with the guitar.</p>`,d:()=>walker(['Cs','Gs','Ams','Fs'],'Warm-up')},
+ {t:'Pinky bursts, both hands',min:3,b:`<p>Short bursts only: <b>30–60 seconds</b>, rest, repeat 3 times. Stop at tiredness, don't push through soreness.</p><p>Right hand: thumb on A. Left hand: pinky on A (an octave lower).</p>`,d:()=>diagramScale([...RH5(['A3','B3','C4','D4','E4'],[1,2,3,4,5]),{n:'A2',f:5,h:'l'},{n:'B2',f:4,h:'l'},{n:'C3',f:3,h:'l'},{n:'D3',f:2,h:'l'},{n:'E3',f:1,h:'l'}],'A five-finger position, both hands',['A3','B3','C4','D4','E4','D4','C4','B3','A3'])+LEGEND},
+ {t:'Meet Am, Dm and E',min:6,b:`<p>The secret ingredient is the <b>E chord</b>: it's E <b>major</b> (with G♯), not E minor. That G♯ is what makes it sound Jewish rather than generic sad-minor.</p><p>Watch how little your right hand moves between these shapes.</p>`,d:()=>['Amm','Dmm','Em'].map(k=>diagramChord(k,{hands:'r'})).join('')+LEGEND},
+ {t:'Hands together',min:7,b:`<p>Left hand pinky on the roots <b>A → D → E → A</b>. Right hand in the shapes above. 4 slow beats each, metronome 60.</p><div class="say">Am → Dm → E → Am</div><p>Listen to how the E chord "pulls" back home to Am. That pull is the sound you'll hear all over shul.</p>`,d:()=>diagramProg(['Amm','Dmm','Em','Amm'])+['Amm','Dmm','Em'].map(k=>diagramChord(k)).join('')},
+ {t:'Ear test',min:4,b:`<p>No singing needed. Let the app hold the chord while your right hand tests notes.</p><ul><li>Tap <b>Auto-play</b>. The guitar plays Am, then Dm, then E.</li><li>While each chord plays, put your right hand in the A five-finger position (thumb on A) and play A, B, C, D, E one at a time.</li><li>Listen: some notes sound <b>settled</b>, others <b>rub</b>. The settled ones are the notes inside that chord.</li></ul><p>On Am, A, C and E should feel settled. On Dm, listen for D and F. On E, listen for E and B. You're training your ear to hear which notes belong to which chord, which is how you'll find chords under a melody.</p>`,d:()=>walker(['Amm','Dmm','Em'],'Ear test chords')+diagramScale(RH5(['A3','B3','C4','D4','E4'],[1,2,3,4,5]),'Right hand: A five-finger position')},
+ {t:'Play for fun: jam on the minor sound',min:4,b:`<p>Tap <b>Auto-play</b>. The guitar loops <b>Am → Dm → E → Am</b>.</p><p>Your right hand stays in the A five-finger position and makes up a tune over it, any notes you like. Lean on the notes that sounded settled in the ear test. This is how keyboard players improvise over a niggun.</p><p>Then tell me how the lesson went and I'll shape the next one.</p>`,d:()=>walker(['Amm','Dmm','Em','Amm'],'Jam loop')}
+]},
+{id:'l4',title:'Lesson 4 · Know it without looking',status:'review',goal:'Play Am, Dm and E from memory, so you don\'t need the picture.',steps:[
+ {t:'Warm up with the picture',min:3,b:`<p>Tap <b>Auto-play</b> and play the minor loop with the picture, like last time. Both hands.</p>`,d:()=>walker(['Amm','Dmm','Em','Amm'],'Minor loop')},
+ {t:'Three memory tricks',min:5,b:`<p>You don't have to memorize three separate shapes. Remember these instead:</p>
+  <div class="say">Left hand: the chord's name IS the note. Am → A. Dm → D. E → E.</div>
+  <ul><li><b>Am:</b> thumb on A, then skip one, take one: <b>A C E</b>. All white keys.</li>
+  <li><b>Dm:</b> thumb <b>stays</b> on A. Your other two fingers each step up one key: <b>A D F</b>.</li>
+  <li><b>E:</b> the only one with a black key. Thumb slides down onto the black key <b>G♯</b>, then <b>B</b> and <b>E</b>.</li></ul>
+  <p>Tap through the chords below and say each trick out loud as you play it.</p>`,d:()=>walker(['Amm','Dmm','Em'],'Check each trick')},
+ {t:'Picture off: in order',min:5,b:`<p>Now the picture is hidden. You'll only see the chord name. Play it from memory, then tap <b>Next chord</b>.</p><p>Stuck? Tap <b>Peek</b>. Peeking is fine: each peek is a rep that helps it stick.</p>`,d:()=>walker(['Amm','Dmm','Em','Amm'],'From memory',0,{hide:true})},
+ {t:'Picture off: mixed up',min:5,b:`<p>Same thing, but the chords come in a random-feeling order, so you can't just follow the pattern. Name, then play.</p>`,d:()=>walker(['Dmm','Em','Amm','Em','Dmm','Amm','Dmm','Em'],'Mixed order',0,{hide:true})},
+ {t:'Jam without the picture',min:5,b:`<p>Tap <b>Auto-play</b>. The guitar loops Am → Dm → E → Am and you only see the names. Left hand plays the chord, right hand adds a little melody, like your jam in Lesson 3.</p><p>Then tell me how many peeks you needed. That tells me whether to move on or repeat this.</p>`,d:()=>walker(['Amm','Dmm','Em','Amm'],'Jam from memory',0,{hide:true})}
+]},
+{id:'t1',title:'Tyros 1 · Make the band follow you',status:'today',goal:'Turn on the Tyros 5 band and drive it with the left-hand chords you already know.',steps:[
+ {t:'Get set up',min:3,b:`<p>The Tyros needs the step-down transformer (230V to 120V) before it can be switched on. Never plug it straight into an Israeli outlet.</p><ul><li>Transformer into the wall, Tyros into the transformer, then power on.</li><li>Master volume low to start.</li></ul>`},
+ {t:'Pick a style',min:3,b:`<p>A <b>style</b> is the band: drums, bass, guitars, all playing together.</p><ul><li>Press one of the <b>STYLE</b> category buttons. A list opens on the screen.</li><li>Press one of the buttons <b>[A]–[J]</b> beside the screen to choose a style. Start with any upbeat one.</li></ul>`},
+ {t:'Let your left hand lead the band',min:5,b:`<ul><li>Press <b>[ACMP]</b> so the light is on. Now the left part of the keyboard tells the band which chord to play.</li><li>Press <b>[SYNC START]</b>. The band is waiting.</li><li>Play <b>Am</b> with your left hand. The band starts, in Am.</li><li>Press <b>[START/STOP]</b> to stop.</li></ul><p>Below are the left-hand chord shapes: pinky on the bottom, thumb on top.</p>`,d:()=>walker(['AmL','DmL','EL'],'Left-hand chords')},
+ {t:'Change chords, the band follows',min:6,b:`<p>Start the band with Am again, then change your left hand: <b>Am → Dm → E → Am</b>, 4 beats each. The whole band changes chord with you.</p><p>This is why the chord lessons matter: your left hand is now steering a full band.</p>`,d:()=>walker(['AmL','DmL','EL','AmL'],'Left hand drives the band')},
+ {t:'Give your right hand a sound',min:4,b:`<ul><li>Press one of the <b>ONE TOUCH SETTING</b> buttons (1–4). The Tyros picks a right-hand sound that suits the style.</li><li>Or choose your own: press <b>PART SELECT [RIGHT 1]</b>, make sure <b>PART ON/OFF [RIGHT 1]</b> is on, press a <b>VOICE</b> button such as <b>[PIANO]</b>, then pick with <b>[A]–[J]</b>.</li></ul>`},
+ {t:'Play for fun: one-man band',min:5,b:`<p>Band on, left hand looping Am → Dm → E → Am, right hand playing a little melody on top, like your jam in Lesson 3. That's the one-man band.</p><p>Next Tyros lesson: intros, fills, breaks and endings, so you can start and finish a song like a pro.</p>`}
+]}
+];
+const ROADMAP=[
+ ['Lesson 5 · Hear the chord from the melody','Use the Find the chord tab: the melody note on the strong beat is almost always one of the chord\'s three notes.'],
+ ['Lesson 6 · Move to the key of G','G → D → Em → C. Same pattern as C → G → Am → F, so your hands already know it. Lots of shul songs sit in G or D.'],
+ ['Lesson 7 · Root + fifth in the left hand','A fuller bass that fills the room without drowning the singing.'],
+ ['Lesson 8 · Your shul\'s songs','Chord charts for the songs Nishmas Mishkafayim actually sings.']
+];
+
+/* ---------- the 'why' beside each step ---------- */
+const WHYSTEP={
+ l1:["Starting with real music keeps you motivated. Hashivenu uses mostly this lesson's chords, so you hear right away how four chords make a real song.",
+  "Every chord is built the same way: take a note, skip one, take one, skip one, take one. That's why one 1-3-5 hand shape works for all four; only the starting key changes. C, G and F sound bright (major). Am sounds darker (minor) because its middle note sits one half step lower.",
+  "The root is the note a chord is built on and named after. Played low, it's the foundation the ear hangs the chord on, the same job a bass player does. Left pinky is your lowest finger, so it takes the lowest note and leaves your thumb free for higher notes later.",
+  "C, G, Am and F all come from the same 7-note family (the white keys), so they share notes and flow into each other. That's why this order shows up in hundreds of songs. Changing on the beat matters more than speed: when you play with others, being on time is what makes you sound right.",
+  "Same chords inside a real song. Hashivenu's home is Am, but it borrows C, G and F, because they all come from the same white-key family."],
+ l2:["Five fingers on five neighboring keys means your hand doesn't have to move. Training each finger to press its own key, especially the pinky, is what removes the jumping that slows you down. Few reps and light presses: you're training control, not strength.",
+  "Chords next to each other share notes. C and Am share C and E. C and F share C. Keep the shared notes still and move only what changes, by the smallest step. It sounds smoother and your hand barely moves. The fingers change (1-2-5 instead of 1-3-5) because the gaps between the notes changed.",
+  "Your right hand rearranged the notes, but the left hand still plays the root. The lowest note is what tells the ear which chord it is, so it still sounds like C, G, Am, F.",
+  "At shul there's no screen. Saying the names out loud ties together three things: the sound, the hand shape and the name. That's what lets you recall a chord instantly.",
+  "This is where the smooth shapes pay off: chords change quickly in real songs, and a hand that barely moves keeps up."],
+ l3:["Starting with shapes you already own warms up your hands and makes the new material easier to absorb.",
+  "The A five-finger position sits right where the A minor chords live. Short bursts with rest build control. Pushing through soreness builds tension, and tension makes playing worse.",
+  "Using only A minor's white keys, the chord on E would be E G B, which is E minor. Jewish music raises the G to G♯. G♯ is one half step below A, so it pulls hard toward home. That pull, plus the F-to-G♯ gap, is the Jewish minor sound.",
+  "Am is home, Dm moves away, E builds tension, and Am releases it. Away, tension, home is the basic story of most songs. Once you hear that story, you can predict chord changes by ear.",
+  "A held chord starts to sound wrong when the melody moves to notes the chord doesn't contain. Noticing that moment is the core skill of finding chords by ear.",
+  "Making up a tune over chords is improvising. Notes inside the current chord always sound safe, so they're the ones to land on."],
+ l4:["Warming up on chords you know means that when the new rhythm arrives, it's the only new thing.",
+  "Simcha music leans on beats 1 and 3, with a lighter lift on 2 and 4. Low bass on 1 and 3 plus a short chord on 2 and 4 makes the oom-pah that gets people dancing. A band splits the same job between bass and guitar.",
+  "With only two chords, all your attention goes to keeping the bounce steady while you change.",
+  "Chords plus rhythm together is what accompaniment is. This is the job you'll do at shul.",
+  "The same groove in a different song shows the bounce is a tool you can use on almost any simcha tune."]
+};
+
+/* ---------- lesson state ---------- */
+let prog=store.get('bkc-prog',{});
+let curLesson=store.get('bkc-cur','l3');
+function lp(id){if(!prog[id])prog[id]={step:0,done:[]};return prog[id]}
+function save(){store.set('bkc-prog',prog);store.set('bkc-cur',curLesson)}
+
+/* ---------- timer & metronome ---------- */
+const timer={left:0,running:false,iv:null};
+const metro={on:false,bpm:store.get('bkc-bpm',60),next:0,beat:0,iv:null};
+function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function startTimer(){if(timer.running)return;ac();keepAwake();timer.running=true;const end=Date.now()+timer.left*1000;
+  timer.iv=setInterval(()=>{timer.left=(end-Date.now())/1000;if(timer.left<=0){timer.left=0;stopTimer();chime()}paintTimer()},250);paintTimer()}
+function stopTimer(){timer.running=false;clearInterval(timer.iv);paintTimer()}
+function chime(){const a=ac();if(!a)return;const t=a.currentTime;[72,76,79].forEach((m,i)=>tone(m,t+i*.15,.6,.12));toast('Time\'s up. Finish your rep, then tap Next.')}
+function paintTimer(){const el=document.getElementById('tt');if(!el)return;el.textContent=fmt(timer.left);el.classList.toggle('end',timer.left<=0);
+  const b=document.getElementById('tbtn');if(b)b.textContent=timer.running?'Pause':(timer.left<=0?'Restart':'Start timer')}
+function metroTick(){const a=ac();while(metro.next<a.currentTime+.12){const acc=metro.beat%4===0;click(metro.next,acc);
+  const b=metro.beat%4,d=(metro.next-a.currentTime)*1000;setTimeout(()=>{document.querySelectorAll('.beat').forEach((e,i)=>e.classList.toggle('on',i===b))},Math.max(0,d));
+  metro.next+=60/metro.bpm;metro.beat++}}
+function toggleMetro(){const a=ac();if(!a)return;metro.on=!metro.on;if(metro.on){keepAwake();metro.beat=0;metro.next=a.currentTime+.08;metro.iv=setInterval(metroTick,25)}else{clearInterval(metro.iv);document.querySelectorAll('.beat').forEach(e=>e.classList.remove('on'))}
+  const b=document.getElementById('mbtn');if(b)b.textContent=metro.on?'Stop':'Metronome'}
+
+/* ---------- render lesson ---------- */
+function renderLesson(){
+  const L=LESSONS.find(l=>l.id===curLesson)||LESSONS[2];const P=lp(L.id);const i=Math.min(P.step,L.steps.length-1);const S=L.steps[i];
+  const tagTxt={review:'Review',today:'Today',next:'Up next'};
+  const total=L.steps.reduce((a,s)=>a+s.min,0);
+  const el=document.getElementById('tab-lesson');
+  el.innerHTML=`<div class="stack">
+   <div class="chips" role="group" aria-label="Lessons">${LESSONS.map(l=>`<button class="chip" data-l="${l.id}" aria-pressed="${l.id===L.id}">${l.title.split(' · ')[0]}<span class="tag ${l.status}">${tagTxt[l.status]}</span></button>`).join('')}</div>
+   <div class="lessonhead"><div class="eyebrow">${L.title.split(' · ')[0]} · about ${total} min</div><h2>${L.title.split(' · ')[1]}</h2><p>${L.goal}</p>
+    <div class="progress">${L.steps.map((s,j)=>`<span data-s="${j}" title="${s.t}" class="${j===i?'cur':P.done.includes(j)?'done':''}"></span>`).join('')}</div></div>
+   <article class="card">
+    <div class="stephead"><div><div class="eyebrow">Step ${i+1} of ${L.steps.length}</div><h3>${S.t}</h3></div><div class="min">${S.min} min</div></div>
+    <div class="split"><div><div class="body">${S.b}</div>${(WHYSTEP[L.id]||[])[i]?`<aside class="whybox"><div class="eyebrow">Why this works</div><p>${WHYSTEP[L.id][i]}</p></aside>`:''}</div>${S.d?`<div class="diags">${S.d()}</div>`:''}</div>
+    <div class="timer"><span class="t" id="tt"></span><button class="btn small" id="tbtn"></button>
+     <span class="metro" style="margin-left:auto"><button class="btn small" id="mbtn">${metro.on?'Stop':'Metronome'}</button></span></div>
+    <div class="metro" style="margin-top:8px"><span class="bpm" id="bpmv">${metro.bpm} bpm</span><input type="range" id="bpm" min="40" max="140" step="2" value="${metro.bpm}" aria-label="Tempo"><span class="beat"></span><span class="beat"></span><span class="beat"></span><span class="beat"></span></div>
+    <div class="controls"><button class="btn" id="prev" ${i===0?'disabled':''}>Back</button><button class="btn primary" id="next">${i===L.steps.length-1?'Finish lesson':'Done · Next step'}</button></div>
+   </article>
+   ${false?`<div class="card"><div class="eyebrow">Coming after this</div><ul class="roadmap" style="margin:8px 0 0;padding-left:20px">${ROADMAP.map(r=>`<li><b>${r[0]}</b>: ${r[1]}</li>`).join('')}</ul></div>`:''}
+   <div class="card"><div class="eyebrow">microARRANGER setup</div><ul style="margin:8px 0 0;padding-left:20px">
+    <li>Pick a plain acoustic piano sound and turn the auto-accompaniment off while practicing, so <b>your</b> left hand makes the chord.</li>
+    <li>The mini keys are narrow: play on your fingertips, keep the hand rounded. Fingerings here carry over to full-size keys.</li>
+    <li>This page keeps your screen on while the timer or metronome runs.</li></ul></div>
+  </div>`;
+  if(!timer.running){timer.left=S.min*60}
+  paintTimer();
+  el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{curLesson=b.dataset.l;stopTimer();timer.left=0;save();renderLesson();scrollTo(0,0)});
+  el.querySelectorAll('.progress span').forEach(s=>s.onclick=()=>{P.step=+s.dataset.s;stopTimer();save();renderLesson()});
+  document.getElementById('tbtn').onclick=()=>{if(timer.running)stopTimer();else{if(timer.left<=0)timer.left=S.min*60;startTimer()}};
+  document.getElementById('mbtn').onclick=toggleMetro;
+  document.getElementById('bpm').oninput=e=>{metro.bpm=+e.target.value;document.getElementById('bpmv').textContent=metro.bpm+' bpm';store.set('bkc-bpm',metro.bpm)};
+  document.getElementById('prev').onclick=()=>{P.step=Math.max(0,i-1);stopTimer();save();renderLesson();scrollTo(0,0)};
+  document.getElementById('next').onclick=()=>{if(!P.done.includes(i))P.done.push(i);stopTimer();
+    if(i<L.steps.length-1){P.step=i+1}else{toast('Lesson complete. Tell Claude how it went.');P.step=0}
+    save();renderLesson();scrollTo(0,0)};
+}
+
+/* ---------- chords tab ---------- */
+const FAMS=[
+ {t:'Key of C · the four everyday chords',d:'Most happy songs live here. Smooth shapes from Lesson 2.',k:['Cs','Gs','Ams','Fs']},
+ {t:'A minor · the Jewish minor sound',d:'Am, Dm and E (major!). The backbone of countless niggunim.',k:['Amm','Dmm','Em']},
+ {t:'Key of G · same pattern, moved',d:'G → D → Em → C works exactly like C → G → Am → F. Coming in Lesson 6.',k:['Gg','Dg','Emg','Cg']}
+];
+function renderChords(){const el=document.getElementById('tab-chords');
+  el.innerHTML=FAMS.map(f=>`<div class="fam"><h2>${f.t}</h2><p>${f.d}</p>${diagramProg(f.k)}<div class="grid2">${f.k.map(k=>`<div class="card">${diagramChord(k)}</div>`).join('')}</div></div>`).join('')+`<div style="margin-top:12px">${LEGEND}</div>`}
+
+/* ---------- fit tab ---------- */
+const FITKEYS={
+ C:{label:'Key of C',notes:['C','D','E','F','G','A','B'],chords:['Cs','Gs','Ams','Fs'],oct:4},
+ Am:{label:'A minor',notes:['A','B','C','D','E','F','G#'],chords:['Amm','Dmm','Em'],oct:4},
+ G:{label:'Key of G',notes:['G','A','B','C','D','E','F#'],chords:['Gg','Dg','Emg','Cg'],oct:4}
+};
+let fitKey='C',fitNote=null;
+/* right-hand chord with the melody note on top (pinky) */
+const mname=m=>NAMES[m%12]+(Math.floor(m/12)-1);
+function topVoicing(k,mpc){const pcs=V[k].r.map(x=>midi(x[0])%12),mp=NAMES.indexOf(mpc);
+  let top=60+mp;if(top<65)top+=12;
+  const below=pcs.filter(p=>p!==mp).map(p=>{let n=top-1;while(n%12!==p)n--;return n}).sort((a,b)=>a-b);
+  const mid=below[1],f2=(top-mid>=5)?2:3;
+  let l=midi(V[k].l[0][0]);while(l>=below[0]-5)l-=12;while(l<36)l+=12;
+  return {r:[[below[0],1],[mid,f2],[top,5]],l}}
+function topMarks(k,mpc){const v=topVoicing(k,mpc);return [{n:mname(v.l),f:5,h:'l'},{n:mname(v.r[0][0]),f:1,h:'r'},{n:mname(v.r[1][0]),f:v.r[1][1],h:'r'},{n:mname(v.r[2][0]),f:5,h:'m'}]}
+function topText(k,mpc){const v=topVoicing(k,mpc),s=m=>pc(mname(m)).replace('#','♯');
+  return `<b>Melody ${s(v.r[2][0])} on top with your pinky</b> (gold key). Under it, thumb on ${s(v.r[0][0])} and finger ${v.r[1][1]} on ${s(v.r[1][0])}. Left pinky on ${s(v.l)}.`}
+function renderFit(){const el=document.getElementById('tab-fit');const F=FITKEYS[fitKey];
+  let res='';
+  if(fitNote){const hits=F.chords.filter(k=>V[k].r.some(x=>pc(x[0])===fitNote));
+    res=hits.length?`<div class="fits">${hits.map(k=>{const isRoot=pc(V[k].l[0][0])===fitNote;return `<div class="card"><div class="fit"><div><h3>${nameOf(k)}</h3><div class="why">${fitNote} is ${isRoot?'the root, the strongest fit':'inside this chord'}</div></div><button class="btn small" data-hear="${k}">▶ Hear it</button></div><p class="hands" style="margin-top:8px">${topText(k,fitNote)}</p><div class="kb">${keyboard(topMarks(k,fitNote))}</div>${LEGEND}</div>`}).join('')}</div>`
+     :`<div class="card" style="margin-top:14px"><h3>No chord in this family holds ${fitNote}</h3><p class="note">That usually means it's a passing note: keep the chord you're already on and let the melody walk through it.</p></div>`}
+  el.innerHTML=`<div class="stack"><div><h2>Which chord goes with this melody note?</h2><p class="note" style="margin-top:6px">This is the skill that connects the melody you play by ear to the chords. On the strong beat (where you'd clap), the melody note is almost always one of the chord's three notes. Tap the note your melody is sitting on.</p></div>
+   <div class="seg" role="group" aria-label="Key">${Object.keys(FITKEYS).map(k=>`<button data-k="${k}" aria-pressed="${k===fitKey}">${FITKEYS[k].label}</button>`).join('')}</div>
+   <div class="notesel">${F.notes.map(n=>`<button data-n="${n}" aria-pressed="${n===fitNote}">${n.replace('#','♯')}</button>`).join('')}</div>
+   ${res||'<p class="note">Try it: in the key of C, tap E. Both C and Am contain E, so either works. Your ear picks which sounds right for the song.</p>'}
+   <div class="card"><div class="eyebrow">How to use this at the keyboard</div><ul style="margin:8px 0 0;padding-left:20px"><li>Play the melody slowly with your right hand.</li><li>Stop on the first strong-beat note. Look it up here.</li><li>Try each suggested chord in your left hand. Keep the one your ear likes.</li><li>Move to the next strong beat. Write the chords above the words as you go.</li></ul></div></div>`;
+  el.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{fitKey=b.dataset.k;fitNote=null;renderFit()});
+  el.querySelectorAll('.notesel button').forEach(b=>b.onclick=()=>{fitNote=b.dataset.n;const a=ac();if(a)tone(midi(fitNote+'5'),a.currentTime+.02,.8,.14);renderFit()});
+  el.querySelectorAll('[data-hear]').forEach(b=>b.onclick=()=>{const a=ac();if(!a)return;const v=topVoicing(b.dataset.hear,fitNote),t=a.currentTime+.02;
+    tone(v.l,t,1.6,.16);v.r.slice(0,2).forEach(x=>tone(x[0],t,1.6,.09));tone(v.r[2][0],t,1.6,.17)});
+}
+
+/* ---------- songs tab ---------- */
+function renderSongs(){const el=document.getElementById('tab-songs');
+  el.innerHTML=`<div class="stack"><div><h2>Songs</h2><p class="note" style="margin-top:6px">You already know these melodies by ear. Here you get the chords that go under them. Check each one against how your shul actually sings it; tunes vary from place to place.</p></div>
+  <div class="card song"><div class="eyebrow">Four chords · Lessons 3–4</div><h3>Siman Tov u'Mazal Tov</h3><div class="flow"><span>Am</span><span>C</span><span>Dm</span><span>E</span></div>
+   <p>A minor-key song. Charts usually write it in C♯m; here it's moved to A minor so it uses the shapes you know.</p>${SONG.siman()}</div>
+  <div class="card song"><div class="eyebrow">Shul favorite · uses Lessons 1–3</div><h3>Hashivenu (Hanan Ben Ari)</h3><div class="flow"><span>Am</span><span>G</span><span>Dm</span><span>C</span><span>F</span></div>
+   <p>Home is Am. Every chord here is one you've already met: the minor family plus G, C and F from the key of C. The song keeps cycling through these five.</p>${SONG.hash()}<p class="note">From a community chord chart, which may be in a different key from the recording. If it sounds too high or low next to the shul, use the microARRANGER's Transpose and keep these same hand shapes.</p></div>
+  <div class="card"><div class="eyebrow">Chord families for Jewish music</div><ul style="margin:8px 0 0;padding-left:20px">
+   <li><b>Happy / simcha:</b> C, G, Am, F (or the same pattern in G: G, D, Em, C).</li>
+   <li><b>Minor niggun:</b> Am, Dm, E. The E major is the giveaway.</li>
+   <li><b>The "Hava Nagila" sound (freygish):</b> sits on an E major chord as home, with F and Dm around it. We'll get there after Lesson 6.</li></ul></div>
+  <div class="card"><div class="eyebrow">Next</div><h3>Your shul's songs</h3><p>Send me the names of songs Nishmas Mishkafayim sings most often, or a short recording. I'll add chord charts here in the same format, matched to their key.</p></div></div>`}
+
+/* ---------- why it works (theory) ---------- */
+/* demo steps: each step is an array of note names played together */
+function demo(steps,gap){const a=ac();if(!a)return;let t=a.currentTime+.05;steps.forEach(s=>{s.forEach(n=>tone(midi(n),t,gap*1.2,.11));t+=gap})}
+const K=(arr,f,h)=>arr.map((n,i)=>({n,f:f?f[i]:'',h:h||'r'}));
+const WHY=[
+ {t:'1. The keyboard is a ladder of half steps',
+  p:["Every key, black or white, is one <b>half step</b> higher than the key before it. Skip one key and that's a <b>whole step</b>. The pattern of 12 keys repeats all the way up the keyboard.",
+     "Everything else in music is counting these steps. The black keys exist to fill in the half steps between some of the white keys."],
+  k:K(['C4','C#4','D4'],null,'m'),
+  d:[['Hear C, C♯, D (half steps)',[['C4'],['C#4'],['D4']],.6],['Hear C, D, E (whole steps)',[['C4'],['D4'],['E4']],.6]]},
+ {t:'2. A key is a family of 7 notes',
+  p:["A song doesn't use all 12 notes. It picks a family of 7 and mostly stays inside it. That family is the song's <b>key</b>.",
+     "<b>C major</b> is the white keys with C as home. <b>A minor</b> uses the exact same white keys, but A is home. Same notes, different home, different mood. That's why Am shows up in songs in C, and why C, G and F show up in songs in Am, like Hashivenu."],
+  k:K(['C4','D4','E4','F4','G4','A4','B4']),
+  d:[['Hear C major (home = C)',[['C4'],['D4'],['E4'],['F4'],['G4'],['A4'],['B4'],['C5']],.4],['Hear A minor (home = A)',[['A3'],['B3'],['C4'],['D4'],['E4'],['F4'],['G4'],['A4']],.4]]},
+ {t:'3. How a chord is built: take one, skip one',
+  p:["A basic chord is three notes from the key: <b>take a note, skip one, take one, skip one, take one</b>. Start on C: take C, skip D, take E, skip F, take G. That's the C chord: C E G.",
+     "Do the same starting on any white key and you get every chord in the key: D F A is Dm, F A C is F, G B D is G, A C E is Am. That's why your hand makes the same 1-3-5 shape for all of them."],
+  k:K(['C4','E4','G4'],[1,3,5]),
+  d:[['Build C: C, E, G, then together',[['C4'],['E4'],['G4'],['C4','E4','G4']],.6],['Same shape on A = Am',[['A3'],['C4'],['E4'],['A3','C4','E4']],.6]]},
+ {t:'4. Major vs minor: the middle note decides',
+  p:["Count half steps from the bottom note. <b>Major</b> is 4, then 3: C to E is 4, E to G is 3. It sounds bright. <b>Minor</b> is 3, then 4: A to C is 3, C to E is 4. It sounds darker.",
+     "Moving only the middle note by one half step flips a chord between major and minor. C E G is C major. C E♭ G is C minor."],
+  k:[{n:'C4',f:1,h:'r'},{n:'D#4',f:'',h:'m'},{n:'E4',f:3,h:'r'},{n:'G4',f:5,h:'r'}],
+  d:[['C major, then C minor',[['C4','E4','G4'],['C4','D#4','G4']],1.2],['A minor, then A major',[['A3','C4','E4'],['A3','C#4','E4']],1.2]]},
+ {t:'5. Why the E chord is major in Jewish tunes',
+  p:["Build a chord on E using only A minor's white keys and you get E G B: E <b>minor</b>. It sounds soft and doesn't push anywhere.",
+     "Raise the G to <b>G♯</b> and two things happen. G♯ is only a half step below A, so your ear expects it to step up into A, and the song wants to resolve home to Am. And the jump from F up to G♯ (three half steps) is the sound you hear all over Jewish and Middle Eastern music. That's why E → Am sounds like the end of a line at shul."],
+  k:[{n:'E4',f:'',h:'r'},{n:'G#4',f:'',h:'m'},{n:'A4',f:'',h:'l'},{n:'B4',f:'',h:'r'}],
+  d:[['Em → Am (weak ending)',[['E3','G3','B3'],['A3','C4','E4']],1.2],['E → Am (strong pull home)',[['E3','G#3','B3'],['A3','C4','E4']],1.2],['The Jewish sound: E F G♯ A',[['E4'],['F4'],['G#4'],['A4']],.5]]},
+ {t:'6. Why a chord fits a melody note',
+  p:["On a strong beat, the melody note is almost always one of the chord's three notes. If the chord contains it, they blend. If not, they rub against each other.",
+     "That's the idea behind the Find the chord tab, and it's how you'll figure out chords by ear: hold the melody note, try chords, keep the one that contains it."],
+  k:K(['F4'],null,'m'),
+  d:[['Melody F over Dm (D F A): blends',[['D3','A3','D4','F4']],1.6],['Melody F over E (E G♯ B): rubs',[['E3','G#3','B3','F4']],1.6]]},
+ {t:'7. Why the smooth shapes work',
+  p:["Chords next to each other usually <b>share notes</b>. C (C E G) and Am (A C E) share C and E. So instead of jumping your hand, keep the shared notes down and move only the one that changes, by the smallest step.",
+     "It sounds smoother, and your hand barely moves, so you can change chords faster."],
+  k:[{n:'C4',f:1,h:'r'},{n:'E4',f:2,h:'r'},{n:'G4',f:'',h:'m'},{n:'A4',f:5,h:'r'}],
+  d:[['Jumping: C → Am, root position',[['C4','E4','G4'],['A3','C4','E4']],1.1],['Smooth: only G moves up to A',[['C4','E4','G4'],['C4','E4','A4']],1.1]]},
+ {t:'8. Why Transpose works',
+  p:["A song is really a pattern of distances: how many half steps between each note and chord. Move <b>every</b> note up the same number of half steps and all the distances stay the same, so it's still the same song, just higher.",
+     "That's all Transpose does. You keep playing A minor shapes. +5 shifts every note up 5 half steps, so it comes out in D minor."],
+  k:[{n:'A3',f:'',h:'r'},{n:'D4',f:'',h:'m'}],
+  d:[['Am → Dm → E → Am',[['A3','C4','E4'],['A3','D4','F4'],['G#3','B3','E4'],['A3','C4','E4']],.9],['Same thing +5 (D minor)',[['D4','F4','A4'],['D4','G4','A#4'],['C#4','E4','A4'],['D4','F4','A4']],.9]]},
+ {t:'9. Why fingering matters',
+  p:["Your 5 fingers can cover 5 neighboring keys without your hand moving. Skip the pinky and you only cover 4, so your hand keeps jumping. That's what makes fast melodies and smooth chord changes hard.",
+     "Using all five, with the pinky on the top note of chords, means less jumping, fewer wrong notes and more speed. The five-finger exercises train exactly that."],
+  k:K(['C4','D4','E4','F4','G4'],[1,2,3,4,5]),
+  d:[['Five fingers, five keys, no jumping',[['C4'],['D4'],['E4'],['F4'],['G4'],['F4'],['E4'],['D4'],['C4']],.4]]}
+];
+function renderWhy(){const el=document.getElementById('tab-why');
+  el.innerHTML=`<div class="stack"><div><h2>Why it works</h2><p class="note" style="margin-top:6px">The theory behind everything in your lessons, in plain words. Tap the buttons to hear each idea.</p></div>${WHY.map((w,i)=>`<article class="card"><h3>${w.t}</h3><div class="body">${w.p.map(x=>`<p>${x}</p>`).join('')}</div><div class="kb" style="margin-top:8px">${keyboard(w.k)}</div><div class="walknav">${w.d.map((d,j)=>`<button class="btn small" data-w="${i}-${j}">▶ ${d[0]}</button>`).join('')}</div></article>`).join('')}</div>`;
+  el.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>{const [i,j]=b.dataset.w.split('-').map(Number);const d=WHY[i].d[j];demo(d[1],d[2])})}
+
+/* ---------- tabs & toast ---------- */
+function show(tab){document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab));
+  ['lesson','chords','fit','songs','why'].forEach(t=>document.getElementById('tab-'+t).hidden=t!==tab);
+  ({lesson:renderLesson,chords:renderChords,fit:renderFit,songs:renderSongs,why:renderWhy})[tab]();store.set('bkc-tab',tab);scrollTo(0,0)}
+document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>show(b.dataset.tab));
+let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,3200)}
+if(!store.get('bkc-t1open',false)){curLesson='t1';save();store.set('bkc-t1open',true)}
+show('lesson');
+</script>
+
+
+</body></html>
