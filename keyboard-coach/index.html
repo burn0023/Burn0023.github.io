@@ -341,6 +341,12 @@ function entryText(e){return `${e.d} · ${e.label} · ${e.kind==='auto'?`with th
 function sendRun(e){try{const L=LESSONS.find(l=>l.id===curLesson);const body=new URLSearchParams();
   body.append('entry.1619048076',`${new Date().toLocaleString()} · ${L?L.title:''} · ${entryText(e)}`);
   fetch(RESULTS_FORM,{method:'POST',mode:'no-cors',body,keepalive:true}).then(()=>toast('Results saved for Claude.'),()=>{})}catch(err){}}
+function sendLessonDone(L){try{const today=new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  const runs=store.get('bkc-midi-log',[]).filter(e=>e.d===today&&!e.sent);
+  const txt=`${new Date().toLocaleString()} · FINISHED ${L.title} · ${runs.length?`${runs.length} keyboard run${runs.length>1?'s':''} today: `+runs.map(entryText).join(' | '):'no keyboard runs recorded (keyboard not connected, or no chord sequence played through)'}`;
+  const body=new URLSearchParams();body.append('entry.1619048076',txt);
+  fetch(RESULTS_FORM,{method:'POST',mode:'no-cors',body,keepalive:true}).then(()=>toast('Lesson complete. Summary saved for Claude.'),()=>toast('Lesson complete. Couldn\'t reach the results form; tell Claude how it went.'))}
+  catch(err){toast('Lesson complete. Tell Claude how it went.')}}
 function logRun(entry){const L=store.get('bkc-midi-log',[]);L.push(entry);store.set('bkc-midi-log',L.slice(-60));sendRun(entry)}
 function resultsText(){const L=store.get('bkc-midi-log',[]);if(!L.length)return 'No results yet.';
   return 'My keyboard coach results:\n'+L.slice(-15).map(e=>`${e.d} · ${e.label} · ${e.kind==='auto'?`with the band: ${e.ontime} of ${e.total} chord changes on time`:`${e.clean} of ${e.total} chords played clean`}${e.slips&&e.slips.length?` · slips: ${e.slips.join('; ')}`:''}`).join('\n')}
@@ -567,7 +573,7 @@ function renderLesson(){
   document.getElementById('bpm').oninput=e=>{metro.bpm=+e.target.value;document.getElementById('bpmv').textContent=metro.bpm+' bpm';store.set('bkc-bpm',metro.bpm)};
   document.getElementById('prev').onclick=()=>{P.step=Math.max(0,i-1);stopTimer();save();renderLesson();scrollTo(0,0)};
   document.getElementById('next').onclick=()=>{if(!P.done.includes(i))P.done.push(i);stopTimer();
-    if(i<L.steps.length-1){P.step=i+1}else{toast('Lesson complete. Tell Claude how it went.');P.step=0}
+    if(i<L.steps.length-1){P.step=i+1}else{sendLessonDone(L);P.step=0}
     save();renderLesson();scrollTo(0,0)};
 }
 
