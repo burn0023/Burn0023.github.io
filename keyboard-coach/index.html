@@ -352,7 +352,9 @@ function paintBand(){const has=BAND.last&&performance.now()-BAND.last<1500;const
 setInterval(()=>{if(BAND.last&&performance.now()-BAND.last>1500){BAND.on=false}paintBand()},1000);
 function clockTick(){const t=performance.now();BAND.last=t;BAND.ticks.push(t);if(BAND.ticks.length>49)BAND.ticks.shift();
   if(BAND.ticks.length>=25&&++BAND.n%24===0){const k=BAND.ticks.length;BAND.bpm=Math.round(60000/(BAND.ticks[k-1]-BAND.ticks[k-25]));paintBand()}}
+let lastWake=0;
 function onMidi(e){const d=e.data;if(!d||!d.length)return;
+  if(d[0]!==0xF8&&performance.now()-lastWake>20000){lastWake=performance.now();keepAwake()}
   if(d[0]===0xF8){clockTick();return}
   if(d[0]===0xFA||d[0]===0xFB){BAND.on=true;BAND.ticks=[];paintBand();return}
   if(d[0]===0xFC){BAND.on=false;paintBand();return}
@@ -378,7 +380,7 @@ function heardHTML(j,k){if(!MID.ok)return `<p class="note">Tap <b>Connect keyboa
   if(j.state==='idle')return `<div class="what">Play ${nameOf(k)}</div><p class="note">Hold the chord down and I'll check it.</p>`;
   const playing=`<p class="note">You're holding: ${j.held.map(nn).join(' ')}${chanText()}</p>`;
   if(j.state==='perfect')return `<div class="what"><span class="v">✓ ${nameOf(k)}</span>, right notes in the right spot</div>${playing}`;
-  if(j.state==='ok')return `<div class="what"><span class="v">✓ ${nameOf(k)}</span>, right notes</div><p class="note">Different spot or order than the picture. That counts, but the picture's shape is the easiest move from the last chord.</p>${playing}`;
+  if(j.state==='ok')return `<div class="what">Right notes, old shape</div><p class="note">That's ${nameOf(k)}, but not the picture's shape. Use the picture's shape: it doesn't count as clean until you do.</p>${playing}`;
   if(j.state==='part')return `<div class="what">Still need: ${j.missing.map(nn).join(', ')}</div>${playing}`;
   return `<div class="what"><span class="v">✗ Wrong note${j.extra.length>1?'s':''}: ${j.extra.map(nn).join(', ')}</span></div>${j.missing.length?`<p class="note">${nameOf(k)} needs ${j.missing.map(nn).join(', ')} instead.</p>`:''}${playing}`}
 /* results log, kept on this device, written so you can paste it to Claude */
@@ -425,7 +427,7 @@ function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).
     if(j.state==='bad'&&fresh){if(!badT)badT=setTimeout(()=>{badT=null;const j2=judge(keys[cur],xp);if(j2.state==='bad'){dirty=true;slip(nameOf(keys[cur])+': played '+j2.extra.map(nn).join(' ')+(j2.missing.length?' instead of '+j2.missing.map(nn).join(' '):''))}},450)}
     else{clearTimeout(badT);badT=null}
     if(listenOn&&good(j)){if(!settle)settle=setTimeout(()=>{settle=null;if(auto||!good(judge(keys[cur],xp)))return;
-        total++;if(!dirty)clean++;dirty=false;advancedAt=performance.now();
+        total++;const jj=judge(keys[cur],xp);if(jj.state==='ok'){dirty=true;slip(nameOf(keys[cur])+': right notes, old shape')}if(!dirty)clean++;dirty=false;advancedAt=performance.now();
         if(cur===keys.length-1){logRun({d:today(),label,kind:'steps',clean,total,slips:slips.slice(0,6)});(()=>{if(opts.gate){const sk='bkc-streak-'+label;const st=clean===total?store.get(sk,0)+1:0;store.set(sk,st);
           if(st>=opts.gate){const L=LESSONS.find(l=>l.gate&&l.gate.label===label);if(L&&!store.get('bkc-pass-'+L.id,false)){store.set('bkc-pass-'+L.id,true);sendRun({d:today(),label:'READY CHECK PASSED',kind:'steps',clean:st,total:st,slips:[]})}toast(`✓ ${st} clean in a row. Ready check passed!`)}
           else toast(clean===total?`Clean! ${st} of ${opts.gate} in a row.`:`${clean} of ${total} clean. Streak reset, 0 of ${opts.gate}. Slow down and go again.`)}
