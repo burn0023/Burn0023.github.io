@@ -112,7 +112,7 @@ h3{font-family:var(--f-display);font-weight:600;font-size:1.15rem;margin:0;text-
 .rearr{margin:6px 0 8px;padding:8px 12px;border-radius:10px;background:var(--accent-soft);color:var(--ink);font-size:.95rem}
 .hands.move{color:var(--ink)}
 /* simple mode: lessons only */
-nav.tabs,.whybox,.autobar label,.autobar .keyctl,.autobar .tempo{display:none}
+nav.tabs,.autobar label,.autobar .keyctl,.autobar .tempo{display:none}
 header.top .wrap{padding-block:12px}
 .whybox{margin-top:14px;background:var(--gold-soft);border-radius:12px;padding:12px 14px}
 .whybox p{margin:4px 0 0}
@@ -555,27 +555,41 @@ const ROADMAP=[
 
 /* ---------- the 'why' beside each step ---------- */
 const WHYSTEP={
- l1:["Starting with real music keeps you motivated. Hashivenu uses mostly this lesson's chords, so you hear right away how four chords make a real song.",
-  "Every chord is built the same way: take a note, skip one, take one, skip one, take one. That's why one 1-3-5 hand shape works for all four; only the starting key changes. C, G and F sound bright (major). Am sounds darker (minor) because its middle note sits one half step lower.",
-  "The root is the note a chord is built on and named after. Played low, it's the foundation the ear hangs the chord on, the same job a bass player does. Left pinky is your lowest finger, so it takes the lowest note and leaves your thumb free for higher notes later.",
-  "C, G, Am and F all come from the same 7-note family (the white keys), so they share notes and flow into each other. That's why this order shows up in hundreds of songs. Changing on the beat matters more than speed: when you play with others, being on time is what makes you sound right.",
-  "Same chords inside a real song. Hashivenu's home is Am, but it borrows C, G and F, because they all come from the same white-key family."],
- l2:["Five fingers on five neighboring keys means your hand doesn't have to move. Training each finger to press its own key, especially the pinky, is what removes the jumping that slows you down. Few reps and light presses: you're training control, not strength.",
-  "Chords next to each other share notes. C and Am share C and E. C and F share C. Keep the shared notes still and move only what changes, by the smallest step. It sounds smoother and your hand barely moves. The fingers change (1-2-5 instead of 1-3-5) because the gaps between the notes changed.",
-  "Your right hand rearranged the notes, but the left hand still plays the root. The lowest note is what tells the ear which chord it is, so it still sounds like C, G, Am, F.",
-  "At shul there's no screen. Saying the names out loud ties together three things: the sound, the hand shape and the name. That's what lets you recall a chord instantly.",
-  "This is where the smooth shapes pay off: chords change quickly in real songs, and a hand that barely moves keeps up."],
- l3:["Starting with shapes you already own warms up your hands and makes the new material easier to absorb.",
-  "The A five-finger position sits right where the A minor chords live. Short bursts with rest build control. Pushing through soreness builds tension, and tension makes playing worse.",
-  "Using only A minor's white keys, the chord on E would be E G B, which is E minor. Jewish music raises the G to G♯. G♯ is one half step below A, so it pulls hard toward home. That pull, plus the F-to-G♯ gap, is the Jewish minor sound.",
-  "Am is home, Dm moves away, E builds tension, and Am releases it. Away, tension, home is the basic story of most songs. Once you hear that story, you can predict chord changes by ear.",
-  "A held chord starts to sound wrong when the melody moves to notes the chord doesn't contain. Noticing that moment is the core skill of finding chords by ear.",
-  "Making up a tune over chords is improvising. Notes inside the current chord always sound safe, so they're the ones to land on."],
- l4:["Warming up on chords you know means that when the new rhythm arrives, it's the only new thing.",
-  "Simcha music leans on beats 1 and 3, with a lighter lift on 2 and 4. Low bass on 1 and 3 plus a short chord on 2 and 4 makes the oom-pah that gets people dancing. A band splits the same job between bass and guitar.",
-  "With only two chords, all your attention goes to keeping the bounce steady while you change.",
-  "Chords plus rhythm together is what accompaniment is. This is the job you'll do at shul.",
-  "The same groove in a different song shows the bounce is a tool you can use on almost any simcha tune."]
+ l1:["Hearing it first gives your hands a target. You'll know what right sounds like before you try.",
+  "Every chord is three keys with one key skipped between each. That's why the same hand shape works for all four: you just slide it to a new starting key. Try it: put your hand on C E G, then slide the whole shape up to F A C. Same shape, new chord.",
+  "The lowest note is the one your ear uses to name the chord. Play C E G with A underneath and it starts to sound like a different chord. The bottom note is the foundation, so the left hand's job is to give it.",
+  "These four chords share keys with each other, which is why they flow so naturally one after another. It's also why this order shows up in so many songs you already know.",
+  "Playing with the guitar trains you to change on time. At a simcha, changing on time matters more than playing fancy."],
+ l2:["Five fingers on five neighboring keys means your hand never has to jump. Using the pinky is what makes that possible.",
+  "A chord is just its three notes, in any order. So instead of jumping to where the next chord starts, you grab the nearest copy of each note. Try it: play C E G, then reach for the closest G, B and D without moving your hand. That's G, and your hand barely moved.",
+  "The right hand rearranged the notes, but the left hand still plays the name note at the bottom, so your ear still hears the right chord.",
+  "At shul there's no screen. Saying the names while you play connects the name, the sound and the hand shape, so they come back together.",
+  "This is where the smooth shapes pay off. Real songs change chords fast, and a hand that barely moves can keep up."],
+ l3:["Starting with something you already know warms up your hands before the new part.",
+  "The A position puts your fingers exactly where today's chords live. Short bursts build control; pushing through soreness just builds tension.",
+  "That one black key in E is the whole Jewish sound. Try it: play E with a plain G instead of G♯. It sounds flat and doesn't go anywhere. Put the G♯ back and it suddenly wants to go home to Am. That pull is what you hear at the end of lines at shul.",
+  "Am feels like home, Dm feels like stepping out, E feels like tension, and Am again is coming home. Once you feel that story, you can guess where a song is going before it gets there.",
+  "Notes inside the chord sound settled. Notes outside it rub. That rubbing is your ear telling you the chord needs to change, and it's how you'll find chords by ear.",
+  "Making up a tune is easy when you lean on the settled notes. They always sound right over that chord."],
+ l4:["Warming up with the picture reminds your hands where everything is before the picture goes away.",
+  "Tricks beat memorizing. Remembering one anchor and a couple of small moves is much easier than remembering three separate shapes.",
+  "Pulling the answer from memory is what makes it stick. Every time you peek and then play it right, the memory gets stronger.",
+  "In a real song the chords don't come in a neat order, so mixing them up proves you actually know each one.",
+  "Playing from memory while the guitar keeps going is exactly what it feels like at shul."],
+ t1:["The transformer protects the Tyros. It's built for American power, and Israeli outlets would damage it.",
+  "A style is a whole band waiting for instructions. Your left hand is the conductor.",
+  "With ACMP on, the band listens to the left part of the keyboard. Whatever chord you hold there, the band plays.",
+  "This is why the chord lessons matter. Your left hand isn't playing chords anymore, it's steering a whole band.",
+  "The right hand is the singer. Choosing its sound decides what the crowd hears on top.",
+  "Left hand steering the band, right hand singing on top: that's the whole one-man-band idea."],
+ t2:["Each of these settings makes the app and the band hear exactly what your hands do. Then your mistakes show up honestly.",
+  "Every chord here is built around the thumb. When the thumb lands right, the other fingers just fall into place, so you're really only remembering one thing.",
+  "Am and Dm share the A, so the thumb never moves. Only two fingers step up. Smaller moves mean faster, cleaner changes.",
+  "Am and E share the E. That's why the middle finger stays put and only the outside fingers move. Try it: hold E, and feel how close C and A are to your pinky and thumb.",
+  "Watching the moves now saves you from having to think about them later.",
+  "Recalling without the picture is what turns a shape into a habit.",
+  "Three clean in a row proves it isn't luck. That's when it's really yours.",
+  "With the band going you can't stop to think. If the shapes hold up here, they'll hold up at a simcha."]
 };
 
 /* ---------- lesson state ---------- */
