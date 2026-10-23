@@ -577,6 +577,8 @@ const WHYSTEP={
 };
 
 /* ---------- lesson state ---------- */
+/* lessons Claude has unlocked; a lesson's "Next" button only works when the next lesson is listed here */
+const OPEN=['l1','l2','l3','l4','t1','t2'];
 let prog=store.get('bkc-prog',{});
 let curLesson=store.get('bkc-cur','l3');
 function lp(id){if(!prog[id])prog[id]={step:0,done:[]};return prog[id]}
@@ -604,6 +606,20 @@ function renderLesson(){
   const tagTxt={review:'Review',today:'Today',next:'Up next'};
   const total=L.steps.reduce((a,s)=>a+s.min,0);
   const el=document.getElementById('tab-lesson');
+  if(P.complete){const ni=LESSONS.indexOf(L)+1,N=LESSONS[ni],open=N&&OPEN.includes(N.id);
+    el.innerHTML=`<div class="stack">
+     <div class="chips" role="group" aria-label="Lessons">${LESSONS.map(l=>`<button class="chip" data-l="${l.id}" aria-pressed="${l.id===L.id}">${l.title.split(' · ')[0]}<span class="tag ${l.status}">${tagTxt[l.status]}</span></button>`).join('')}</div>
+     <div class="lessonhead"><div class="eyebrow">${L.title.split(' · ')[0]} · complete</div><h2>${L.title.split(' · ')[1]}</h2><p>${L.goal}</p>
+      <div class="progress">${L.steps.map(()=>`<span class="done"></span>`).join('')}</div></div>
+     <article class="card"><div class="eyebrow">Lesson complete</div><h3>Nice work. Now get it reviewed.</h3>
+      <div class="body"><p>Your results are saved. Tell Claude <b>"check my keyboard results"</b>. Claude looks at every slip and decides whether you're ready to move on or should run this lesson again.</p></div>
+      <div class="controls"><button class="btn" id="restart">Restart lesson</button><button class="btn primary" id="moveon" ${open?'':'disabled'}>${open?'Next: '+N.title.split(' · ')[0]:'🔒 Next lesson locked'}</button></div>
+      ${open?'':'<p class="note" style="margin-top:10px">Claude unlocks the next lesson after reviewing your results.</p>'}
+     </article></div>`;
+    el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{curLesson=b.dataset.l;stopTimer();timer.left=0;save();renderLesson();scrollTo(0,0)});
+    document.getElementById('restart').onclick=()=>{P.complete=false;P.step=0;P.done=[];save();renderLesson();scrollTo(0,0)};
+    const mo=document.getElementById('moveon');if(open)mo.onclick=()=>{curLesson=N.id;save();renderLesson();scrollTo(0,0)};
+    return}
   el.innerHTML=`<div class="stack">
    <div class="chips" role="group" aria-label="Lessons">${LESSONS.map(l=>`<button class="chip" data-l="${l.id}" aria-pressed="${l.id===L.id}">${l.title.split(' · ')[0]}<span class="tag ${l.status}">${tagTxt[l.status]}</span></button>`).join('')}</div>
    <div class="lessonhead"><div class="eyebrow">${L.title.split(' · ')[0]} · about ${total} min</div><h2>${L.title.split(' · ')[1]}</h2><p>${L.goal}</p>
@@ -634,7 +650,7 @@ function renderLesson(){
   document.getElementById('prev').onclick=()=>{P.step=Math.max(0,i-1);stopTimer();save();renderLesson();scrollTo(0,0)};
   document.getElementById('next').onclick=()=>{if(!P.done.includes(i))P.done.push(i);stopTimer();
     if(i>=L.steps.length-1&&L.gate&&!store.get('bkc-pass-'+L.id,false)){P.done=P.done.filter(x=>x!==i);toast(`Not yet: get ${L.gate.need} clean runs in a row on the ready check first. Streak now: ${store.get('bkc-streak-'+L.gate.label,0)}.`);save();renderLesson();return}
-    if(i<L.steps.length-1){P.step=i+1}else{sendLessonDone(L);P.step=0}
+    if(i<L.steps.length-1){P.step=i+1}else{sendLessonDone(L);P.complete=true}
     save();renderLesson();scrollTo(0,0)};
 }
 
