@@ -454,7 +454,7 @@ function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).
      <label class="note">Sound <select data-a="sound"><option value="guitar" ${sound==='guitar'?'selected':''}>Guitar backing</option><option value="piano" ${sound==='piano'?'selected':''}>Piano + click</option></select></label>
      <span class="keyctl"><span class="note">Sounds in</span><button class="btn small" data-a="kdn" aria-label="Lower key">−</button><b>${keyName()}</b><button class="btn small" data-a="kup" aria-label="Higher key">+</button></span>
      <span class="tempo"><button class="btn small" data-a="slower" aria-label="Slower">−</button><span class="bpm">${metro.bpm} bpm</span><button class="btn small" data-a="faster" aria-label="Faster">+</button></span></div>
-    ${MID.ok?`<div class="score"><span data-score></span><button class="btn small" data-a="listen" aria-pressed="${listenOn}">${listenOn?'Auto-advance: on':'Auto-advance: off'}</button><button class="btn small" data-a="copy">Copy my results for Claude</button></div>`:''}`;
+    ${MID.ok?`<div class="score"><span data-score></span><button class="btn small" data-a="listen" aria-pressed="${listenOn}">${listenOn?'Auto-advance: on':'Auto-advance: off'}</button></div>`:''}`;
     const la=el.querySelector('[data-a=listen]');if(la)la.onclick=()=>{listenOn=!listenOn;store.set('bkc-listen',listenOn);draw(cur,false,true)};
     const cp=el.querySelector('[data-a=copy]');if(cp)cp.onclick=()=>copyResults(cp);
     el.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{stop();draw(+b.dataset.j,true)});
@@ -631,13 +631,12 @@ function renderLesson(){
      <span class="metro" style="margin-left:auto"><button class="btn small" id="mbtn">${metro.on?'Stop':'Metronome'}</button></span></div>
     <div class="metro" style="margin-top:8px"><span class="bpm" id="bpmv">${metro.bpm} bpm</span><input type="range" id="bpm" min="40" max="140" step="2" value="${metro.bpm}" aria-label="Tempo"><span class="beat"></span><span class="beat"></span><span class="beat"></span><span class="beat"></span></div>
     <div class="controls"><button class="btn" id="prev" ${i===0?'disabled':''}>Back</button><button class="btn primary" id="next">${i===L.steps.length-1?'Finish lesson':'Done · Next step'}</button></div>
-    <div class="score"><button class="btn small" id="copyRes">Copy my results for Claude</button><span class="note">Chord checks from every session on this iPad, ready to paste into the chat.</span></div>
    </article>
    ${false?`<div class="card"><div class="eyebrow">Coming after this</div><ul class="roadmap" style="margin:8px 0 0;padding-left:20px">${ROADMAP.map(r=>`<li><b>${r[0]}</b>: ${r[1]}</li>`).join('')}</ul></div>`:''}
-   <div class="card"><div class="eyebrow">microARRANGER setup</div><ul style="margin:8px 0 0;padding-left:20px">
-    <li>Pick a plain acoustic piano sound and turn the auto-accompaniment off while practicing, so <b>your</b> left hand makes the chord.</li>
-    <li>The mini keys are narrow: play on your fingertips, keep the hand rounded. Fingerings here carry over to full-size keys.</li>
-    <li>This page keeps your screen on while the timer or metronome runs.</li></ul></div>
+   <div class="card"><div class="eyebrow">Tyros setup for the app</div><ul style="margin:8px 0 0;padding-left:20px">
+    <li>Split point <b>B2</b> (the B just below middle C), chord fingering <b>Fingered</b>.</li>
+    <li><b>PART ON/OFF [LEFT]</b> on, so the app hears your left hand. Turn its volume down if you don't want to hear it.</li>
+    <li>Results save automatically when you finish a run or a lesson.</li></ul></div>
   </div>`;
   if(!timer.running){timer.left=S.min*60}
   paintTimer();paintBand();
@@ -645,7 +644,6 @@ function renderLesson(){
   el.querySelectorAll('.progress span').forEach(s=>s.onclick=()=>{P.step=+s.dataset.s;stopTimer();save();renderLesson()});
   document.getElementById('tbtn').onclick=()=>{if(timer.running)stopTimer();else{if(timer.left<=0)timer.left=S.min*60;startTimer()}};
   document.getElementById('mbtn').onclick=toggleMetro;
-  {const cr=document.getElementById('copyRes');if(cr)cr.onclick=()=>copyResults(cr)}
   document.getElementById('bpm').oninput=e=>{metro.bpm=+e.target.value;document.getElementById('bpmv').textContent=metro.bpm+' bpm';store.set('bkc-bpm',metro.bpm)};
   document.getElementById('prev').onclick=()=>{P.step=Math.max(0,i-1);stopTimer();save();renderLesson();scrollTo(0,0)};
   document.getElementById('next').onclick=()=>{if(!P.done.includes(i))P.done.push(i);stopTimer();
