@@ -374,7 +374,7 @@ function judge(k,xp){const want=[...V[k].l,...V[k].r].map(x=>midi(x[0]));const h
   let r=test(0);if(xp){const r2=test(xp);if(r2.missing.length+r2.extra.length<r.missing.length+r.extra.length)r=r2}
   if(r.extra.length)return{state:'bad',held,...r};
   if(r.missing.length)return{state:'part',held,...r};
-  const exact=want.every(m=>MID.held.has(m+r.sh));return{state:exact?'perfect':'ok',held}}
+  const shape=arr=>{const s=[...arr].sort((x,y)=>x-y);return s.map(m=>m-s[0]).join(',')};const exact=held.length===want.length&&shape(held)===shape(want);return{state:exact?'perfect':'ok',held}}
 function chanText(){const c=MID.chans||{},now=performance.now();const live=Object.keys(c).filter(x=>now-c[x]<4000).sort((a,b)=>a-b);return live.length?` · MIDI ch ${live.join(', ')}`:''}
 function heardHTML(j,k){if(!MID.ok)return `<p class="note">Tap <b>Connect keyboard</b> at the top and I'll check each chord as you play it.</p>`;
   if(j.state==='idle')return `<div class="what">Play ${nameOf(k)}</div><p class="note">Hold the chord down and I'll check it.</p>`;
