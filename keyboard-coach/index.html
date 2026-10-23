@@ -356,7 +356,7 @@ function onMidi(e){const d=e.data;if(!d||!d.length)return;
   if(d[0]===0xF8){clockTick();return}
   if(d[0]===0xFA||d[0]===0xFB){BAND.on=true;BAND.ticks=[];paintBand();return}
   if(d[0]===0xFC){BAND.on=false;paintBand();return}
-  if(d.length<3)return;const t=d[0]&0xf0,ch=d[0]&0x0f;if(ch>3)return;
+  if(d.length<3)return;const t=d[0]&0xf0,ch=d[0]&0x0f;if((t===0x90||t===0x80)){MID.chans=MID.chans||{};MID.chans[ch+1]=performance.now()}if(ch>7)return;
   if(t===0x90&&d[2]>0)MID.held.set(d[1],performance.now());else if(t===0x80||t===0x90)MID.held.delete(d[1]);else return;
   MID.subs.forEach(f=>{try{f()}catch(err){}})}
 async function connectMidi(){if(!navigator.requestMIDIAccess){midiHelp('nosupport');return}
@@ -373,9 +373,10 @@ function judge(k,xp){const want=[...V[k].l,...V[k].r].map(x=>midi(x[0]));const h
   if(r.extra.length)return{state:'bad',held,...r};
   if(r.missing.length)return{state:'part',held,...r};
   const exact=want.every(m=>MID.held.has(m+r.sh));return{state:exact?'perfect':'ok',held}}
+function chanText(){const c=MID.chans||{},now=performance.now();const live=Object.keys(c).filter(x=>now-c[x]<4000).sort((a,b)=>a-b);return live.length?` · MIDI ch ${live.join(', ')}`:''}
 function heardHTML(j,k){if(!MID.ok)return `<p class="note">Tap <b>Connect keyboard</b> at the top and I'll check each chord as you play it.</p>`;
   if(j.state==='idle')return `<div class="what">Play ${nameOf(k)}</div><p class="note">Hold the chord down and I'll check it.</p>`;
-  const playing=`<p class="note">You're holding: ${j.held.map(nn).join(' ')}</p>`;
+  const playing=`<p class="note">You're holding: ${j.held.map(nn).join(' ')}${chanText()}</p>`;
   if(j.state==='perfect')return `<div class="what"><span class="v">✓ ${nameOf(k)}</span>, right notes in the right spot</div>${playing}`;
   if(j.state==='ok')return `<div class="what"><span class="v">✓ ${nameOf(k)}</span>, right notes</div><p class="note">Different spot or order than the picture. That counts, but the picture's shape is the easiest move from the last chord.</p>${playing}`;
   if(j.state==='part')return `<div class="what">Still need: ${j.missing.map(nn).join(', ')}</div>${playing}`;
