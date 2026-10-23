@@ -108,6 +108,7 @@ h3{font-family:var(--f-display);font-weight:600;font-size:1.15rem;margin:0;text-
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;font-size:.9rem;z-index:20}
 .split{min-width:0}.split > *{min-width:0}
 .walker{margin-top:14px}
+.keymap svg{max-width:520px}
 .rearr{margin:6px 0 8px;padding:8px 12px;border-radius:10px;background:var(--accent-soft);color:var(--ink);font-size:.95rem}
 .hands.move{color:var(--ink)}
 /* simple mode: lessons only */
@@ -253,13 +254,27 @@ function keyboard(marks){
   let s=`<svg viewBox="-1 -1 ${width+2} ${H+2}" role="img" aria-label="Keyboard showing ${marks.map(x=>pc(x.n)).join(', ')}">`;
   const col=h=>h==='l'?'var(--lh)':h==='m'?'var(--gold)':'var(--accent)';
   whites.forEach((m,i)=>{const mk=byM[m];s+=`<rect x="${i*W}" y="0" width="${W}" height="${H}" rx="3" fill="${mk?(mk.h==='l'?'var(--lh-soft)':mk.h==='m'?'var(--gold-soft)':'var(--accent-soft)'):'var(--key-white)'}" stroke="var(--key-edge)"/>`;
-    if(m%12===0)s+=`<text x="${i*W+W/2}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="sans-serif">C${Math.floor(m/12)-1}</text>`});
+    if(m%12===0)s+=`<text x="${i*W+W/2}" y="${H-6}" text-anchor="middle" font-size="8" fill="var(--muted)" font-family="sans-serif">${CLABEL[m]||'C'}</text>`});
   for(let m=lo;m<=hi;m++)if(isBlack(m)){const mk=byM[m];s+=`<rect x="${xOf(m)}" y="0" width="${BW}" height="${BH}" rx="2" fill="${mk?col(mk.h):'var(--key-black)'}" stroke="var(--key-edge)"/>`}
   marks.forEach(x=>{const m=midi(x.n);const b=isBlack(m);const cx=b?xOf(m)+BW/2:xOf(m)+W/2;const cy=b?BH-14:H-30;
     s+=`<circle cx="${cx}" cy="${cy}" r="9" fill="${col(x.h)}"/>`;
     s+=`<text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--surface)" font-family="sans-serif">${x.f??''}</text>`;
     if(!b)s+=`<text x="${cx}" y="${cy-14}" text-anchor="middle" font-size="9" font-weight="700" fill="var(--ink)" font-family="sans-serif">${pc(x.n)}</text>`});
   return s+'</svg>'}
+/* C labels counted from the left end of a 61-key Tyros (lowest key = C) */
+const CLABEL={36:'1st C',48:'2nd C',60:'Mid C',72:'4th C',84:'5th C'};
+/* whole-keyboard map: where on the 61 keys this shape sits, with the band's chord zone shaded */
+function keyMap(marks){const lo=36,hi=96,whites=[];for(let m=lo;m<=hi;m++)if(!isBlack(m))whites.push(m);
+  const W=10,H=34,width=whites.length*W,split=54;let s=`<svg viewBox="-1 -14 ${width+2} ${H+28}" role="img" aria-label="Where this sits on the whole keyboard">`;
+  const zx=whites.filter(m=>m<=split).length*W;
+  s+=`<rect x="0" y="0" width="${zx}" height="${H}" fill="var(--lh-soft)"/>`;
+  s+=`<text x="2" y="-4" font-size="9" fill="var(--lh)" font-family="sans-serif" font-weight="700">Band chord zone (ACMP)</text>`;
+  whites.forEach((m,i)=>{s+=`<rect x="${i*W}" y="0" width="${W}" height="${H}" fill="none" stroke="var(--key-edge)" stroke-width=".6"/>`;
+    if(m===60)s+=`<text x="${i*W+W/2}" y="${H+11}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="sans-serif">Middle C</text>`});
+  for(let m=lo;m<=hi;m++)if(isBlack(m)){const i=whites.indexOf(m-1);s+=`<rect x="${i*W+W-3}" y="0" width="6" height="${H*.6}" fill="var(--key-black)"/>`}
+  marks.forEach(x=>{const m=midi(x.n);const b=isBlack(m);const i=whites.indexOf(b?m-1:m);const cx=b?i*W+W:i*W+W/2;
+    s+=`<circle cx="${cx}" cy="${b?H*.45:H*.75}" r="3.6" fill="${x.h==='l'?'var(--lh)':'var(--accent)'}"/>`});
+  return `<div class="kb keymap" style="margin:6px 0 2px">${s}</svg></div>`}
 function chordMarks(k,hands='both'){const m=[];if(hands!=='r')V[k].l.forEach(x=>m.push({n:x[0],f:x[1],h:'l'}));if(hands!=='l')V[k].r.forEach(x=>m.push({n:x[0],f:x[1],h:'r'}));return m}
 const LEGEND=`<div class="legend"><span><i style="background:var(--accent)"></i>Right hand</span><span><i style="background:var(--lh)"></i>Left hand</span><span>Numbers = fingers (1 thumb … 5 pinky)</span></div>`;
 
@@ -279,7 +294,7 @@ function moveText(pk,k){const a=shapeOf(pk),b=shapeOf(k);if(a.length!==b.length|
   return `<b>From ${nameOf(pk)}:</b> ${parts.join(', ')}.`}
 function diagramChord(k,opts={}){const id='p'+Math.random().toString(36).slice(2,7);
   setTimeout(()=>{const b=document.getElementById(id);if(b)b.onclick=()=>playChord(k)});
-  return `<div class="diagram"><div class="lbl"><div><strong>${nameOf(k)}</strong> <span class="notes">RH ${notesOf(k)} · fingers ${V[k].r.map(x=>x[1]).join('-')}</span></div><button class="btn small" id="${id}">▶ Hear</button></div>${rearr(k)}<div class="kb">${keyboard(chordMarks(k,opts.hands))}</div></div>`}
+  return `<div class="diagram"><div class="lbl"><div><strong>${nameOf(k)}</strong> <span class="notes">RH ${notesOf(k)} · fingers ${V[k].r.map(x=>x[1]).join('-')}</span></div><button class="btn small" id="${id}">▶ Hear</button></div>${rearr(k)}${keyMap(chordMarks(k,opts.hands))}<div class="kb">${keyboard(chordMarks(k,opts.hands))}</div></div>`}
 function diagramProg(keys,label){const id='q'+Math.random().toString(36).slice(2,7);
   setTimeout(()=>{const b=document.getElementById(id);if(b)b.onclick=()=>playSeq(keys)});
   return `<div class="diagram"><div class="lbl"><strong>${label||keys.map(nameOf).join(' → ')}</strong><button class="btn small" id="${id}">▶ Hear the chords</button></div></div>`}
@@ -422,7 +437,7 @@ function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).
     el.innerHTML=`<div class="lbl"><strong>${label}</strong><span class="notes">Chord ${i+1} of ${keys.length}</span></div>
     <div class="chips" style="margin-top:6px">${keys.map((x,j)=>`<button class="chip" data-j="${j}" aria-pressed="${j===i}">${nameOf(x)}</button>`).join('')}</div>
     ${show?`<div class="walkbox"><h3>${nameOf(k)}</h3><p class="hands">${handsText(k)}</p>${i>0?`<p class="hands move">${moveText(keys[i-1],k)}</p>`:''}${rearr(k)}</div>
-    <div class="kb">${keyboard(chordMarks(k))}</div>${LEGEND}`:`<div class="memory"><div class="big">${nameOf(k)}</div><p class="note">Play it from memory.</p><button class="btn small" data-a="peek">Stuck? Peek at the picture</button><p class="note">Peeks so far: <b>${peeks}</b></p></div>`}
+    ${keyMap(chordMarks(k))}<div class="kb">${keyboard(chordMarks(k))}</div>${LEGEND}`:`<div class="memory"><div class="big">${nameOf(k)}</div><p class="note">Play it from memory.</p><button class="btn small" data-a="peek">Stuck? Peek at the picture</button><p class="note">Peeks so far: <b>${peeks}</b></p></div>`}
     <div class="heard" data-h></div>
     <div class="walknav"><button class="btn small" data-a="prev" ${i===0?'disabled':''}>◀ Prev chord</button><button class="btn small" data-a="next">${nx?'Next chord: '+nameOf(nx)+' ▶':'Start over ↺'}</button></div>
     <div class="autobar"><button class="btn ${auto?'':'primary'}" data-a="auto">${auto?'■ Stop':'▶ Auto-play'}</button>
