@@ -213,9 +213,10 @@ const V={
   Gg:{name:'G',r:[['B3',1],['D4',2],['G4',5]],l:[['G2',5]]},
   Dg:{name:'D',r:[['A3',1],['D4',3],['F#4',5]],l:[['D3',5]]},
   Emg:{name:'Em',r:[['B3',1],['E4',3],['G4',5]],l:[['E3',5]]},
-  AmL:{name:'Am',r:[],l:[['A2',5],['C3',3],['E3',1]]},
-  DmL:{name:'Dm',r:[],l:[['A2',5],['D3',2],['F3',1]]},
-  EL:{name:'E',r:[],l:[['G#2',5],['B2',3],['E3',1]]},
+  /* left-hand chords just below middle C, same spot as piano-style playing (split point raised to the B below middle C) */
+  AmL:{name:'Am',r:[],l:[['C3',5],['E3',3],['A3',1]]},
+  DmL:{name:'Dm',r:[],l:[['D3',5],['F3',3],['A3',1]]},
+  EL:{name:'E',r:[],l:[['B2',5],['E3',3],['G#3',1]]},
   Cg:{name:'C',r:[['C4',1],['E4',3],['G4',5]],l:[['C3',5]]},
 };
 const nameOf=k=>V[k].name||k;
@@ -265,7 +266,7 @@ function keyboard(marks){
 const CLABEL={36:'1st C',48:'2nd C',60:'Mid C',72:'4th C',84:'5th C'};
 /* whole-keyboard map: where on the 61 keys this shape sits, with the band's chord zone shaded */
 function keyMap(marks){const lo=36,hi=96,whites=[];for(let m=lo;m<=hi;m++)if(!isBlack(m))whites.push(m);
-  const W=10,H=34,width=whites.length*W,split=54;let s=`<svg viewBox="-1 -14 ${width+2} ${H+28}" role="img" aria-label="Where this sits on the whole keyboard">`;
+  const W=10,H=34,width=whites.length*W,split=59;let s=`<svg viewBox="-1 -14 ${width+2} ${H+28}" role="img" aria-label="Where this sits on the whole keyboard">`;
   const zx=whites.filter(m=>m<=split).length*W;
   s+=`<rect x="0" y="0" width="${zx}" height="${H}" fill="var(--lh-soft)"/>`;
   s+=`<text x="2" y="-4" font-size="9" fill="var(--lh)" font-family="sans-serif" font-weight="700">Band chord zone (ACMP)</text>`;
@@ -286,6 +287,10 @@ function rearr(k){const sh=shapeOf(k);if(sh.length<3)return '';const root=midi(V
   const lowPc=midi(sh[0][0])%12;if(lowPc===root)return '';
   const order=sh.map(x=>x[0]).sort((a,b)=>((midi(a)-root+120)%12)-((midi(b)-root+120)%12)).map(sn).join(' ');
   return `<p class="rearr">Same notes as ${nameOf(k)} (${order}), just in a different order: ${sh.map(x=>sn(x[0])).join(' ')}. Rearranged so your hand stays close.</p>`}
+function fingerNote(k){const L=V[k].l,R=V[k].r;
+  if(!R.length&&L.length===3)return `<p class="rearr">Left hand is the mirror of your right: here the <b>pinky</b> takes the bottom note and the <b>thumb</b> the top note. Same chord, opposite fingers.</p>`;
+  if(R.length===3&&R[1][1]===2)return `<p class="rearr">Finger <b>2</b> on ${sn(R[1][0])}, not 3: it sits close to ${sn(R[0][0])}, so the finger next to your thumb reaches it easily and your pinky stretches up to ${sn(R[2][0])}.</p>`;
+  return ''}
 function moveText(pk,k){const a=shapeOf(pk),b=shapeOf(k);if(a.length!==b.length||a.length<3)return '';
   const parts=b.map((x,j)=>{const from=a[j][0],to=x[0],d=midi(to)-midi(from),f=FN[x[1]];
     if(d===0)return `${f} stays on ${sn(to)}`;
@@ -294,7 +299,7 @@ function moveText(pk,k){const a=shapeOf(pk),b=shapeOf(k);if(a.length!==b.length|
   return `<b>From ${nameOf(pk)}:</b> ${parts.join(', ')}.`}
 function diagramChord(k,opts={}){const id='p'+Math.random().toString(36).slice(2,7);
   setTimeout(()=>{const b=document.getElementById(id);if(b)b.onclick=()=>playChord(k)});
-  return `<div class="diagram"><div class="lbl"><div><strong>${nameOf(k)}</strong> <span class="notes">RH ${notesOf(k)} · fingers ${V[k].r.map(x=>x[1]).join('-')}</span></div><button class="btn small" id="${id}">▶ Hear</button></div>${rearr(k)}${keyMap(chordMarks(k,opts.hands))}<div class="kb">${keyboard(chordMarks(k,opts.hands))}</div></div>`}
+  return `<div class="diagram"><div class="lbl"><div><strong>${nameOf(k)}</strong> <span class="notes">RH ${notesOf(k)} · fingers ${V[k].r.map(x=>x[1]).join('-')}</span></div><button class="btn small" id="${id}">▶ Hear</button></div>${rearr(k)}${fingerNote(k)}${keyMap(chordMarks(k,opts.hands))}<div class="kb">${keyboard(chordMarks(k,opts.hands))}</div></div>`}
 function diagramProg(keys,label){const id='q'+Math.random().toString(36).slice(2,7);
   setTimeout(()=>{const b=document.getElementById(id);if(b)b.onclick=()=>playSeq(keys)});
   return `<div class="diagram"><div class="lbl"><strong>${label||keys.map(nameOf).join(' → ')}</strong><button class="btn small" id="${id}">▶ Hear the chords</button></div></div>`}
@@ -436,7 +441,7 @@ function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).
   const draw=(i,play,keepPeek)=>{if(!keepPeek)peek=false;if(i!==cur)advancedAt=performance.now();cur=i;const el=document.getElementById(id);if(!el)return;const k=keys[i],nx=keys[i+1];const show=!opts.hide||peek;
     el.innerHTML=`<div class="lbl"><strong>${label}</strong><span class="notes">Chord ${i+1} of ${keys.length}</span></div>
     <div class="chips" style="margin-top:6px">${keys.map((x,j)=>`<button class="chip" data-j="${j}" aria-pressed="${j===i}">${nameOf(x)}</button>`).join('')}</div>
-    ${show?`<div class="walkbox"><h3>${nameOf(k)}</h3><p class="hands">${handsText(k)}</p>${i>0?`<p class="hands move">${moveText(keys[i-1],k)}</p>`:''}${rearr(k)}</div>
+    ${show?`<div class="walkbox"><h3>${nameOf(k)}</h3><p class="hands">${handsText(k)}</p>${i>0?`<p class="hands move">${moveText(keys[i-1],k)}</p>`:''}${rearr(k)}${fingerNote(k)}</div>
     ${keyMap(chordMarks(k))}<div class="kb">${keyboard(chordMarks(k))}</div>${LEGEND}`:`<div class="memory"><div class="big">${nameOf(k)}</div><p class="note">Play it from memory.</p><button class="btn small" data-a="peek">Stuck? Peek at the picture</button><p class="note">Peeks so far: <b>${peeks}</b></p></div>`}
     <div class="heard" data-h></div>
     <div class="walknav"><button class="btn small" data-a="prev" ${i===0?'disabled':''}>◀ Prev chord</button><button class="btn small" data-a="next">${nx?'Next chord: '+nameOf(nx)+' ▶':'Start over ↺'}</button></div>
@@ -519,7 +524,7 @@ const LESSONS=[
 {id:'t1',title:'Tyros 1 · Make the band follow you',status:'today',goal:'Turn on the Tyros 5 band and drive it with the left-hand chords you already know.',steps:[
  {t:'Get set up',min:3,b:`<p>The Tyros needs the step-down transformer (230V to 120V) before it can be switched on. Never plug it straight into an Israeli outlet.</p><ul><li>Transformer into the wall, Tyros into the transformer, then power on.</li><li>Master volume low to start.</li></ul>`},
  {t:'Pick a style',min:3,b:`<p>A <b>style</b> is the band: drums, bass, guitars, all playing together.</p><ul><li>Press one of the <b>STYLE</b> category buttons. A list opens on the screen.</li><li>Press one of the buttons <b>[A]–[J]</b> beside the screen to choose a style. Use the one in the box: a freilach.</li></ul><p>Once the style is playing, the app reads the band's speed and tells you if it fits.</p>`,style:'freilach'},
- {t:'Let your left hand lead the band',min:5,b:`<ul><li>Press <b>[ACMP]</b> so the light is on. Now the left part of the keyboard tells the band which chord to play.</li><li>Press <b>[SYNC START]</b>. The band is waiting.</li><li>Play <b>Am</b> with your left hand. The band starts, in Am.</li><li>Press <b>[START/STOP]</b> to stop.</li></ul><p>Below are the left-hand chord shapes: pinky on the bottom, thumb on top.</p>`,d:()=>walker(['AmL','DmL','EL'],'Left-hand chords')},
+ {t:'Let your left hand lead the band',min:5,b:`<p><b>First, move the split point up.</b> By default the band only reads chords in the lowest keys, far left. We'll move the dividing line up to the <b>B just below middle C</b>, so your left hand plays chords in the same spot as in your piano lessons. On the Tyros 5 this is in the <b>FUNCTION</b> menu, on the <b>Split Point / Fingering</b> page: set the style split point to that B.</p><ul><li>Press <b>[ACMP]</b> so the light is on. Now the left part of the keyboard tells the band which chord to play.</li><li>Press <b>[SYNC START]</b>. The band is waiting.</li><li>Play <b>Am</b> with your left hand. The band starts, in Am.</li><li>Press <b>[START/STOP]</b> to stop.</li></ul><p>Below are the left-hand chord shapes, just below middle C. All three use fingers <b>5-3-1</b>: pinky on the bottom, middle finger, thumb on top. The map shows the shaded band zone.</p>`,d:()=>walker(['AmL','DmL','EL'],'Left-hand chords')},
  {t:'Change chords, the band follows',min:6,style:'freilach',b:`<p>Start the band with Am again, then change your left hand: <b>Am → Dm → E → Am</b>, 4 beats each. The whole band changes chord with you.</p><p>This is why the chord lessons matter: your left hand is now steering a full band.</p>`,d:()=>walker(['AmL','DmL','EL','AmL'],'Left hand drives the band')},
  {t:'Give your right hand a sound',min:4,b:`<ul><li>Press one of the <b>ONE TOUCH SETTING</b> buttons (1–4). The Tyros picks a right-hand sound that suits the style.</li><li>Or choose your own: press <b>PART SELECT [RIGHT 1]</b>, make sure <b>PART ON/OFF [RIGHT 1]</b> is on, press a <b>VOICE</b> button such as <b>[PIANO]</b>, then pick with <b>[A]–[J]</b>.</li></ul>`},
  {t:'Play for fun: one-man band',min:5,style:'freilach',b:`<p>Band on, left hand looping Am → Dm → E → Am, right hand playing a little melody on top, like your jam in Lesson 3. That's the one-man band.</p><p>Next Tyros lesson: intros, fills, breaks and endings, so you can start and finish a song like a pro.</p>`}
