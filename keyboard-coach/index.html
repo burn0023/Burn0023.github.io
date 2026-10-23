@@ -350,14 +350,17 @@ function paintBand(){const has=BAND.last&&performance.now()-BAND.last<1500;const
     else if(BAND.bpm>s.bpm[1])live.innerHTML=`Band at <b>${BAND.bpm} bpm</b>: fast for a ${s.name}. Bring the tempo down.`;
     else live.innerHTML=`✓ Band at <b>${BAND.bpm} bpm</b>, right speed for a ${s.name}.`}}
 setInterval(()=>{if(BAND.last&&performance.now()-BAND.last>1500){BAND.on=false}paintBand()},1000);
-function clockTick(){const t=performance.now();BAND.last=t;BAND.ticks.push(t);if(BAND.ticks.length>49)BAND.ticks.shift();
+function beatOff(t){if(!BAND.aligned||!BAND.ticks.length||!BAND.bpm)return null;let idx=-1;for(let i=BAND.ticks.length-1;i>=0;i--){if(BAND.ticks[i]<=t){idx=i;break}}if(idx<0)return null;
+  const cnt=BAND.count-(BAND.ticks.length-1-idx),frac=(t-BAND.ticks[idx])/(60000/BAND.bpm/24),pos=(((cnt+frac)%24)+24)%24;return{early:pos>12,ticks:Math.min(pos,24-pos)}}
+function clockTick(){BAND.count=(BAND.count||0)+1;const t=performance.now();BAND.last=t;BAND.ticks.push(t);if(BAND.ticks.length>49)BAND.ticks.shift();
   if(BAND.ticks.length>=25&&++BAND.n%24===0){const k=BAND.ticks.length;BAND.bpm=Math.round(60000/(BAND.ticks[k-1]-BAND.ticks[k-25]));paintBand()}}
 let lastWake=0;
 function onMidi(e){const d=e.data;if(!d||!d.length)return;
   if(d[0]!==0xF8&&performance.now()-lastWake>20000){lastWake=performance.now();keepAwake()}
   if(d[0]===0xF8){clockTick();return}
-  if(d[0]===0xFA||d[0]===0xFB){BAND.on=true;BAND.ticks=[];paintBand();return}
-  if(d[0]===0xFC){BAND.on=false;paintBand();return}
+  if(d[0]===0xFA){BAND.on=true;BAND.ticks=[];BAND.count=-1;BAND.aligned=true;paintBand();return}
+  if(d[0]===0xFB){BAND.on=true;paintBand();return}
+  if(d[0]===0xFC){BAND.on=false;BAND.aligned=false;paintBand();return}
   if(d.length<3)return;const t=d[0]&0xf0,ch=d[0]&0x0f;if((t===0x90||t===0x80)){MID.chans=MID.chans||{};MID.chans[ch+1]=performance.now()}if(ch>7)return;
   if(t===0x90&&d[2]>0)MID.held.set(d[1],performance.now());else if(t===0x80||t===0x90)MID.held.delete(d[1]);else return;
   MID.subs.forEach(f=>{try{f()}catch(err){}})}
@@ -386,7 +389,7 @@ function heardHTML(j,k){if(!MID.ok)return `<p class="note">Tap <b>Connect keyboa
 /* results log, kept on this device, written so you can paste it to Claude */
 /* every finished run is also sent to Bernard's Google Form, so Claude can read it from the linked Sheet */
 const RESULTS_FORM='https://docs.google.com/forms/d/e/1FAIpQLSc7CSx01Q0O9oh9Z8YW8e2uvHYoxbwKWfM-mtAawrR-P4lW5g/formResponse';
-function entryText(e){return `${e.d} · ${e.label} · ${e.kind==='auto'?`with the band: ${e.ontime} of ${e.total} chord changes on time`:`${e.clean} of ${e.total} chords played clean`}${e.slips&&e.slips.length?` · slips: ${e.slips.join('; ')}`:''}`}
+function entryText(e){return `${e.d} · ${e.label} · ${e.kind==='auto'?`with the band: ${e.ontime} of ${e.total} chord changes on time`:`${e.clean} of ${e.total} chords played clean${e.beat?`, changes on the beat ${e.beat}`:''}`}${e.slips&&e.slips.length?` · slips: ${e.slips.join('; ')}`:''}`}
 function sendRun(e){try{const L=LESSONS.find(l=>l.id===curLesson);const body=new URLSearchParams();
   body.append('entry.1619048076',`${new Date().toLocaleString()} · ${L?L.title:''} · ${entryText(e)}`);
   fetch(RESULTS_FORM,{method:'POST',mode:'no-cors',body,keepalive:true}).then(()=>toast('Results saved for Claude.'),()=>{})}catch(err){}}
@@ -398,14 +401,14 @@ function sendLessonDone(L){try{const today=new Date().toLocaleDateString(undefin
   catch(err){toast('Lesson complete. Tell Claude how it went.')}}
 function logRun(entry){const L=store.get('bkc-midi-log',[]);L.push(entry);store.set('bkc-midi-log',L.slice(-60));sendRun(entry)}
 function resultsText(){const L=store.get('bkc-midi-log',[]);if(!L.length)return 'No results yet.';
-  return 'My keyboard coach results:\n'+L.slice(-15).map(e=>`${e.d} · ${e.label} · ${e.kind==='auto'?`with the band: ${e.ontime} of ${e.total} chord changes on time`:`${e.clean} of ${e.total} chords played clean`}${e.slips&&e.slips.length?` · slips: ${e.slips.join('; ')}`:''}`).join('\n')}
+  return 'My keyboard coach results:\n'+L.slice(-15).map(e=>`${e.d} · ${e.label} · ${e.kind==='auto'?`with the band: ${e.ontime} of ${e.total} chord changes on time`:`${e.clean} of ${e.total} chords played clean${e.beat?`, changes on the beat ${e.beat}`:''}`}${e.slips&&e.slips.length?` · slips: ${e.slips.join('; ')}`:''}`).join('\n')}
 function copyResults(btn){const t=resultsText();const done=()=>toast('Copied. Paste it to Claude to shape the next lesson.');
   const fallback=()=>{let ta=btn.parentElement.querySelector('textarea');if(!ta){ta=document.createElement('textarea');ta.className='copybox';ta.rows=6;ta.id='copybox';btn.parentElement.appendChild(ta)}ta.value=t;ta.focus();ta.select();toast('Select all and copy this text.')};
   try{navigator.clipboard.writeText(t).then(done,fallback)}catch(err){fallback()}}
 
 let activeAuto=null;
 function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).slice(2,7);
-  let peeks=0,peek=false,auto=false,tmr=null,beats=4,cur=0,sound=store.get('bkc-sound','guitar'),xp=store.get('bkc-xp-'+label,def||0);
+  let bOk=0,bTot=0,peeks=0,peek=false,auto=false,tmr=null,beats=4,cur=0,sound=store.get('bkc-sound','guitar'),xp=store.get('bkc-xp-'+label,def||0);
   /* listening state */
   let listenOn=store.get('bkc-listen',true),clean=0,total=0,slips=[],dirty=false,settle=null,badT=null,advancedAt=0;
   let bar=null,aTotal=0,aOn=0;
@@ -414,7 +417,7 @@ function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).
   const good=j=>j.state==='perfect'||j.state==='ok';
   const closeBar=()=>{if(!bar)return;aTotal++;if(bar.hit&&!bar.late)aOn++;else slip(nameOf(keys[bar.i])+(bar.hit?': changed late':': missed'));bar=null};
   const paintScore=()=>{const el=document.getElementById(id);const sc=el&&el.querySelector('[data-score]');if(!sc)return;
-    sc.innerHTML=MID.ok?(auto?`With the band: <b>${aOn} of ${aTotal}</b> changes on time`:`Clean chords this run: <b>${clean} of ${total}</b>`+(opts.gate?` · Ready check: <b>${store.get('bkc-streak-'+label,0)} of ${opts.gate}</b> clean in a row`:'')):'';};
+    sc.innerHTML=MID.ok?(auto?`With the band: <b>${aOn} of ${aTotal}</b> changes on time`:`Clean chords this run: <b>${clean} of ${total}</b>`+(bTot?` · On the beat: <b>${bOk} of ${bTot}</b>`:'')+(opts.gate?` · Ready check: <b>${store.get('bkc-streak-'+label,0)} of ${opts.gate}</b> clean in a row`:'')):'';};
   const sub=()=>{const el=document.getElementById(id);if(!el){MID.subs.delete(sub);return}
     const k=keys[cur],j=judge(k,xp),box=el.querySelector('[data-h]');
     const stale=!auto&&advancedAt>0&&j.held.length&&!good(j)&&!j.held.some(m=>(MID.held.get(m)||0)>advancedAt);
@@ -427,11 +430,12 @@ function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).
     if(j.state==='bad'&&fresh){if(!badT)badT=setTimeout(()=>{badT=null;const j2=judge(keys[cur],xp);if(j2.state==='bad'){dirty=true;slip(nameOf(keys[cur])+': played '+j2.extra.map(nn).join(' ')+(j2.missing.length?' instead of '+j2.missing.map(nn).join(' '):''))}},450)}
     else{clearTimeout(badT);badT=null}
     if(listenOn&&good(j)){if(!settle)settle=setTimeout(()=>{settle=null;if(auto||!good(judge(keys[cur],xp)))return;
-        total++;const jj=judge(keys[cur],xp);if(jj.state==='ok'){dirty=true;slip(nameOf(keys[cur])+': right notes, old shape')}if(!dirty)clean++;dirty=false;advancedAt=performance.now();
-        if(cur===keys.length-1){logRun({d:today(),label,kind:'steps',clean,total,slips:slips.slice(0,6)});(()=>{if(opts.gate){const sk='bkc-streak-'+label;const st=clean===total?store.get(sk,0)+1:0;store.set(sk,st);
+        total++;const jj=judge(keys[cur],xp);
+        if(CUR_STYLE&&BAND.on){const tc=Math.max(...jj.held.map(m=>MID.held.get(m)||0));const bo=beatOff(tc);if(bo){bTot++;if(bo.ticks<=4)bOk++;else slip(`${nameOf(keys[cur])}: changed a little ${bo.early?'before':'after'} the beat`)}}if(jj.state==='ok'){dirty=true;slip(nameOf(keys[cur])+': right notes, old shape')}if(!dirty)clean++;dirty=false;advancedAt=performance.now();
+        if(cur===keys.length-1){logRun({d:today(),label,kind:'steps',clean,total,beat:bTot?`${bOk} of ${bTot}`:null,slips:slips.slice(0,6)});(()=>{if(opts.gate){const sk='bkc-streak-'+label;const st=clean===total?store.get(sk,0)+1:0;store.set(sk,st);
           if(st>=opts.gate){const L=LESSONS.find(l=>l.gate&&l.gate.label===label);if(L&&!store.get('bkc-pass-'+L.id,false)){store.set('bkc-pass-'+L.id,true);sendRun({d:today(),label:'READY CHECK PASSED',kind:'steps',clean:st,total:st,slips:[]})}toast(`✓ ${st} clean in a row. Ready check passed!`)}
           else toast(clean===total?`Clean! ${st} of ${opts.gate} in a row.`:`${clean} of ${total} clean. Streak reset, 0 of ${opts.gate}. Slow down and go again.`)}
-        else toast(`Done: ${clean} of ${total} clean.${clean===total?' Perfect run!':' Go again?'}`)})();clean=0;total=0;slips=[];draw(0,false)}
+        else toast(`Done: ${clean} of ${total} clean.${clean===total?' Perfect run!':' Go again?'}`)})();clean=0;total=0;bOk=0;bTot=0;slips=[];draw(0,false)}
         else draw(cur+1,false)},350)}
     else{clearTimeout(settle);settle=null}};
   MID.subs.add(sub);
