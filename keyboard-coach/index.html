@@ -362,7 +362,9 @@ function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).
     sc.innerHTML=MID.ok?(auto?`With the band: <b>${aOn} of ${aTotal}</b> changes on time`:`Clean chords this run: <b>${clean} of ${total}</b>`):'';};
   const sub=()=>{const el=document.getElementById(id);if(!el){MID.subs.delete(sub);return}
     const k=keys[cur],j=judge(k,xp),box=el.querySelector('[data-h]');
-    if(box){box.className='heard'+(good(j)?' good':j.state==='bad'?' bad':'');box.innerHTML=heardHTML(j,k)}
+    const stale=!auto&&advancedAt>0&&j.held.length&&!good(j)&&!j.held.some(m=>(MID.held.get(m)||0)>advancedAt);
+    if(box){if(stale){box.className='heard good';box.innerHTML=`<div class="what"><span class="v">✓ Got it</span></div><p class="note">Keep holding as long as you like. When you're ready, move to <b>${nameOf(k)}</b>.</p>`}
+      else{box.className='heard'+(good(j)?' good':j.state==='bad'?' bad':'');box.innerHTML=heardHTML(j,k)}}
     if(!MID.ok)return;
     if(!el.querySelector('[data-score]')){draw(cur,false,true);return}
     if(auto){if(bar&&!bar.hit&&good(j)){bar.hit=true;bar.late=performance.now()-bar.t>60000/metro.bpm}paintScore();return}
