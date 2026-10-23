@@ -335,7 +335,13 @@ function heardHTML(j,k){if(!MID.ok)return `<p class="note">Tap <b>Connect keyboa
   if(j.state==='part')return `<div class="what">Still need: ${j.missing.map(nn).join(', ')}</div>${playing}`;
   return `<div class="what"><span class="v">✗ Wrong note${j.extra.length>1?'s':''}: ${j.extra.map(nn).join(', ')}</span></div>${j.missing.length?`<p class="note">${nameOf(k)} needs ${j.missing.map(nn).join(', ')} instead.</p>`:''}${playing}`}
 /* results log, kept on this device, written so you can paste it to Claude */
-function logRun(entry){const L=store.get('bkc-midi-log',[]);L.push(entry);store.set('bkc-midi-log',L.slice(-60))}
+/* every finished run is also sent to Bernard's Google Form, so Claude can read it from the linked Sheet */
+const RESULTS_FORM='https://docs.google.com/forms/d/e/1FAIpQLSc7CSx01Q0O9oh9Z8YW8e2uvHYoxbwKWfM-mtAawrR-P4lW5g/formResponse';
+function entryText(e){return `${e.d} · ${e.label} · ${e.kind==='auto'?`with the band: ${e.ontime} of ${e.total} chord changes on time`:`${e.clean} of ${e.total} chords played clean`}${e.slips&&e.slips.length?` · slips: ${e.slips.join('; ')}`:''}`}
+function sendRun(e){try{const L=LESSONS.find(l=>l.id===curLesson);const body=new URLSearchParams();
+  body.append('entry.1619048076',`${new Date().toLocaleString()} · ${L?L.title:''} · ${entryText(e)}`);
+  fetch(RESULTS_FORM,{method:'POST',mode:'no-cors',body,keepalive:true}).then(()=>toast('Results saved for Claude.'),()=>{})}catch(err){}}
+function logRun(entry){const L=store.get('bkc-midi-log',[]);L.push(entry);store.set('bkc-midi-log',L.slice(-60));sendRun(entry)}
 function resultsText(){const L=store.get('bkc-midi-log',[]);if(!L.length)return 'No results yet.';
   return 'My keyboard coach results:\n'+L.slice(-15).map(e=>`${e.d} · ${e.label} · ${e.kind==='auto'?`with the band: ${e.ontime} of ${e.total} chord changes on time`:`${e.clean} of ${e.total} chords played clean`}${e.slips&&e.slips.length?` · slips: ${e.slips.join('; ')}`:''}`).join('\n')}
 function copyResults(btn){const t=resultsText();const done=()=>toast('Copied. Paste it to Claude to shape the next lesson.');
