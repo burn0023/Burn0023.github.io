@@ -161,7 +161,7 @@ header.top .wrap{padding-block:12px}
 
 <header class="top">
   <div class="wrap">
-    <div class="brand"><h1>Keyboard Coach</h1><button class="midibtn" id="midiBtn" type="button"><span class="dot"></span><span id="midiTxt">Connect keyboard</span></button></div>
+    <div class="brand"><h1>Keyboard Coach</h1><span style="display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="midibtn" id="bandChip" hidden><span class="dot"></span><span id="bandTxt">Band</span></span><button class="midibtn" id="midiBtn" type="button"><span class="dot"></span><span id="midiTxt">Connect keyboard</span></button></span></div>
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="lesson" aria-selected="true">Lesson</button>
       <button role="tab" data-tab="chords" aria-selected="false">Chords</button>
@@ -310,7 +310,33 @@ function midiHelp(kind){const h=document.getElementById('midiHelp');h.hidden=fal
    <ol><li>Install the free <b>Web MIDI Browser</b> app from the App Store.</li><li>Pair the Yamaha Bluetooth MIDI dongle inside that app (or connect the Tyros to the iPad with a USB cable).</li><li>Open this coach page in that app and tap <b>Connect keyboard</b>.</li></ol>
    <p class="note">On a Mac or Windows laptop, Chrome works without any extra app.</p><button class="btn small" data-x>Close</button>`;
   h.querySelector('[data-x]').onclick=()=>h.hidden=true}
-function onMidi(e){const d=e.data;if(!d||d.length<3)return;const t=d[0]&0xf0,ch=d[0]&0x0f;if(ch>3)return;
+/* band side: the Tyros sends MIDI clock (24 ticks per beat) plus Start/Stop while a style plays */
+const BAND={on:false,ticks:[],bpm:0,last:0,n:0};
+const STYLES={
+ freilach:{name:'Freilach / hora',feel:'fast, bouncy 2/4 Jewish dance: oom-pah bass, driving snare',where:'Your Jewish style set. With only the built-in styles, look in World or Party/Entertainer for a fast polka- or march-type style.',bpm:[120,150]},
+ rock:{name:'Rock 8-beat',feel:'steady driving rock, kick on 1 and 3, snare on 2 and 4',where:'Pop & Rock',bpm:[100,135]},
+ slow16:{name:'Slow 16',feel:'slow 16-beat ballad, soft hi-hat in sixteenths, for kumzitz and slow songs',where:'Ballad',bpm:[60,80]},
+ sixeight:{name:'6/8',feel:'swaying 6/8, two big beats per bar, like a slow niggun',where:'Your Jewish set, or Ballad (6/8 / slow rock types)',bpm:[50,75]},
+ techno:{name:'Techno / dance',feel:'four-on-the-floor kick, off-beat bass, builds and drops',where:'Dance',bpm:[125,145]}
+};
+let CUR_STYLE=null;
+function styleBox(key){const s=STYLES[key];CUR_STYLE=key;return `<aside class="whybox" style="display:block"><div class="eyebrow">Style for this step</div><p><b>${s.name}</b>: ${s.feel}.</p><p><b>Where:</b> ${s.where}</p><p><b>Speed:</b> ${s.bpm[0]}–${s.bpm[1]} bpm</p><p id="styleLive" class="note"></p></aside>`}
+function paintBand(){const has=BAND.last&&performance.now()-BAND.last<1500;const chip=document.getElementById('bandChip');
+  if(chip){chip.hidden=!has;chip.classList.toggle('on',has&&BAND.on);document.getElementById('bandTxt').textContent=has?(BAND.on?`Band playing · ${BAND.bpm} bpm`:`Band ready · ${BAND.bpm} bpm`):'Band'}
+  const live=document.getElementById('styleLive');if(live&&CUR_STYLE){const s=STYLES[CUR_STYLE];
+    if(!MID.ok)live.textContent='Connect the keyboard and I\'ll check the band\'s speed.';
+    else if(!has)live.textContent='I can\'t see the band yet. Start the style. If nothing shows, the Tyros may need MIDI clock sending turned on.';
+    else if(BAND.bpm<s.bpm[0])live.innerHTML=`Band at <b>${BAND.bpm} bpm</b>: slow for a ${s.name}. Speed it up a bit, or check the style type.`;
+    else if(BAND.bpm>s.bpm[1])live.innerHTML=`Band at <b>${BAND.bpm} bpm</b>: fast for a ${s.name}. Bring the tempo down.`;
+    else live.innerHTML=`✓ Band at <b>${BAND.bpm} bpm</b>, right speed for a ${s.name}.`}}
+setInterval(()=>{if(BAND.last&&performance.now()-BAND.last>1500){BAND.on=false}paintBand()},1000);
+function clockTick(){const t=performance.now();BAND.last=t;BAND.ticks.push(t);if(BAND.ticks.length>49)BAND.ticks.shift();
+  if(BAND.ticks.length>=25&&++BAND.n%24===0){const k=BAND.ticks.length;BAND.bpm=Math.round(60000/(BAND.ticks[k-1]-BAND.ticks[k-25]));paintBand()}}
+function onMidi(e){const d=e.data;if(!d||!d.length)return;
+  if(d[0]===0xF8){clockTick();return}
+  if(d[0]===0xFA||d[0]===0xFB){BAND.on=true;BAND.ticks=[];paintBand();return}
+  if(d[0]===0xFC){BAND.on=false;paintBand();return}
+  if(d.length<3)return;const t=d[0]&0xf0,ch=d[0]&0x0f;if(ch>3)return;
   if(t===0x90&&d[2]>0)MID.held.set(d[1],performance.now());else if(t===0x80||t===0x90)MID.held.delete(d[1]);else return;
   MID.subs.forEach(f=>{try{f()}catch(err){}})}
 async function connectMidi(){if(!navigator.requestMIDIAccess){midiHelp('nosupport');return}
@@ -477,11 +503,11 @@ const LESSONS=[
 ]},
 {id:'t1',title:'Tyros 1 · Make the band follow you',status:'today',goal:'Turn on the Tyros 5 band and drive it with the left-hand chords you already know.',steps:[
  {t:'Get set up',min:3,b:`<p>The Tyros needs the step-down transformer (230V to 120V) before it can be switched on. Never plug it straight into an Israeli outlet.</p><ul><li>Transformer into the wall, Tyros into the transformer, then power on.</li><li>Master volume low to start.</li></ul>`},
- {t:'Pick a style',min:3,b:`<p>A <b>style</b> is the band: drums, bass, guitars, all playing together.</p><ul><li>Press one of the <b>STYLE</b> category buttons. A list opens on the screen.</li><li>Press one of the buttons <b>[A]–[J]</b> beside the screen to choose a style. Start with any upbeat one.</li></ul>`},
+ {t:'Pick a style',min:3,b:`<p>A <b>style</b> is the band: drums, bass, guitars, all playing together.</p><ul><li>Press one of the <b>STYLE</b> category buttons. A list opens on the screen.</li><li>Press one of the buttons <b>[A]–[J]</b> beside the screen to choose a style. Use the one in the box: a freilach.</li></ul><p>Once the style is playing, the app reads the band's speed and tells you if it fits.</p>`,style:'freilach'},
  {t:'Let your left hand lead the band',min:5,b:`<ul><li>Press <b>[ACMP]</b> so the light is on. Now the left part of the keyboard tells the band which chord to play.</li><li>Press <b>[SYNC START]</b>. The band is waiting.</li><li>Play <b>Am</b> with your left hand. The band starts, in Am.</li><li>Press <b>[START/STOP]</b> to stop.</li></ul><p>Below are the left-hand chord shapes: pinky on the bottom, thumb on top.</p>`,d:()=>walker(['AmL','DmL','EL'],'Left-hand chords')},
- {t:'Change chords, the band follows',min:6,b:`<p>Start the band with Am again, then change your left hand: <b>Am → Dm → E → Am</b>, 4 beats each. The whole band changes chord with you.</p><p>This is why the chord lessons matter: your left hand is now steering a full band.</p>`,d:()=>walker(['AmL','DmL','EL','AmL'],'Left hand drives the band')},
+ {t:'Change chords, the band follows',min:6,style:'freilach',b:`<p>Start the band with Am again, then change your left hand: <b>Am → Dm → E → Am</b>, 4 beats each. The whole band changes chord with you.</p><p>This is why the chord lessons matter: your left hand is now steering a full band.</p>`,d:()=>walker(['AmL','DmL','EL','AmL'],'Left hand drives the band')},
  {t:'Give your right hand a sound',min:4,b:`<ul><li>Press one of the <b>ONE TOUCH SETTING</b> buttons (1–4). The Tyros picks a right-hand sound that suits the style.</li><li>Or choose your own: press <b>PART SELECT [RIGHT 1]</b>, make sure <b>PART ON/OFF [RIGHT 1]</b> is on, press a <b>VOICE</b> button such as <b>[PIANO]</b>, then pick with <b>[A]–[J]</b>.</li></ul>`},
- {t:'Play for fun: one-man band',min:5,b:`<p>Band on, left hand looping Am → Dm → E → Am, right hand playing a little melody on top, like your jam in Lesson 3. That's the one-man band.</p><p>Next Tyros lesson: intros, fills, breaks and endings, so you can start and finish a song like a pro.</p>`}
+ {t:'Play for fun: one-man band',min:5,style:'freilach',b:`<p>Band on, left hand looping Am → Dm → E → Am, right hand playing a little melody on top, like your jam in Lesson 3. That's the one-man band.</p><p>Next Tyros lesson: intros, fills, breaks and endings, so you can start and finish a song like a pro.</p>`}
 ]}
 ];
 const ROADMAP=[
@@ -540,7 +566,7 @@ function toggleMetro(){const a=ac();if(!a)return;metro.on=!metro.on;if(metro.on)
 
 /* ---------- render lesson ---------- */
 function renderLesson(){
-  const L=LESSONS.find(l=>l.id===curLesson)||LESSONS[2];const P=lp(L.id);const i=Math.min(P.step,L.steps.length-1);const S=L.steps[i];
+  CUR_STYLE=null;const L=LESSONS.find(l=>l.id===curLesson)||LESSONS[2];const P=lp(L.id);const i=Math.min(P.step,L.steps.length-1);const S=L.steps[i];
   const tagTxt={review:'Review',today:'Today',next:'Up next'};
   const total=L.steps.reduce((a,s)=>a+s.min,0);
   const el=document.getElementById('tab-lesson');
@@ -550,7 +576,7 @@ function renderLesson(){
     <div class="progress">${L.steps.map((s,j)=>`<span data-s="${j}" title="${s.t}" class="${j===i?'cur':P.done.includes(j)?'done':''}"></span>`).join('')}</div></div>
    <article class="card">
     <div class="stephead"><div><div class="eyebrow">Step ${i+1} of ${L.steps.length}</div><h3>${S.t}</h3></div><div class="min">${S.min} min</div></div>
-    <div class="split"><div><div class="body">${S.b}</div>${(WHYSTEP[L.id]||[])[i]?`<aside class="whybox"><div class="eyebrow">Why this works</div><p>${WHYSTEP[L.id][i]}</p></aside>`:''}</div>${S.d?`<div class="diags">${S.d()}</div>`:''}</div>
+    <div class="split"><div><div class="body">${S.b}</div>${S.style?styleBox(S.style):''}${(WHYSTEP[L.id]||[])[i]?`<aside class="whybox"><div class="eyebrow">Why this works</div><p>${WHYSTEP[L.id][i]}</p></aside>`:''}</div>${S.d?`<div class="diags">${S.d()}</div>`:''}</div>
     <div class="timer"><span class="t" id="tt"></span><button class="btn small" id="tbtn"></button>
      <span class="metro" style="margin-left:auto"><button class="btn small" id="mbtn">${metro.on?'Stop':'Metronome'}</button></span></div>
     <div class="metro" style="margin-top:8px"><span class="bpm" id="bpmv">${metro.bpm} bpm</span><input type="range" id="bpm" min="40" max="140" step="2" value="${metro.bpm}" aria-label="Tempo"><span class="beat"></span><span class="beat"></span><span class="beat"></span><span class="beat"></span></div>
@@ -564,7 +590,7 @@ function renderLesson(){
     <li>This page keeps your screen on while the timer or metronome runs.</li></ul></div>
   </div>`;
   if(!timer.running){timer.left=S.min*60}
-  paintTimer();
+  paintTimer();paintBand();
   el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{curLesson=b.dataset.l;stopTimer();timer.left=0;save();renderLesson();scrollTo(0,0)});
   el.querySelectorAll('.progress span').forEach(s=>s.onclick=()=>{P.step=+s.dataset.s;stopTimer();save();renderLesson()});
   document.getElementById('tbtn').onclick=()=>{if(timer.running)stopTimer();else{if(timer.left<=0)timer.left=S.min*60;startTimer()}};
