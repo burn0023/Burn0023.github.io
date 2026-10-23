@@ -412,7 +412,7 @@ function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).
   const good=j=>j.state==='perfect'||j.state==='ok';
   const closeBar=()=>{if(!bar)return;aTotal++;if(bar.hit&&!bar.late)aOn++;else slip(nameOf(keys[bar.i])+(bar.hit?': changed late':': missed'));bar=null};
   const paintScore=()=>{const el=document.getElementById(id);const sc=el&&el.querySelector('[data-score]');if(!sc)return;
-    sc.innerHTML=MID.ok?(auto?`With the band: <b>${aOn} of ${aTotal}</b> changes on time`:`Clean chords this run: <b>${clean} of ${total}</b>`):'';};
+    sc.innerHTML=MID.ok?(auto?`With the band: <b>${aOn} of ${aTotal}</b> changes on time`:`Clean chords this run: <b>${clean} of ${total}</b>`+(opts.gate?` · Ready check: <b>${store.get('bkc-streak-'+label,0)} of ${opts.gate}</b> clean in a row`:'')):'';};
   const sub=()=>{const el=document.getElementById(id);if(!el){MID.subs.delete(sub);return}
     const k=keys[cur],j=judge(k,xp),box=el.querySelector('[data-h]');
     const stale=!auto&&advancedAt>0&&j.held.length&&!good(j)&&!j.held.some(m=>(MID.held.get(m)||0)>advancedAt);
@@ -426,7 +426,10 @@ function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).
     else{clearTimeout(badT);badT=null}
     if(listenOn&&good(j)){if(!settle)settle=setTimeout(()=>{settle=null;if(auto||!good(judge(keys[cur],xp)))return;
         total++;if(!dirty)clean++;dirty=false;advancedAt=performance.now();
-        if(cur===keys.length-1){logRun({d:today(),label,kind:'steps',clean,total,slips:slips.slice(0,6)});toast(`Done: ${clean} of ${total} clean.${clean===total?' Perfect run!':' Go again?'}`);clean=0;total=0;slips=[];draw(0,false)}
+        if(cur===keys.length-1){logRun({d:today(),label,kind:'steps',clean,total,slips:slips.slice(0,6)});(()=>{if(opts.gate){const sk='bkc-streak-'+label;const st=clean===total?store.get(sk,0)+1:0;store.set(sk,st);
+          if(st>=opts.gate){const L=LESSONS.find(l=>l.gate&&l.gate.label===label);if(L&&!store.get('bkc-pass-'+L.id,false)){store.set('bkc-pass-'+L.id,true);sendRun({d:today(),label:'READY CHECK PASSED',kind:'steps',clean:st,total:st,slips:[]})}toast(`✓ ${st} clean in a row. Ready check passed!`)}
+          else toast(clean===total?`Clean! ${st} of ${opts.gate} in a row.`:`${clean} of ${total} clean. Streak reset, 0 of ${opts.gate}. Slow down and go again.`)}
+        else toast(`Done: ${clean} of ${total} clean.${clean===total?' Perfect run!':' Go again?'}`)})();clean=0;total=0;slips=[];draw(0,false)}
         else draw(cur+1,false)},350)}
     else{clearTimeout(settle);settle=null}};
   MID.subs.add(sub);
@@ -522,13 +525,23 @@ const LESSONS=[
  {t:'Picture off: mixed up',min:5,b:`<p>Same thing, but the chords come in a random-feeling order, so you can't just follow the pattern. Name, then play.</p>`,d:()=>walker(['Dmm','Em','Amm','Em','Dmm','Amm','Dmm','Em'],'Mixed order',0,{hide:true})},
  {t:'Jam without the picture',min:5,b:`<p>Tap <b>Auto-play</b>. The guitar loops Am → Dm → E → Am and you only see the names. Left hand plays the chord, right hand adds a little melody, like your jam in Lesson 3.</p><p>Then tell me how many peeks you needed. That tells me whether to move on or repeat this.</p>`,d:()=>walker(['Amm','Dmm','Em','Amm'],'Jam from memory',0,{hide:true})}
 ]},
-{id:'t1',title:'Tyros 1 · Make the band follow you',status:'today',goal:'Turn on the Tyros 5 band and drive it with the left-hand chords you already know.',steps:[
+{id:'t1',title:'Tyros 1 · Make the band follow you',status:'review',goal:'Turn on the Tyros 5 band and drive it with the left-hand chords you already know.',steps:[
  {t:'Get set up',min:3,b:`<p>The Tyros needs the step-down transformer (230V to 120V) before it can be switched on. Never plug it straight into an Israeli outlet.</p><ul><li>Transformer into the wall, Tyros into the transformer, then power on.</li><li>Master volume low to start.</li></ul>`},
  {t:'Pick a style',min:3,b:`<p>A <b>style</b> is the band: drums, bass, guitars, all playing together.</p><ul><li>Press one of the <b>STYLE</b> category buttons. A list opens on the screen.</li><li>Press one of the buttons <b>[A]–[J]</b> beside the screen to choose a style. Use the one in the box: a freilach.</li></ul><p>Once the style is playing, the app reads the band's speed and tells you if it fits.</p>`,style:'freilach'},
  {t:'Let your left hand lead the band',min:5,b:`<p><b>First, move the split point up.</b> By default the band only reads chords in the lowest keys, far left. We'll move the dividing line up to the <b>B just below middle C</b>, so your left hand plays chords in the same spot as in your piano lessons. On the Tyros 5 this is in the <b>FUNCTION</b> menu, on the <b>Split Point / Fingering</b> page: set the style split point to that B.</p><ul><li>Press <b>[ACMP]</b> so the light is on. Now the left part of the keyboard tells the band which chord to play.</li><li>Press <b>[SYNC START]</b>. The band is waiting.</li><li>Play <b>Am</b> with your left hand. The band starts, in Am.</li><li>Press <b>[START/STOP]</b> to stop.</li></ul><p>Below are the left-hand chord shapes, just below middle C. All three use fingers <b>5-3-1</b>: pinky on the bottom, middle finger, thumb on top. The map shows the shaded band zone.</p>`,d:()=>walker(['AmL','DmL','EL'],'Left-hand chords')},
  {t:'Change chords, the band follows',min:6,style:'freilach',b:`<p>Start the band with Am again, then change your left hand: <b>Am → Dm → E → Am</b>, 4 beats each. The whole band changes chord with you.</p><p>This is why the chord lessons matter: your left hand is now steering a full band.</p>`,d:()=>walker(['AmL','DmL','EL','AmL'],'Left hand drives the band')},
  {t:'Give your right hand a sound',min:4,b:`<ul><li>Press one of the <b>ONE TOUCH SETTING</b> buttons (1–4). The Tyros picks a right-hand sound that suits the style.</li><li>Or choose your own: press <b>PART SELECT [RIGHT 1]</b>, make sure <b>PART ON/OFF [RIGHT 1]</b> is on, press a <b>VOICE</b> button such as <b>[PIANO]</b>, then pick with <b>[A]–[J]</b>.</li></ul>`},
- {t:'Play for fun: one-man band',min:5,style:'freilach',b:`<p>Band on, left hand looping Am → Dm → E → Am, right hand playing a little melody on top, like your jam in Lesson 3. That's the one-man band.</p><p>Next Tyros lesson: intros, fills, breaks and endings, so you can start and finish a song like a pro.</p>`}
+ {t:'Play for fun: one-man band',min:5,style:'freilach',b:`<p>Band on, left hand looping Am → Dm → E → Am, right hand playing a little melody on top, like your jam in Lesson 3. That's the one-man band.</p>`}
+]},
+{id:'t2',title:'Tyros 2 · Lock in the left hand',status:'today',gate:{label:'Mixed order, from memory',need:3},goal:'Make the new left-hand shapes automatic: thumb anchored on A, smooth moves, no picture. You move on only after 3 clean runs in a row from memory.',steps:[
+ {t:'Setup check',min:2,b:`<ul><li>Split point at <b>B2</b> (the B just below middle C). Chord fingering on <b>Fingered</b>.</li><li><b>PART ON/OFF [LEFT]</b> on, so the app can hear your left hand. Turn its volume down if you don't want to hear it.</li><li>Band off for now. Just you and the app.</li></ul>`},
+ {t:'Thumb anchor',min:3,b:`<p>Your thumb's home is the <b>A just below middle C</b>. Every left-hand chord in this lesson starts from there.</p><ul><li>Play Am (C E A), let go completely, drop your hand in your lap.</li><li>Bring it back and land the <b>thumb on A first</b>, then the other two fingers.</li><li>Do it 4 times. The app moves on each time you land it.</li></ul><p>Your last session showed the thumb landing on G instead of A. This step fixes exactly that.</p>`,d:()=>walker(['AmL','AmL','AmL','AmL'],'Thumb anchor')},
+ {t:'Am ↔ Dm: thumb stays',min:4,b:`<p>Going <b>Am → Dm</b>, your <b>thumb stays on A</b>. Pinky steps up C → D, middle finger steps up E → F. Coming back, both step down.</p><p>Slowly, back and forth. The app shows exactly which fingers move each time.</p>`,d:()=>walker(['AmL','DmL','AmL','DmL','AmL','DmL'],'Am and Dm')},
+ {t:'E → Am: the return trip',min:5,b:`<p>This was your trickiest move last time. Going <b>E → Am</b>:</p><div class="say">Middle finger stays on E. Pinky up B → C. Thumb up G♯ → A.</div><p>Both outside fingers move up one key at the same time; the middle one doesn't move. Going Am → E is the same in reverse: both outside fingers step down.</p>`,d:()=>walker(['EL','AmL','EL','AmL','EL','AmL'],'E and Am')},
+ {t:'Full loop, with the picture',min:4,b:`<p>Am → Dm → E → Am. Watch the moves; by now most fingers should be finding their way without looking.</p>`,d:()=>walker(['AmL','DmL','EL','AmL'],'Full loop')},
+ {t:'Picture off: in order',min:4,b:`<p>Only the chord name now. Thumb on A first, then play it. Peeking is fine; it still counts as practice.</p>`,d:()=>walker(['AmL','DmL','EL','AmL'],'In order, from memory',0,{hide:true})},
+ {t:'Ready check: mixed order',min:6,b:`<p>The chords come in a mixed order, picture off. <b>Get 3 clean runs in a row</b> to pass this lesson. A run with any slip resets the count, so slow down, find the thumb first, and be accurate before fast.</p><p>The app won't let you finish this lesson until you pass. If it takes a few sessions, that's normal. That's how it gets locked in.</p>`,d:()=>walker(['DmL','EL','AmL','EL','DmL','AmL','EL','AmL'],'Mixed order, from memory',0,{hide:true,gate:3})},
+ {t:'Now with the band',min:5,style:'freilach',b:`<p>Band on: <b>[ACMP]</b>, <b>[SYNC START]</b>, a freilach. Play the loop <b>Am → Dm → E → Am</b>, 4 beats each, picture off. The band follows your left hand.</p><p>Add a little right-hand melody once the left hand feels automatic.</p>`,d:()=>walker(['AmL','DmL','EL','AmL'],'With the band',0,{hide:true})}
 ]}
 ];
 const ROADMAP=[
@@ -620,6 +633,7 @@ function renderLesson(){
   document.getElementById('bpm').oninput=e=>{metro.bpm=+e.target.value;document.getElementById('bpmv').textContent=metro.bpm+' bpm';store.set('bkc-bpm',metro.bpm)};
   document.getElementById('prev').onclick=()=>{P.step=Math.max(0,i-1);stopTimer();save();renderLesson();scrollTo(0,0)};
   document.getElementById('next').onclick=()=>{if(!P.done.includes(i))P.done.push(i);stopTimer();
+    if(i>=L.steps.length-1&&L.gate&&!store.get('bkc-pass-'+L.id,false)){P.done=P.done.filter(x=>x!==i);toast(`Not yet: get ${L.gate.need} clean runs in a row on the ready check first. Streak now: ${store.get('bkc-streak-'+L.gate.label,0)}.`);save();renderLesson();return}
     if(i<L.steps.length-1){P.step=i+1}else{sendLessonDone(L);P.step=0}
     save();renderLesson();scrollTo(0,0)};
 }
@@ -741,7 +755,7 @@ function show(tab){document.querySelectorAll('nav.tabs button').forEach(b=>b.set
   ({lesson:renderLesson,chords:renderChords,fit:renderFit,songs:renderSongs,why:renderWhy})[tab]();store.set('bkc-tab',tab);scrollTo(0,0)}
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>show(b.dataset.tab));
 let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,3200)}
-if(!store.get('bkc-t1open',false)){curLesson='t1';save();store.set('bkc-t1open',true)}
+if(!store.get('bkc-t2open',false)){curLesson='t2';save();store.set('bkc-t2open',true)}
 show('lesson');
 </script>
 
