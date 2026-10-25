@@ -362,7 +362,8 @@ function onMidi(e){const d=e.data;if(!d||!d.length)return;
   if(d[0]===0xFB){BAND.on=true;paintBand();return}
   if(d[0]===0xFC){BAND.on=false;BAND.aligned=false;paintBand();return}
   if(d.length<3)return;const t=d[0]&0xf0,ch=d[0]&0x0f;if((t===0x90||t===0x80)){MID.chans=MID.chans||{};MID.chans[ch+1]=performance.now()}if(ch>7)return;
-  if(t===0x90&&d[2]>0)MID.held.set(d[1],performance.now());else if(t===0x80||t===0x90)MID.held.delete(d[1]);else return;
+  const tnow=performance.now();if(t===0x90&&d[2]>0)MID.held.set(d[1],tnow);else if(t===0x80||t===0x90)MID.held.delete(d[1]);else return;
+  if(MID.noteHooks)MID.noteHooks.forEach(f=>{try{f(d[1],d[2],t===0x90&&d[2]>0,tnow)}catch(err){}});
   MID.subs.forEach(f=>{try{f()}catch(err){}})}
 async function connectMidi(){if(!navigator.requestMIDIAccess){midiHelp('nosupport');return}
   try{const acc=await navigator.requestMIDIAccess();
@@ -494,6 +495,66 @@ const SONG={
  hash:()=>listen('חנן בן ארי השיבנו')+walker(['Amm','Gs','Amm','Dmm','Gs','Dmm','Cs','Amm','Gs','Fs','Gs','Amm'],'Hashivenu, all the chords in order',5)
 };
 
+/* ---------- baseline check ---------- */
+MID.noteHooks=new Set();
+const PCN=['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+function triadName(pcs){const s=[...new Set(pcs)];for(let r=0;r<12;r++){for(const [q,iv] of [['',[0,4,7]],['m',[0,3,7]],['7',[0,4,7,10]]]){const want=iv.map(x=>(r+x)%12);if(want.length===s.length&&want.every(x=>s.includes(x)))return{name:PCN[r]+q,root:r}}}return null}
+function sendText(txt){try{const body=new URLSearchParams();body.append('entry.1619048076',`${new Date().toLocaleString()} · ${txt}`);fetch(RESULTS_FORM,{method:'POST',mode:'no-cors',body,keepalive:true}).then(()=>toast('Saved for Claude.'),()=>{})}catch(e){}}
+const zoneName=m=>m<48?'below the 2nd C (far left)':m<60?'between the 2nd C and middle C':m<72?'around middle C':'above middle C';
+function bFree(){const id='bf'+Math.random().toString(36).slice(2,7);let rec=false,notes=[],tmr=null,hook=null;
+  const stop=()=>{rec=false;clearTimeout(tmr);if(hook)MID.noteHooks.delete(hook);analyze()};
+  const analyze=()=>{const el=document.getElementById(id+'r');const ons=notes.filter(n=>n.on);if(ons.length<10){el.innerHTML='<p class="note">Not enough notes recorded. Play a bit longer and try again.</p>';return}
+    const L=ons.filter(n=>n.m<60),R=ons.filter(n=>n.m>=60);
+    const groups=[];let g=[];ons.forEach(n=>{if(g.length&&n.t-g[0].t>70){groups.push(g);g=[]}g.push(n)});if(g.length)groups.push(g);
+    const lc={},rc={};const lTimes=[];const lLows=[];
+    groups.forEach(gr=>{['L','R'].forEach(h=>{const ns=gr.filter(n=>h==='L'?n.m<60:n.m>=60);if(ns.length<3)return;const tn=triadName(ns.map(n=>n.m%12));if(!tn)return;
+      const low=Math.min(...ns.map(n=>n.m));const shape=low%12===tn.root?'root':'inv';const box=h==='L'?lc:rc;box[tn.name]=box[tn.name]||{root:0,inv:0};box[tn.name][shape]++;if(h==='L'){lTimes.push(gr[0].t);lLows.push(low)}})});
+    const fmt=o=>Object.keys(o).length?Object.entries(o).map(([k,v])=>`${k}×${v.root+v.inv} (${v.root} starting on its name note, ${v.inv} rearranged)`).join(', '):'none';
+    let steady='not enough chord changes to tell';if(lTimes.length>4){const iv=lTimes.slice(1).map((t,i)=>t-lTimes[i]).filter(x=>x>250);if(iv.length>3){const mean=iv.reduce((a,b)=>a+b,0)/iv.length,sd=Math.sqrt(iv.reduce((a,b)=>a+(b-mean)**2,0)/iv.length);steady=sd/mean<.15?'steady':sd/mean<.3?'mostly steady':'uneven'}}
+    let jump=0;for(let i=1;i<R.length;i++)jump=Math.max(jump,Math.abs(R[i].m-R[i-1].m));
+    const avgLow=lLows.length?Math.round(lLows.reduce((a,b)=>a+b,0)/lLows.length):(L.length?Math.round(L.reduce((a,b)=>a+b.m,0)/L.length):null);
+    const sum=`BASELINE 1 · Play it your way · ${ons.length} notes · left-hand chords: ${fmt(lc)} · right-hand chords: ${fmt(rc)} · left hand plays ${avgLow!=null?zoneName(avgLow):'nothing below middle C'} · right hand range: ${R.length?nn(Math.min(...R.map(n=>n.m)))+' to '+nn(Math.max(...R.map(n=>n.m))):'none'} · biggest right-hand jump: ${jump} keys · chord-change rhythm: ${steady}`;
+    el.innerHTML=`<div class="card" style="margin-top:10px"><div class="eyebrow">Recorded</div><p>${sum.replace('BASELINE 1 · Play it your way · ','')}</p></div>`;sendText(sum)};
+  setTimeout(()=>{const el=document.getElementById(id);if(!el)return;el.querySelector('[data-a=go]').onclick=e=>{if(rec){stop();e.target.textContent='▶ Start recording';return}
+    if(!MID.ok){toast('Connect the keyboard first.');return}notes=[];rec=true;e.target.textContent='■ Stop';hook=(m,v,on,t)=>{if(rec)notes.push({m,on,t})};MID.noteHooks.add(hook);keepAwake();tmr=setTimeout(()=>{stop();e.target.textContent='▶ Start recording'},180000)}});
+  return `<div class="card walker" id="${id}"><div class="eyebrow">Play it your way</div><p>Tap start, play a song you know <b>exactly how you always have</b>, then tap stop (it stops by itself after 3 minutes).</p><button class="btn primary" data-a="go">▶ Start recording</button><div id="${id}r"></div></div>`}
+function bRecall(){const id='br'+Math.random().toString(36).slice(2,7);
+  const LIST=[['C',0,''],['G',7,''],['Am',9,'m'],['F',5,''],['Dm',2,'m'],['E',4,''],['D',2,''],['Em',4,'m'],['A',9,''],['B♭',10,''],['G7',7,'7'],['E7',4,'7']];
+  const IV={'':[0,4,7],m:[0,3,7],'7':[0,4,7,10]};let i=-1,t0=0,res=[],hook=null,timer=null,done=false;
+  const pcsOf=c=>IV[c[2]].map(x=>(c[1]+x)%12);
+  const next=()=>{clearTimeout(timer);i++;const el=document.getElementById(id);if(!el)return;if(i>=LIST.length){finish();return}
+    el.querySelector('[data-c]').textContent=LIST[i][0];el.querySelector('[data-s]').textContent=`Chord ${i+1} of ${LIST.length}`;t0=performance.now();done=false;timer=setTimeout(()=>{res.push({c:LIST[i][0],r:'not found'});next()},20000)};
+  const check=()=>{if(done||i<0||i>=LIST.length)return;const held=[...MID.held.keys()];if(held.length<3)return;const hp=[...new Set(held.map(m=>m%12))];const want=pcsOf(LIST[i]);
+    if(hp.length===want.length&&want.every(x=>hp.includes(x))){done=true;const s=((performance.now()-t0)/1000).toFixed(1);const low=Math.min(...held);const shape=low%12===LIST[i][1]?'name note on the bottom':'rearranged';const hand=low<60?'left':'right';res.push({c:LIST[i][0],r:`${s}s, ${hand} hand, ${shape}`});toast(`✓ ${LIST[i][0]} in ${s}s`);setTimeout(next,700)}};
+  const finish=()=>{MID.subs.delete(check);const el=document.getElementById(id);const txt='BASELINE 2 · Chord recall · '+res.map(x=>`${x.c}: ${x.r}`).join(' | ');
+    el.querySelector('[data-c]').textContent='Done';el.querySelector('[data-s]').textContent='';el.querySelector('[data-r]').innerHTML='<ul style="margin:8px 0 0;padding-left:20px">'+res.map(x=>`<li><b>${x.c}</b>: ${x.r}</li>`).join('')+'</ul>';sendText(txt)};
+  setTimeout(()=>{const el=document.getElementById(id);if(!el)return;el.querySelector('[data-a=go]').onclick=e=>{if(!MID.ok){toast('Connect the keyboard first.');return}e.target.hidden=true;el.querySelector('[data-a=skip]').hidden=false;res=[];i=-1;MID.subs.add(check);next()};
+    el.querySelector('[data-a=skip]').onclick=()=>{if(i>=0&&i<LIST.length&&!done){done=true;res.push({c:LIST[i][0],r:"don't know it"});next()}}});
+  return `<div class="card walker" id="${id}"><div class="memory"><div class="big" data-c>?</div><p class="note" data-s>Play each chord any way you know it, either hand.</p></div><div class="walknav"><button class="btn primary" data-a="go">▶ Start</button><button class="btn small" data-a="skip" hidden>I don't know this one</button></div><div data-r></div></div>`}
+function bTiming(){const id='bt'+Math.random().toString(36).slice(2,7);const BPM=80,N=16;let clicks=[],hits=[],hook=null;
+  const run=()=>{const a=ac();if(!a)return;keepAwake();const spb=60/BPM,start=a.currentTime+.3,nowP=performance.now(),nowA=a.currentTime;clicks=[];hits=[];
+    for(let b=0;b<N+4;b++){const t=start+b*spb;click(t,b%4===0);if(b>=4)clicks.push(nowP+(t-nowA)*1000)}
+    let last=0;hook=(m,v,on,t)=>{if(on&&t-last>200){hits.push(t);last=t}};MID.noteHooks.add(hook);
+    setTimeout(()=>{MID.noteHooks.delete(hook);const off=hits.map(h=>{let best=1e9;clicks.forEach(c=>{if(Math.abs(h-c)<Math.abs(best))best=h-c});return best}).filter(x=>Math.abs(x)<300);
+      const el=document.getElementById(id+'r');if(off.length<8){el.innerHTML='<p class="note">Not enough hits recorded. Try again and play on every click.</p>';return}
+      const sorted=[...off].sort((a,b)=>a-b),med=sorted[Math.floor(sorted.length/2)];const spread=Math.round(Math.sqrt(off.reduce((a,x)=>a+(x-med)**2,0)/off.length));
+      const verdict=spread<30?'very steady':spread<60?'steady':spread<100?'a little uneven':'uneven';
+      const txt=`BASELINE 3 · Timing at ${BPM} bpm · ${off.length} of ${N} clicks hit · spread ±${spread} ms (${verdict})`;el.innerHTML=`<p><b>${verdict[0].toUpperCase()+verdict.slice(1)}</b>: your chords landed within about ±${spread} ms of each other around the click, on ${off.length} of ${N} clicks.</p>`;sendText(txt)},(N+5)*spb*1000)};
+  setTimeout(()=>{const el=document.getElementById(id);if(el)el.querySelector('[data-a=go]').onclick=()=>{if(!MID.ok){toast('Connect the keyboard first.');return}run()}});
+  return `<div class="card walker" id="${id}"><p>Four count-in clicks, then <b>16 clicks</b>. Play a C chord (either hand) exactly on each click.</p><button class="btn primary" data-a="go">▶ Start clicks</button><div id="${id}r"></div></div>`}
+function bQuiz(){const id='bq'+Math.random().toString(36).slice(2,7);
+  const Q=[['songs','Which songs can you play start to finish right now?','text'],
+   ['keys','Which keys or home chords feel comfortable?','multi',['C','G','D','F','Am','Dm','Em','Other']],
+   ['hearchange','When you listen to a song, can you hear when the chord changes?','one',['Usually','Sometimes','Rarely']],
+   ['majmin','Can you tell a major chord from a minor one by ear?','one',['Yes','Sometimes','No']],
+   ['leadsheet','Reading chord symbols on a lead sheet while playing:','one',['Easy','Slow','Can\'t yet']],
+   ['fingers','Which right-hand fingers do you tend to avoid?','multi',['Pinky','Ring','Thumb','None']],
+   ['other','Anything else I should know about how you play?','text']];
+  setTimeout(()=>{const el=document.getElementById(id);if(!el)return;el.querySelectorAll('[data-opt]').forEach(b=>b.onclick=()=>{const q=b.dataset.q,multi=b.dataset.m==='1';if(!multi)el.querySelectorAll(`[data-q="${q}"]`).forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'&&multi?'false':'true')});
+    el.querySelector('[data-a=send]').onclick=()=>{const out=Q.map(q=>{let v;if(q[2]==='text')v=el.querySelector(`#${id}-${q[0]}`).value.trim();else v=[...el.querySelectorAll(`[data-q="${q[0]}"][aria-pressed="true"]`)].map(x=>x.textContent).join(', ');return `${q[1]} ${v||'(no answer)'}`});
+      sendText('BASELINE 4 · Questions · '+out.join(' | '));el.querySelector('[data-a=send]').textContent='✓ Sent'}});
+  return `<div class="card walker" id="${id}">${Q.map(q=>`<div style="margin-bottom:14px"><p style="margin:0 0 6px"><b>${q[1]}</b></p>${q[2]==='text'?`<textarea id="${id}-${q[0]}" class="copybox" rows="2"></textarea>`:`<div class="chips" style="flex-wrap:wrap">${q[3].map(o=>`<button class="chip" data-opt data-q="${q[0]}" data-m="${q[2]==='multi'?1:0}" aria-pressed="false">${o}</button>`).join('')}</div>`}</div>`).join('')}<button class="btn primary" data-a="send">Send answers to Claude</button></div>`}
+
 /* ---------- lessons ---------- */
 const RH5=(notes,fs)=>notes.map((n,i)=>({n,f:fs[i],h:'r'}));
 const LESSONS=[
@@ -539,7 +600,7 @@ const LESSONS=[
  {t:'Give your right hand a sound',min:4,b:`<ul><li>Press one of the <b>ONE TOUCH SETTING</b> buttons (1–4). The Tyros picks a right-hand sound that suits the style.</li><li>Or choose your own: press <b>PART SELECT [RIGHT 1]</b>, make sure <b>PART ON/OFF [RIGHT 1]</b> is on, press a <b>VOICE</b> button such as <b>[PIANO]</b>, then pick with <b>[A]–[J]</b>.</li></ul>`},
  {t:'Play for fun: one-man band',min:5,style:'freilach',b:`<p>Band on, left hand looping Am → Dm → E → Am, right hand playing a little melody on top, like your jam in Lesson 3. That's the one-man band.</p>`}
 ]},
-{id:'t2',title:'Tyros 2 · Lock in the left hand',status:'today',gate:{label:'Mixed order, from memory',need:3},goal:'Make the new left-hand shapes automatic: thumb anchored on A, smooth moves, no picture. The next lesson unlocks after 3 clean runs in a row from memory.',steps:[
+{id:'t2',title:'Tyros 2 · Lock in the left hand',status:'review',gate:{label:'Mixed order, from memory',need:3},goal:'Make the new left-hand shapes automatic: thumb anchored on A, smooth moves, no picture. The next lesson unlocks after 3 clean runs in a row from memory.',steps:[
  {t:'Setup check',min:2,b:`<ul><li>Split point at <b>B2</b> (the B just below middle C). Chord fingering on <b>Fingered</b>.</li><li><b>PART ON/OFF [LEFT]</b> on, so the app can hear your left hand. Turn its volume down if you don't want to hear it.</li><li>Band off for now. Just you and the app.</li></ul>`},
  {t:'Thumb anchor',min:3,b:`<p>Your thumb's home is the <b>A just below middle C</b>. Every left-hand chord in this lesson starts from there.</p><ul><li>Play Am (C E A), let go completely, drop your hand in your lap.</li><li>Bring it back and land the <b>thumb on A first</b>, then the other two fingers.</li><li>Do it 4 times. The app moves on each time you land it.</li></ul><p>Your last session showed the thumb landing on G instead of A. This step fixes exactly that.</p>`,d:()=>walker(['AmL','AmL','AmL','AmL'],'Thumb anchor')},
  {t:'Am ↔ Dm: thumb stays',min:4,b:`<p>Going <b>Am → Dm</b>, your <b>thumb stays on A</b>. Pinky steps up C → D, middle finger steps up E → F. Coming back, both step down.</p><p>Slowly, back and forth. The app shows exactly which fingers move each time.</p>`,d:()=>walker(['AmL','DmL','AmL','DmL','AmL','DmL'],'Am and Dm')},
@@ -548,6 +609,14 @@ const LESSONS=[
  {t:'Picture off: in order',min:4,b:`<p>Only the chord name now. Thumb on A first, then play it. Peeking is fine; it still counts as practice.</p>`,d:()=>walker(['AmL','DmL','EL'],'In order, from memory',0,{hide:true})},
  {t:'Ready check: mixed order',min:6,b:`<p>The chords come in a mixed order, picture off. <b>Get 3 clean runs in a row</b> to pass this lesson. A run with any slip resets the count, so slow down, find the thumb first, and be accurate before fast.</p><p>You can still finish the lesson and send your results either way. Claude only unlocks the next lesson once you've passed. If it takes a few sessions, that's normal.</p>`,d:()=>walker(['DmL','EL','AmL','EL','DmL','AmL','EL','AmL'],'Mixed order, from memory',0,{hide:true,gate:3})},
  {t:'Now with the band',min:5,style:'freilach',b:`<p>Band on: <b>[ACMP]</b>, <b>[SYNC START]</b>, a freilach. Play the loop <b>Am → Dm → E → Am</b>, 4 beats each, picture off. The band follows your left hand.</p><p>Add a little right-hand melody once the left hand feels automatic.</p>`,d:()=>walker(['AmL','DmL','EL'],'With the band',0,{hide:true})}
+]},
+{id:'b1',title:'Baseline · Where you are now',status:'today',goal:'A once-off check of how you play today, so Claude can rebuild the lesson plan around you. No right or wrong answers.',steps:[
+ {t:'Setup',min:2,b:`<ul><li>Keyboard connected in the app (green button).</li><li><b>[ACMP] off</b> and no style playing, so the app hears only you.</li><li><b>PART ON/OFF [LEFT]</b> on, so your left hand is heard.</li><li>Pick a plain piano sound.</li></ul><p>Play the way you naturally do in every step. Don't try to "do it right"; the point is to see your real habits.</p>`},
+ {t:'Play it your way',min:4,b:`<p>Play any song you know, your usual way: your fingering, your chord shapes, wherever your hands normally go. The app records what each hand does.</p>`,d:()=>bFree()},
+ {t:'Chord recall',min:4,b:`<p>A chord name appears. Play it any way you know it, with either hand. If you don't know one, tap <b>I don't know this one</b>. That's useful information, not a failure.</p>`,d:()=>bRecall()},
+ {t:'Timing',min:2,b:`<p>One chord on every click. The app measures how steady you are, which matters a lot when playing with a band or a room full of people.</p>`,d:()=>bTiming()},
+ {t:'Six questions',min:3,b:`<p>The things the app can't hear. Quick taps are fine.</p>`,d:()=>bQuiz()},
+ {t:'Hands video',min:2,b:`<p>The one thing MIDI can't see is <b>which fingers</b> you use.</p><ul><li>Prop your phone above the keyboard so both hands are in view.</li><li>Record about 30 seconds of a song, played your usual way.</li><li>Send the video to Claude in the chat.</li></ul><p>Then tap <b>Finish lesson</b>. Claude will put together your skills map and the new plan.</p>`}
 ]}
 ];
 const ROADMAP=[
@@ -598,7 +667,7 @@ const WHYSTEP={
 
 /* ---------- lesson state ---------- */
 /* lessons Claude has unlocked; a lesson's "Next" button only works when the next lesson is listed here */
-const OPEN=['l1','l2','l3','l4','t1','t2'];
+const OPEN=['l1','l2','l3','l4','t1','t2','b1'];
 let prog=store.get('bkc-prog',{});
 let curLesson=store.get('bkc-cur','l3');
 function lp(id){if(!prog[id])prog[id]={step:0,done:[]};return prog[id]}
@@ -788,7 +857,7 @@ function show(tab){document.querySelectorAll('nav.tabs button').forEach(b=>b.set
   ({lesson:renderLesson,chords:renderChords,fit:renderFit,songs:renderSongs,why:renderWhy})[tab]();store.set('bkc-tab',tab);scrollTo(0,0)}
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>show(b.dataset.tab));
 let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,3200)}
-if(!store.get('bkc-t2open',false)){curLesson='t2';save();store.set('bkc-t2open',true)}
+if(!store.get('bkc-b1open',false)){curLesson='b1';save();store.set('bkc-b1open',true)}
 show('lesson');
 </script>
 
