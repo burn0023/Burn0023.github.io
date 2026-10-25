@@ -191,6 +191,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v)
 const NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 function midi(n){const m=n.match(/^([A-G]#?)(\d)$/);return NAMES.indexOf(m[1])+12*(+m[2]+1)}
 function pc(n){return n.replace(/\d/,'')}
+const SP=s=>s.replace('A#','B♭').replace('D#','E♭').replace('#','♯');
 const isBlack=m=>[1,3,6,8,10].includes(m%12);
 
 /* ---------- chord voicings ---------- */
@@ -218,6 +219,10 @@ const V={
   DmL:{name:'Dm',r:[],l:[['D3',5],['F3',3],['A3',1]]},
   EL:{name:'E',r:[],l:[['B2',5],['E3',3],['G#3',1]]},
   Cg:{name:'C',r:[['C4',1],['E4',3],['G4',5]],l:[['C3',5]]},
+  /* G minor family, left hand: same shapes as Am/Dm/E, two keys lower */
+  GmL:{name:'Gm',r:[],l:[['A#2',5],['D3',3],['G3',1]]},
+  CmL:{name:'Cm',r:[],l:[['C3',5],['D#3',3],['G3',1]]},
+  DL:{name:'D',r:[],l:[['A2',5],['D3',3],['F#3',1]]},
 };
 const nameOf=k=>V[k].name||k;
 function notesOf(k){return V[k].r.map(x=>pc(x[0])).join(' – ')}
@@ -280,7 +285,7 @@ function chordMarks(k,hands='both'){const m=[];if(hands!=='r')V[k].l.forEach(x=>
 const LEGEND=`<div class="legend"><span><i style="background:var(--accent)"></i>Right hand</span><span><i style="background:var(--lh)"></i>Left hand</span><span>Numbers = fingers (1 thumb … 5 pinky)</span></div>`;
 
 /* explain rearranged shapes and finger moves */
-const sn=n=>pc(n).replace('#','♯');
+const sn=n=>SP(pc(n));
 const FN=['','thumb','index finger','middle finger','ring finger','pinky'];
 function shapeOf(k){return V[k].r.length?V[k].r:V[k].l}
 function rearr(k){const sh=shapeOf(k);if(sh.length<3)return '';const root=midi(V[k].l[0][0])%12;
@@ -303,7 +308,7 @@ function diagramChord(k,opts={}){const id='p'+Math.random().toString(36).slice(2
 function diagramProg(keys,label){const id='q'+Math.random().toString(36).slice(2,7);
   setTimeout(()=>{const b=document.getElementById(id);if(b)b.onclick=()=>playSeq(keys)});
   return `<div class="diagram"><div class="lbl"><strong>${label||keys.map(nameOf).join(' → ')}</strong><button class="btn small" id="${id}">▶ Hear the chords</button></div></div>`}
-function handsText(k){const s=n=>pc(n).replace('#','♯');const L=V[k].l.map(x=>`finger ${x[1]} on ${s(x[0])}`).join(', ');return `<b>Left hand:</b> ${L}`+(V[k].r.length?`<br><b>Right hand:</b> ${V[k].r.map(x=>`finger ${x[1]} on ${s(x[0])}`).join(', ')}`:'')}
+function handsText(k){const s=n=>SP(pc(n));const L=V[k].l.map(x=>`finger ${x[1]} on ${s(x[0])}`).join(', ');return `<b>Left hand:</b> ${L}`+(V[k].r.length?`<br><b>Right hand:</b> ${V[k].r.map(x=>`finger ${x[1]} on ${s(x[0])}`).join(', ')}`:'')}
 /* ---------- guitar backing (plucked-string synth) ---------- */
 const ksCache={};
 function ksBuf(m){const a=ac();if(ksCache[m])return ksCache[m];const sr=a.sampleRate,f=440*Math.pow(2,(m-69)/12),N=Math.max(2,Math.round(sr/f)),len=Math.floor(sr*1.6);
@@ -321,7 +326,7 @@ function strumBar(k,t0,spb,beats){const ns=guitarNotes(k);
 /* ---------- live keyboard (MIDI) ---------- */
 /* Tyros sends your hands on MIDI channels 1-4 (Right 1-3, Left) and the style band on 9-16; we only listen to your hands */
 const MID={ok:false,held:new Map(),subs:new Set(),name:''};
-const nn=m=>NAMES[((m%12)+12)%12].replace('#','♯');
+const nn=m=>SP(NAMES[((m%12)+12)%12]);
 function paintMidi(){const b=document.getElementById('midiBtn');b.classList.toggle('on',MID.ok);
   document.getElementById('midiTxt').textContent=MID.ok?'Listening: '+(MID.name.length>22?'keyboard':MID.name):'Connect keyboard'}
 function midiHelp(kind){const h=document.getElementById('midiHelp');h.hidden=false;
@@ -440,7 +445,7 @@ function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).
         else draw(cur+1,false)},350)}
     else{clearTimeout(settle);settle=null}};
   MID.subs.add(sub);
-  const keyName=()=>{const r=midi(V[keys[0]].l[0][0])+xp;return NAMES[((r%12)+12)%12].replace('#','♯')+(nameOf(keys[0]).endsWith('m')?'m':'')};
+  const keyName=()=>{const r=midi(V[keys[0]].l[0][0])+xp;return SP(NAMES[((r%12)+12)%12])+(nameOf(keys[0]).endsWith('m')?'m':'')};
   const stop=()=>{if(auto&&MID.ok){closeBar();if(aTotal>=keys.length){logRun({d:today(),label,kind:'auto',ontime:aOn,total:aTotal,slips:slips.slice(0,6)});toast(`With the band: ${aOn} of ${aTotal} changes on time.`)}}
     aTotal=0;aOn=0;bar=null;slips=[];auto=false;clearTimeout(tmr);if(activeAuto===stop)activeAuto=null};
   const tick=i=>{if(!auto)return;closeBar();bar={i,t:performance.now()+30,hit:false,late:false};draw(i,false);if(good(judge(keys[i],xp)))bar.hit=true;const a=ac();if(!a)return;const spb=60/metro.bpm,t0=a.currentTime+.03;
@@ -483,7 +488,7 @@ function diagramScale(marks,label,playList){const id='s'+Math.random().toString(
   setTimeout(()=>{const b=document.getElementById(id);if(!b)return;b.onclick=()=>{const a=ac();if(!a)return;const list=playList||marks.map(x=>x.n),gap=.7,kb=document.getElementById(id+'k'),now=document.getElementById(id+'n');
     b.disabled=true;const t0=a.currentTime+.05;
     list.forEach((n,i)=>{tone(midi(n),t0+i*gap,.6,.14);setTimeout(()=>{const mk=marks.find(x=>x.n===n)||{n,h:'r'};kb.innerHTML=keyboard(marks.map(x=>x.n===n?{...x,h:'m'}:x));
-      now.innerHTML=`Now: <b>${mk.h==='l'?'left':'right'} hand, finger ${mk.f}</b> on ${pc(n).replace('#','♯')}`},i*gap*1000+50)});
+      now.innerHTML=`Now: <b>${mk.h==='l'?'left':'right'} hand, finger ${mk.f}</b> on ${SP(pc(n))}`},i*gap*1000+50)});
     setTimeout(()=>{kb.innerHTML=keyboard(marks);now.textContent='Your turn: play it just like that, same fingers, same speed.';b.disabled=false},list.length*gap*1000+400)}});
   return `<div class="diagram"><div class="lbl"><strong>${label}</strong><button class="btn small" id="${id}">▶ Watch demo</button></div><div class="kb" id="${id}k">${keyboard(marks)}</div><p class="now" id="${id}n">Tap Watch demo: each key lights up gold as it plays, with the finger to use.</p></div>`}
 
@@ -542,6 +547,16 @@ function bTiming(){const id='bt'+Math.random().toString(36).slice(2,7);const BPM
       const txt=`BASELINE 3 · Timing at ${BPM} bpm · ${off.length} of ${N} clicks hit · spread ±${spread} ms (${verdict})`;el.innerHTML=`<p><b>${verdict[0].toUpperCase()+verdict.slice(1)}</b>: your chords landed within about ±${spread} ms of each other around the click, on ${off.length} of ${N} clicks.</p>`;sendText(txt)},(N+5)*spb*1000)};
   setTimeout(()=>{const el=document.getElementById(id);if(el)el.querySelector('[data-a=go]').onclick=()=>{if(!MID.ok){toast('Connect the keyboard first.');return}run()}});
   return `<div class="card walker" id="${id}"><p>Four count-in clicks, then <b>16 clicks</b>. Play a C chord (either hand) exactly on each click.</p><button class="btn primary" data-a="go">▶ Start clicks</button><div id="${id}r"></div></div>`}
+function earQuiz(){const id='eq'+Math.random().toString(36).slice(2,7);const N=10;let n=0,ok=0,cur=null,answered=true;
+  const chordAt=(r,min)=>{const a=ac();if(!a)return;const t=a.currentTime+.05;[r,r+(min?3:4),r+7].forEach(m=>tone(m-XP,t,1.6,.13))};
+  setTimeout(()=>{const el=document.getElementById(id);if(!el)return;const q=s=>el.querySelector(s);
+    const next=()=>{if(n>=N){q('[data-st]').innerHTML=`<b>${ok} of ${N}</b> right.`+(ok>=8?' Your ear is getting it.':' Normal for a start. This gets easier every session.');sendText(`EAR · Major or minor · ${ok} of ${N} right`);q('[data-a=go]').textContent='Again';n=0;ok=0;answered=true;return}
+      cur={r:52+Math.floor(Math.random()*9),min:Math.random()<.5};answered=false;chordAt(cur.r,cur.min);q('[data-st]').textContent=`Chord ${n+1} of ${N}: bright or dark?`;q('[data-a=go]').textContent='Hear it again'};
+    q('[data-a=go]').onclick=()=>{if(answered){next()}else chordAt(cur.r,cur.min)};
+    q('[data-a=cmp]').onclick=()=>{const a=ac();if(!a)return;const t=a.currentTime+.05;[55,59,62].forEach(m=>tone(m-XP,t,1.3,.13));[55,58,62].forEach(m=>tone(m-XP,t+1.5,1.3,.13))};
+    el.querySelectorAll('[data-ans]').forEach(b=>b.onclick=()=>{if(answered||!cur)return;answered=true;const right=(b.dataset.ans==='min')===cur.min;if(right)ok++;n++;
+      q('[data-st]').innerHTML=(right?'✓ Right, ':'✗ Not this time, ')+`that was <b>${cur.min?'minor (dark)':'major (bright)'}</b>.`;q('[data-a=go]').textContent=n>=N?'See score':'Next chord'})});
+  return `<div class="card walker" id="${id}"><p data-st>Tap <b>Start</b>. Each chord plays once; tap <b>Hear it again</b> as often as you like.</p><div class="chips" style="margin:10px 0"><button class="chip" data-ans="maj">Major · bright</button><button class="chip" data-ans="min">Minor · dark</button></div><button class="btn primary" data-a="go">Start</button> <button class="btn" data-a="cmp">Compare: G major, then G minor</button></div>`}
 function bQuiz(){const id='bq'+Math.random().toString(36).slice(2,7);
   const Q=[['songs','Which songs can you play start to finish right now?','text'],
    ['keys','Which keys or home chords feel comfortable?','multi',['C','G','D','F','Am','Dm','Em','Other']],
@@ -610,13 +625,25 @@ const LESSONS=[
  {t:'Ready check: mixed order',min:6,b:`<p>The chords come in a mixed order, picture off. <b>Get 3 clean runs in a row</b> to pass this lesson. A run with any slip resets the count, so slow down, find the thumb first, and be accurate before fast.</p><p>You can still finish the lesson and send your results either way. Claude only unlocks the next lesson once you've passed. If it takes a few sessions, that's normal.</p>`,d:()=>walker(['DmL','EL','AmL','EL','DmL','AmL','EL','AmL'],'Mixed order, from memory',0,{hide:true,gate:3})},
  {t:'Now with the band',min:5,style:'freilach',b:`<p>Band on: <b>[ACMP]</b>, <b>[SYNC START]</b>, a freilach. Play the loop <b>Am → Dm → E → Am</b>, 4 beats each, picture off. The band follows your left hand.</p><p>Add a little right-hand melody once the left hand feels automatic.</p>`,d:()=>walker(['AmL','DmL','EL'],'With the band',0,{hide:true})}
 ]},
-{id:'b1',title:'Baseline · Where you are now',status:'today',goal:'A once-off check of how you play today, so Claude can rebuild the lesson plan around you. No right or wrong answers.',steps:[
+{id:'b1',title:'Baseline · Where you are now',status:'review',goal:'A once-off check of how you play today, so Claude can rebuild the lesson plan around you. No right or wrong answers.',steps:[
  {t:'Setup',min:2,b:`<ul><li>Keyboard connected in the app (green button).</li><li><b>[ACMP] off</b> and no style playing, so the app hears only you.</li><li><b>PART ON/OFF [LEFT]</b> on, so your left hand is heard.</li><li>Pick a plain piano sound.</li></ul><p>Play the way you naturally do in every step. Don't try to "do it right"; the point is to see your real habits.</p>`},
  {t:'Play it your way',min:4,b:`<p>Play any song you know, your usual way: your fingering, your chord shapes, wherever your hands normally go. The app records what each hand does.</p>`,d:()=>bFree()},
  {t:'Chord recall',min:4,b:`<p>A chord name appears. Play it any way you know it, with either hand. If you don't know one, tap <b>I don't know this one</b>. That's useful information, not a failure.</p>`,d:()=>bRecall()},
  {t:'Timing',min:2,b:`<p>One chord on every click. The app measures how steady you are, which matters a lot when playing with a band or a room full of people.</p>`,d:()=>bTiming()},
  {t:'Six questions',min:3,b:`<p>The things the app can't hear. Quick taps are fine.</p>`,d:()=>bQuiz()},
  {t:'Hands video',min:2,b:`<p>The one thing MIDI can't see is <b>which fingers</b> you use.</p><ul><li>Prop your phone above the keyboard so both hands are in view.</li><li>Record about 30 seconds of a song, played your usual way.</li><li>Send the video to Claude in the chat.</li></ul><p>Then tap <b>Finish lesson</b>. Claude will put together your skills map and the new plan.</p>`}
+]},
+{id:'t3',title:'Tyros 3 · Same moves, your key: G minor',status:'today',gate:{label:'Gm mixed order, from memory',need:3},goal:'Your book songs and most of your freilach sets sit in G minor. Move the left-hand loop you just passed down to Gm → Cm → D, then put a melody from your own book on top. The next lesson unlocks after 3 clean mixed runs in a row.',steps:[
+ {t:'Warm-up: the A minor loop',min:3,b:`<p>One loop of what you passed last time, picture off. Watch one thing: on <b>Am</b> your middle finger likes to land on <b>F</b>. It belongs on <b>E</b>, the white key right next to it, one lower.</p>`,d:()=>walker(['AmL','DmL','EL'],'Warm-up Am loop',0,{hide:true})},
+ {t:'Why G minor',min:2,b:`<p>In your Baseline you played a song from your book in <b>G minor</b>: Gm, Cm, B♭ and D. Your freilach list is mostly G minor, C minor and F minor too. So that's where your hands need to live.</p><div class="say">Am → Dm → E is the same trip as Gm → Cm → D. Same hand shapes, same moves, just two white keys lower.</div><p>Tap play and listen: it's the same little story, a bit lower.</p>`,d:()=>walker(['GmL','CmL','DL'],'Hear Gm Cm D')},
+ {t:'Thumb anchor on G',min:3,b:`<p>New home for the thumb: the <b>G just below middle C</b>. Gm is <b>B♭ D G</b>: pinky on the black key B♭, middle finger on D, thumb on G.</p><ul><li>Play it, let go, hand in your lap.</li><li>Come back and land the <b>thumb on G first</b>.</li><li>4 times.</li></ul>`,d:()=>walker(['GmL','GmL','GmL','GmL'],'Thumb anchor G')},
+ {t:'Gm ↔ Cm: thumb stays',min:4,b:`<p>Just like Am → Dm: the <b>thumb stays on G</b>. Pinky steps up B♭ → C, middle finger steps up D → E♭ (the black key).</p>`,d:()=>walker(['GmL','CmL','GmL','CmL','GmL','CmL'],'Gm and Cm')},
+ {t:'D → Gm: the return trip',min:5,b:`<p>Just like E → Am:</p><div class="say">Middle finger stays on D. Pinky up A → B♭. Thumb up F♯ → G.</div><p>The D chord has F♯, the black key under your thumb. That's the pull that makes it want to go home to Gm, like G♯ did for Am.</p>`,d:()=>walker(['DL','GmL','DL','GmL','DL','GmL'],'D and Gm')},
+ {t:'Full loop, with the picture',min:4,b:`<p>Gm → Cm → D → Gm, 4 beats each.</p>`,d:()=>walker(['GmL','CmL','DL'],'Gm full loop')},
+ {t:'Ready check: mixed order',min:6,b:`<p>Picture off, mixed order. <b>3 clean runs in a row</b> to pass. Thumb on G first, then the chord. Accurate before fast.</p><p>You can finish and send your results either way. Claude unlocks the next lesson once you've passed.</p>`,d:()=>walker(['CmL','DL','GmL','DL','CmL','GmL','DL','GmL'],'Gm mixed order, from memory',0,{hide:true,gate:3})},
+ {t:'Now with the band',min:5,style:'freilach',b:`<p><b>[ACMP]</b> on, <b>[SYNC START]</b>, a freilach. Gm → Cm → D → Gm, picture off. Connect the app <b>before</b> you start the style, so it can read the band's beat.</p>`,d:()=>walker(['GmL','CmL','DL'],'Gm with the band',0,{hide:true})},
+ {t:'Ear: major or minor',min:4,b:`<p>Your Baseline said you can't hear major vs minor yet. That's the next ear skill, and it's quick to build.</p><ul><li><b>Major</b> sounds bright and open.</li><li><b>Minor</b> sounds darker, more serious: the sound of most of your freilachs.</li></ul><p>Tap <b>Compare</b> first to hear the same chord both ways. Then do 10.</p>`,d:()=>earQuiz()},
+ {t:'Your book, your melody',min:8,style:'freilach',b:`<p>This is the big new skill: <b>melody in the right hand, chords in the left</b>, the way a one-man band plays.</p><ul><li>Open the G minor song from your book that you played in the Baseline.</li><li>Ignore the written left-hand notes. Read the <b>chord symbols</b> instead and play them with the left-hand shapes from today.</li><li>Right hand plays only the <b>top melody line</b>, one note at a time.</li><li>Start with just the first line. Band off first, then band on.</li></ul><p>If a chord shows up that isn't Gm, Cm or D (like B♭ or F), play it with your right hand for now, or skip it and keep the melody going. We'll add those shapes next.</p>`}
 ]}
 ];
 const ROADMAP=[
@@ -662,12 +689,22 @@ const WHYSTEP={
   "Watching the moves now saves you from having to think about them later.",
   "Recalling without the picture is what turns a shape into a habit.",
   "Three clean in a row proves it isn't luck. That's when it's really yours.",
-  "With the band going you can't stop to think. If the shapes hold up here, they'll hold up at a simcha."]
+  "With the band going you can't stop to think. If the shapes hold up here, they'll hold up at a simcha."],
+ t3:["Warming up on shapes you already own gets your hands set before the new key.",
+  "Learning one pattern and moving it is much faster than learning a new one. Your hands already know these moves; they just need a new starting spot.",
+  "Same trick as before: when the thumb lands right, the other two fingers fall into place.",
+  "Gm and Cm share the G, so the thumb never moves. Small moves mean clean, fast changes.",
+  "Gm and D share the D. The F♯ is a black key that sits just under G, so it leans into it. That lean is what makes a line sound finished.",
+  "Watching the moves once more now saves thinking later.",
+  "Three clean in a row proves it isn't luck.",
+  "With a band going you can't stop to think. If the shapes hold here, they'll hold at a simcha.",
+  "Most simcha songs switch between minor and major chords. Hearing which one is coming lets you follow a song you've never played.",
+  "This is the one-man-band skill: the left hand steers the band, the right hand sings the tune. Reading the chord symbols instead of the written left-hand notes is how working players read."]
 };
 
 /* ---------- lesson state ---------- */
 /* lessons Claude has unlocked; a lesson's "Next" button only works when the next lesson is listed here */
-const OPEN=['l1','l2','l3','l4','t1','t2','b1'];
+const OPEN=['l1','l2','l3','l4','t1','t2','b1','t3'];
 let prog=store.get('bkc-prog',{});
 let curLesson=store.get('bkc-cur','l3');
 function lp(id){if(!prog[id])prog[id]={step:0,done:[]};return prog[id]}
@@ -765,7 +802,7 @@ function topVoicing(k,mpc){const pcs=V[k].r.map(x=>midi(x[0])%12),mp=NAMES.index
   let l=midi(V[k].l[0][0]);while(l>=below[0]-5)l-=12;while(l<36)l+=12;
   return {r:[[below[0],1],[mid,f2],[top,5]],l}}
 function topMarks(k,mpc){const v=topVoicing(k,mpc);return [{n:mname(v.l),f:5,h:'l'},{n:mname(v.r[0][0]),f:1,h:'r'},{n:mname(v.r[1][0]),f:v.r[1][1],h:'r'},{n:mname(v.r[2][0]),f:5,h:'m'}]}
-function topText(k,mpc){const v=topVoicing(k,mpc),s=m=>pc(mname(m)).replace('#','♯');
+function topText(k,mpc){const v=topVoicing(k,mpc),s=m=>SP(pc(mname(m)));
   return `<b>Melody ${s(v.r[2][0])} on top with your pinky</b> (gold key). Under it, thumb on ${s(v.r[0][0])} and finger ${v.r[1][1]} on ${s(v.r[1][0])}. Left pinky on ${s(v.l)}.`}
 function renderFit(){const el=document.getElementById('tab-fit');const F=FITKEYS[fitKey];
   let res='';
@@ -857,7 +894,7 @@ function show(tab){document.querySelectorAll('nav.tabs button').forEach(b=>b.set
   ({lesson:renderLesson,chords:renderChords,fit:renderFit,songs:renderSongs,why:renderWhy})[tab]();store.set('bkc-tab',tab);scrollTo(0,0)}
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>show(b.dataset.tab));
 let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,3200)}
-if(!store.get('bkc-b1open',false)){curLesson='b1';save();store.set('bkc-b1open',true)}
+if(!store.get('bkc-t3open',false)){curLesson='t3';save();store.set('bkc-t3open',true)}
 show('lesson');
 </script>
 
