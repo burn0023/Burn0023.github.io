@@ -677,7 +677,7 @@ function lmChords(parts,label){const c=parts.flatMap(p=>LMA[p].c.split(' ')).fil
 const BASS={GmL:'G2',CmL:'C2',D7L:'D2',DL:'D2',G7L:'G2',F7L:'F2',BbL:'A#2',EbL:'D#2',Cm6L:'C2',AmL:'A2',DmL:'D2',EL:'E2',FaL:'F2',CL:'C2',GL:'G2',EmL:'E2'};
 function lhEvents(bars){const ev=[];bars.forEach((b,i)=>{ev.push({type:'bass',n:BASS[b[0]],k:b[0],bar:i+1});ev.push({type:'chord',k:b[1],bar:i+1})});return ev}
 function lhFollow(bars,label,opts={}){const id='lh'+Math.random().toString(36).slice(2,7);const E=lhEvents(bars);
-  let cur=0,clean=0,miss=false,slips=[],flash=null,playing=false,timers=[],sawSplit=false,check=null;const held=new Map();
+  let cur=0,clean=0,miss=false,slips=[],flash=null,playing=false,timers=[],sawSplit=false,check=null,lastHeard='',nudge='';const held=new Map();
   const bk='bkc-lhbpm-'+label;const bpm=()=>store.get(bk,opts.bpm||100);
   const today=()=>new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});
   const pcs=k=>[...new Set(V[k].l.map(x=>midi(x[0])%12))];
@@ -685,12 +685,15 @@ function lhFollow(bars,label,opts={}){const id='lh'+Math.random().toString(36).s
   const lhHeld=()=>[...held.entries()].filter(([m,c])=>isLH(m,c)).map(([m])=>m);
   const finish=()=>{logRun({d:today(),label,kind:'melody',clean,total:E.length,slips:slips.slice(0,6)});
     toast(clean===E.length?`Clean! All ${E.length} left-hand moves right first time.`:`Done: ${clean} of ${E.length} left-hand moves right first time.`);cur=0;clean=0;miss=false;slips=[];draw()};
-  const advance=()=>{if(!miss)clean++;miss=false;flash={ok:true};cur++;if(cur>=E.length){finish();return}draw()};
+  const advance=()=>{if(!miss)clean++;miss=false;flash={ok:true};if(E[cur].type!=='bass')nudge='';cur++;if(cur>=E.length){finish();return}draw()};
   const hook=(m,v,on,t,ch)=>{const el=document.getElementById(id);if(!el){MID.noteHooks.delete(hook);return}
-    if(on)held.set(m,ch);else held.delete(m);if(!on||playing)return;if(!isLH(m,ch))return;
+    if(on)held.set(m,ch);else held.delete(m);if(!on||playing)return;
+    const lh=isLH(m,ch);lastHeard=`${lh?'left':'right'} hand ${nn(m)}${Math.floor(m/12)-1}`;
+    if(!lh){const hb=el.querySelector('[data-heard]');if(hb)hb.textContent='I hear: '+lastHeard;return}
     const e=E[cur];
-    if(e.type==='bass'){if(m%12===midi(e.n)%12&&m<52){advance()}else if(m<52){if(!miss){miss=true;slips.push(`bar ${e.bar}: bass ${nn(m)} for ${SP(pc(e.n))}`)}flash={ok:false,txt:`That's ${nn(m)}. The bass here is ${SP(pc(e.n))}.`};draw()}return}
-    clearTimeout(check);check=setTimeout(()=>{const h=lhHeld();if(!h.length)return;const want=pcs(e.k),hp=new Set(h.map(x=>x%12));
+    if(e.type==='bass'){if(m%12===midi(e.n)%12){nudge=m>=52?`Right note. Next time play it lower: the ${SP(pc(e.n))} near the bottom of the keyboard, with your pinky.`:'';advance()}
+      else{if(!miss){miss=true;slips.push(`bar ${e.bar}: bass ${nn(m)} for ${SP(pc(e.n))}`)}flash={ok:false,txt:`That's ${nn(m)}. The bass here is ${SP(pc(e.n))}, low, with your pinky.`};draw()}return}
+    clearTimeout(check);check=setTimeout(()=>{const prev=E[cur-1];const bm=prev&&prev.type==='bass'?midi(prev.n)%12:-1;const h0=lhHeld().sort((x,y)=>x-y);const h=(h0.length>V[e.k].l.length&&h0[0]<52&&h0[0]%12===bm)?h0.slice(1):h0;if(!h.length)return;const want=pcs(e.k),hp=new Set(h.map(x=>x%12));
       const missing=want.filter(x=>!hp.has(x)),extra=[...hp].filter(x=>!want.includes(x));
       if(!missing.length&&!extra.length)advance();
       else if(h.length>=want.length){if(!miss){miss=true;slips.push(`bar ${e.bar}: ${nameOf(e.k)} played ${h.map(nn).join(' ')}`)}flash={ok:false,txt:`${nameOf(e.k)} is ${V[e.k].l.map(x=>SP(pc(x[0]))).join(' ')}. You're holding ${h.map(nn).join(' ')}.`};draw()}},140)};
@@ -708,7 +711,8 @@ function lhFollow(bars,label,opts={}){const id='lh'+Math.random().toString(36).s
     let heard='';if(!MID.ok)heard=`<p class="note">Tap <b>Connect keyboard</b> at the top and I'll follow your left hand.</p>`;
     else if(playing)heard=`<div class="what">Listen…</div>`;
     else if(flash&&!flash.ok)heard=`<div class="what"><span class="v">✗</span> ${flash.txt}</div>`;
-    else heard=`<div class="what">${flash&&flash.ok?'<span class="v">✓</span> Next: ':''}${what}</div>`;
+    else heard=`<div class="what">${flash&&flash.ok?'<span class="v">✓</span> Next: ':''}${what}</div>${nudge?`<p class="note">${nudge}</p>`:''}`;
+    if(MID.ok)heard+=`<p class="note" data-heard>${lastHeard?'I hear: '+lastHeard:'Play any key and I\'ll show what I hear.'}</p>`;
     el.innerHTML=`<div class="lbl"><strong>${label}</strong><span class="notes">Bar ${e.bar} of ${bars.length}</span></div>
      <div class="mstrip">${chips}</div>
      <div class="walkbox"><h3>${e.type==='bass'?'Bass '+SP(pc(e.n)):nameOf(e.k)}</h3><p class="hands">${what}</p>${opts.both?'<p class="hands">Right hand: play the melody your way, with chord notes under it.</p>':''}</div>
