@@ -121,6 +121,16 @@ header.top .wrap{padding-block:12px}
 .now{margin:8px 0 0;min-height:1.5em;color:var(--muted)}
 .now b{color:var(--ink)}
 .walkbox{margin-top:10px}
+.sheet{display:block;width:100%;height:auto;background:#fff;border-radius:6px;padding:4px;margin:6px 0;box-sizing:border-box}
+.sheets{margin:4px 0}
+.mstrip{display:flex;flex-wrap:wrap;gap:4px 0;margin:8px 0;font-variant-numeric:tabular-nums}
+.mbar{display:inline-flex;gap:2px;padding:0 6px;border-left:1.5px solid var(--muted)}
+.mn{display:inline-block;min-width:22px;text-align:center;padding:2px 3px;border-radius:5px;font-weight:600}
+.mn sub{font-size:.7em;opacity:.7;margin-left:1px}
+.mn.past{opacity:.4}
+.mn.on{background:var(--accent);color:var(--surface)}
+.fing{font-size:.7em;font-weight:600;color:var(--accent);margin-left:6px}
+.lhc{font-size:.6em;font-weight:600;color:var(--lh);margin-left:8px}
 .memory{margin-top:12px;padding:22px 14px;border-radius:12px;background:var(--accent-soft);text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
 .memory .big{font-family:var(--f-display);font-weight:800;font-size:3.2rem;line-height:1;color:var(--accent)}
 .memory .note{margin:0}
@@ -236,6 +246,11 @@ const V={
   FaL:{name:'F',r:[],l:[['C3',5],['F3',3],['A3',1]]},
   CL:{name:'C',r:[],l:[['C3',5],['E3',3],['G3',1]]},
   B7L:{name:'B7',sharp:true,r:[],l:[['B2',5],['D#3',3],['A3',1]]},
+  /* Acheinu extras */
+  EmL:{name:'Em',r:[],l:[['B2',5],['E3',3],['G3',1]]},
+  GL:{name:'G',r:[],l:[['B2',5],['D3',3],['G3',1]]},
+  EsL:{name:'Esus4',r:[],l:[['B2',5],['E3',3],['A3',1]]},
+  BhL:{name:'Bm7♭5',r:[],l:[['B2',5],['D3',4],['F3',2],['A3',1]]},
 };
 const nameOf=k=>V[k].name||k;
 function notesOf(k){return V[k].r.map(x=>pc(x[0])).join(' – ')}
@@ -262,9 +277,9 @@ async function keepAwake(){try{if('wakeLock' in navigator&&!wake){wake=await nav
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&(timer.running||metro.on))keepAwake()});
 
 /* ---------- keyboard diagram ---------- */
-function keyboard(marks){
-  /* marks: [{n,f,h:'r'|'l'|'m'}] */
-  const ms=marks.map(x=>midi(x.n));let lo=Math.min(...ms),hi=Math.max(...ms);
+function keyboard(marks,rng){
+  /* marks: [{n,f,h:'r'|'l'|'m'}]; rng = optional [lowest, highest] MIDI note to keep the view steady */
+  const ms=marks.map(x=>midi(x.n)).concat(rng||[]);let lo=Math.min(...ms),hi=Math.max(...ms);
   lo=lo-(lo%12);hi=hi+(11-hi%12);if(hi-lo<23)hi=lo+23;
   const whites=[];for(let m=lo;m<=hi;m++)if(!isBlack(m))whites.push(m);
   const W=24,H=100,BW=15,BH=62,width=whites.length*W;
@@ -411,7 +426,7 @@ function heardHTML(j,k){if(!MID.ok)return `<p class="note">Tap <b>Connect keyboa
 /* results log, kept on this device, written so you can paste it to Claude */
 /* every finished run is also sent to Bernard's Google Form, so Claude can read it from the linked Sheet */
 const RESULTS_FORM='https://docs.google.com/forms/d/e/1FAIpQLSc7CSx01Q0O9oh9Z8YW8e2uvHYoxbwKWfM-mtAawrR-P4lW5g/formResponse';
-function entryText(e){return `${e.d} · ${e.label} · ${e.kind==='auto'?`with the band: ${e.ontime} of ${e.total} chord changes on time`:`${e.clean} of ${e.total} chords played clean${e.beat?`, changes on the beat ${e.beat}`:''}`}${e.slips&&e.slips.length?` · slips: ${e.slips.join('; ')}`:''}`}
+function entryText(e){if(e.kind==='melody')return `${e.d} · ${e.label} · melody: ${e.clean} of ${e.total} notes right first time${e.slips&&e.slips.length?` · slips: ${e.slips.join('; ')}`:''}`;return `${e.d} · ${e.label} · ${e.kind==='auto'?`with the band: ${e.ontime} of ${e.total} chord changes on time`:`${e.clean} of ${e.total} chords played clean${e.beat?`, changes on the beat ${e.beat}`:''}`}${e.slips&&e.slips.length?` · slips: ${e.slips.join('; ')}`:''}`}
 function sendRun(e){try{const L=LESSONS.find(l=>l.id===curLesson);const body=new URLSearchParams();
   body.append('entry.1619048076',`${new Date().toLocaleString()} · ${L?L.title:''} · ${entryText(e)}`);
   fetch(RESULTS_FORM,{method:'POST',mode:'no-cors',body,keepalive:true}).then(()=>toast('Results saved for Claude.'),()=>{})}catch(err){}}
@@ -423,7 +438,7 @@ function sendLessonDone(L){try{const today=new Date().toLocaleDateString(undefin
   catch(err){toast('Lesson complete. Tell Claude how it went.')}}
 function logRun(entry){const L=store.get('bkc-midi-log',[]);L.push(entry);store.set('bkc-midi-log',L.slice(-60));sendRun(entry)}
 function resultsText(){const L=store.get('bkc-midi-log',[]);if(!L.length)return 'No results yet.';
-  return 'My keyboard coach results:\n'+L.slice(-15).map(e=>`${e.d} · ${e.label} · ${e.kind==='auto'?`with the band: ${e.ontime} of ${e.total} chord changes on time`:`${e.clean} of ${e.total} chords played clean${e.beat?`, changes on the beat ${e.beat}`:''}`}${e.slips&&e.slips.length?` · slips: ${e.slips.join('; ')}`:''}`).join('\n')}
+  return 'My keyboard coach results:\n'+L.slice(-15).map(entryText).join('\n')}
 function copyResults(btn){const t=resultsText();const done=()=>toast('Copied. Paste it to Claude to shape the next lesson.');
   const fallback=()=>{let ta=btn.parentElement.querySelector('textarea');if(!ta){ta=document.createElement('textarea');ta.className='copybox';ta.rows=6;ta.id='copybox';btn.parentElement.appendChild(ta)}ta.value=t;ta.focus();ta.select();toast('Select all and copy this text.')};
   try{navigator.clipboard.writeText(t).then(done,fallback)}catch(err){fallback()}}
@@ -512,6 +527,71 @@ function walker(keys,label,def,opts={}){const id='w'+Math.random().toString(36).
     if(play){XP=xp;playChord(k);XP=0}
     paintScore();sub()};
   setTimeout(()=>draw(0,false));return `<div class="diagram walker card" id="${id}"></div>`}
+/* ---------- melody follower: the right hand plays the tune, note by note, from the sheet ---------- */
+/* song text: "note:beats:finger" tokens (ties already added into beats), "R:beats" = rest, "|" = bar line (ignored, just for reading) */
+function parseMel(src,chords,meter=3){const out=[];let pos=0;
+  src.trim().split(/\s+/).forEach(t=>{if(t==='|')return;const [n,b,f]=t.split(':');const beats=+b;
+    if(n!=='R')out.push({n,beats,f:+f,at:pos,bar:Math.floor(pos/meter)+1,chord:chords?chords[Math.floor(pos/meter)]:null});pos+=beats});
+  out.total=pos;return out}
+const WHITE_I=n=>{const m=midi(n);return Math.floor(m/12)*7+[0,0,1,1,2,3,3,4,4,5,5,6][m%12]};
+const upN=(n,up)=>{if(!up)return n;const m=midi(n)+up;return NAMES[m%12]+(Math.floor(m/12)-1)};
+function moveTip(p,c,up){if(!p)return '';const thumbP=WHITE_I(p.n)-(p.f-1),thumbC=WHITE_I(c.n)-(c.f-1);if(thumbP===thumbC)return '';
+  const down=midi(c.n)<midi(p.n);
+  if(down&&p.f===1&&c.f>1)return `Cross finger ${c.f} over your thumb.`;
+  if(!down&&c.f===1&&p.f>1)return `Tuck your thumb under to reach it.`;
+  if(p.n===c.n)return `Same key, new finger: swap to finger ${c.f} so your hand moves into its new spot.`;
+  return `Move your hand: thumb now goes ${down?'down':'up'} to ${(()=>{const ti=thumbC;const oct=Math.floor(ti/7),w=['C','D','E','F','G','A','B'][((ti%7)+7)%7];return SP(w)})()}.`}
+function melody(src,label,opts={}){const id='m'+Math.random().toString(36).slice(2,7);
+  const N=parseMel(src,opts.chords,opts.meter||3);const up=opts.up||0,both=!!opts.both,lo=opts.lo??(both?60:52);
+  let cur=0,clean=0,miss=false,slips=[],playing=false,flash=null,timers=[];
+  const bk='bkc-melbpm-'+label;const bpm=()=>store.get(bk,opts.bpm||70);
+  const today=()=>new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  const all=N.map(x=>midi(upN(x.n,up)));const lhAll=both?[...new Set(N.map(x=>x.chord).filter(Boolean))].flatMap(k=>V[k].l.map(y=>midi(y[0]))):[];
+  const rngLo=Math.min(...all,...lhAll),rngHi=Math.max(...all,...lhAll);
+  const marksAt=i=>{const x=N[i];const m=[{n:upN(x.n,up),f:x.f,h:'r'}];if(both&&x.chord)V[x.chord].l.forEach(y=>m.push({n:y[0],f:y[1],h:'l'}));
+return m};
+  const stopPlay=()=>{timers.forEach(clearTimeout);timers=[];playing=false};
+  const finish=()=>{logRun({d:today(),label,kind:'melody',clean,total:N.length,slips:slips.slice(0,6)});
+    toast(clean===N.length?`Perfect: all ${N.length} notes right first time!`:`Done: ${clean} of ${N.length} notes right first time. Go again?`);cur=0;clean=0;miss=false;slips=[];draw()};
+  const hook=(m,v,on)=>{const el=document.getElementById(id);if(!el){MID.noteHooks.delete(hook);return}if(!on||playing||m<lo)return;
+    const x=N[cur],want=midi(x.n);
+    if(m%12===want%12){if(!miss)clean++;miss=false;flash={ok:true};cur++;if(cur>=N.length){finish();return}draw()}
+    else{if(!miss){miss=true;slips.push(`bar ${x.bar}: ${nn(m)} for ${SP(pc(x.n))}`)}flash={ok:false,m};draw()}};
+  MID.noteHooks.add(hook);
+  const hear=()=>{if(playing){stopPlay();draw();return}const a=ac();playing=true;const spb=60/bpm(),start=cur;let t=0;const t0=N[start].at;
+    const viaKb=MID.acc&&MID.acc.outputs&&MID.acc.outputs.size>0;let lastChord=null;
+    N.slice(start).forEach((x,j)=>{const at=(x.at-t0)*spb;const dur=Math.max(.15,x.beats*spb*.92);const mm=midi(upN(x.n,up));
+      timers.push(setTimeout(()=>{cur=start+j;draw()},at*1000));
+      if(viaKb)midiOut([mm],at,dur);else if(a)tone(mm,a.currentTime+.05+at,dur,.14);
+      if(both&&x.chord&&x.chord!==lastChord){lastChord=x.chord;const cm=V[x.chord].l.map(y=>midi(y[0]));
+        let end=N.slice(start+j+1).find(y=>y.chord!==x.chord);const cd=((end?end.at:N.total)-x.at)*spb*.95;
+        if(viaKb)midiOut(cm,at,cd);else if(a)cm.forEach(c=>tone(c,a.currentTime+.05+at,cd,.08))}});
+    const last=N[N.length-1];timers.push(setTimeout(()=>{stopPlay();cur=start;draw()},((last.at+last.beats-t0)*spb+.3)*1000));draw()};
+  const draw=()=>{const el=document.getElementById(id);if(!el)return;const x=N[cur],p=N[cur-1];const shown=upN(x.n,up);
+    const bars=[];N.forEach((y,i)=>{(bars[y.bar]=bars[y.bar]||[]).push(i)});
+    const strip=bars.filter(Boolean).map(b=>`<span class="mbar">${b.map(i=>`<span class="mn${i===cur?' on':i<cur?' past':''}">${SP(pc(N[i].n))}<sub>${N[i].f}</sub></span>`).join('')}</span>`).join('');
+    const tip=moveTip(p,x,up);
+    let heard='';if(!MID.ok)heard=`<p class="note">Tap <b>Connect keyboard</b> at the top and I'll follow along as you play.</p>`;
+    else if(playing)heard=`<div class="what">Listen…</div>`;
+    else if(flash&&!flash.ok)heard=`<div class="what"><span class="v">✗ That's ${nn(flash.m)}.</span> You need <b>${SP(pc(x.n))}</b>, finger <b>${x.f}</b>.</div>`;
+    else if(flash&&flash.ok)heard=`<div class="what"><span class="v">✓</span> Next: <b>${SP(pc(x.n))}</b>, finger <b>${x.f}</b></div>`;
+    else heard=`<div class="what">Play <b>${SP(pc(x.n))}</b> with finger <b>${x.f}</b></div>`;
+    el.innerHTML=`<div class="lbl"><strong>${label}</strong><span class="notes">Note ${cur+1} of ${N.length} · bar ${x.bar}</span></div>
+     ${opts.img?`<img class="sheet" src="${opts.img}" alt="${label}, sheet music">`:''}
+     <div class="mstrip" aria-label="Notes with finger numbers">${strip}</div>
+     <div class="walkbox"><h3>${SP(pc(x.n))} <span class="fing">finger ${x.f}</span>${both&&x.chord?` <span class="lhc">left hand: ${nameOf(x.chord)}</span>`:''}</h3>
+      ${x.beats>=2?`<p class="hands">Hold it ${x.beats} beats.</p>`:''}${tip?`<p class="hands move">${tip}</p>`:''}</div>
+     <div class="kb">${keyboard(marksAt(cur),[rngLo,rngHi])}</div>${LEGEND}
+     <div class="heard${flash?(flash.ok?' good':' bad'):''}">${heard}</div>
+     <div class="walknav"><button class="btn small" data-a="back" ${cur===0?'disabled':''}>◀ Back a note</button><button class="btn small" data-a="hear">${playing?'■ Stop':'▶ Hear it from here'}</button><button class="btn small" data-a="restart">Start over ↺</button></div>
+     <p class="note" style="margin-top:8px">Hear-it speed: <button class="btn small" data-a="s-">− 10</button> <b>${bpm()}</b> bpm <button class="btn small" data-a="s+">+ 10</button>${MID.ok?` · Right first time: <b>${clean} of ${cur}</b>`:''}</p>`;
+    const on=(a,f)=>{const b=el.querySelector(`[data-a="${a}"]`);if(b)b.onclick=f};
+    on('back',()=>{stopPlay();flash=null;miss=false;cur=Math.max(0,cur-1);draw()});
+    on('restart',()=>{stopPlay();flash=null;miss=false;cur=0;clean=0;slips=[];draw()});
+    on('hear',hear);
+    on('s-',()=>{store.set(bk,Math.max(40,bpm()-10));draw()});on('s+',()=>{store.set(bk,Math.min(160,bpm()+10));draw()})};
+  setTimeout(draw);return `<div class="diagram walker card" id="${id}"></div>`}
+
 function listen(q){return `<p style="margin-top:8px"><a class="btn small" style="display:inline-block;text-decoration:none" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}">Listen to the real song ↗</a> <span class="note">The chord button plays chords only, not the melody.</span></p>`}
 function diagramScale(marks,label,playList){const id='s'+Math.random().toString(36).slice(2,7);
   setTimeout(()=>{const b=document.getElementById(id);if(!b)return;b.onclick=()=>{const a=ac();if(!a)return;const list=playList||marks.map(x=>x.n),gap=.7,kb=document.getElementById(id+'k'),now=document.getElementById(id+'n');
@@ -520,6 +600,27 @@ function diagramScale(marks,label,playList){const id='s'+Math.random().toString(
       now.innerHTML=`Now: <b>${mk.h==='l'?'left':'right'} hand, finger ${mk.f}</b> on ${SP(pc(n))}`},i*gap*1000+50)});
     setTimeout(()=>{kb.innerHTML=keyboard(marks);now.textContent='Your turn: play it just like that, same fingers, same speed.';b.disabled=false},list.length*gap*1000+400)}});
   return `<div class="diagram"><div class="lbl"><strong>${label}</strong><button class="btn small" id="${id}">▶ Watch demo</button></div><div class="kb" id="${id}k">${keyboard(marks)}</div><p class="now" id="${id}n">Tap Watch demo: each key lights up gold as it plays, with the finger to use.</p></div>`}
+
+/* ---------- Acheinu (Baruch Levine), from Bernard's sheet: 3/4, A minor, ♩=115. Melody transcribed from the page, fingering by Claude ---------- */
+const shiftSrc=(src,by)=>src.split(/\s+/).map(t=>{if(t==='|'||t.startsWith('R:'))return t;const [n,b,f]=t.split(':');return `${upN(n,by)}:${b}:${f}`}).join(' ');
+const ACH={
+ a1:{m:'A3:1:1 E4:2:5 | E4:.25:5 E4:.75:5 D4:1:4 E4:1:5 | B3:1:2 E4:4:5 | E4:.5:1 G4:.5:3 | A4:1:4 G4:1.5:3 G4:.5:3 | G4:1:3 C4:1:1 D4:1:2 | E4:5:3 R:1',c:'AmL AmL EmL EmL FaL FaL EmL EmL'},
+ a2:{m:'A3:1:1 E4:2:5 | E4:.25:5 E4:.75:5 D4:1:4 E4:1:5 | G4:1:3 E4:4.5:1 G4:.5:3 | A4:1:4 G4:1.5:3 G4:.5:3 | G4:1:3 C4:1:1 D4:1:2 | E4:5:3 E4:.5:3 E4:.5:3',c:'AmL AmL EmL EmL FaL FaL EmL EmL'},
+ a3:{m:'B4:1.5:3 A4:.5:2 B4:.5:3 C5:.5:4 | B4:1.5:3 A4:.5:2 B4:.5:3 C5:.5:4 | B4:1:3 G4:4:1 R:.5 E4:.5:1 | C5:1:5 B4:1:4 A4:1:3 | G4:1:2 A4:1:3 F4:.25:2 G4:.25:3 F4:.5:2 | E4:5:1 R:.5 E4:.5:1',c:'GL GL EmL EmL FaL GL CL CL'},
+ a4:{m:'B4:1.5:3 A4:.5:2 B4:.5:3 C5:.5:4 | B4:1.5:3 A4:.5:2 D5:.5:5 C5:.5:4 | B4:.5:3 A4:.5:2 G4:4:1 A4:.5:2 B4:.5:3 | C5:1:4 B4:1:3 A4:1:2 | C5:1:4 B4:1:3 A4:1:2 | E5:5:3 R:.5 C5:.5:1',c:'GL GL EmL EmL FaL FaL EsL EL'},
+ b1:{m:'E5:1:3 E5:1.5:3 E5:.5:3 | E5:1:3 F5:1.5:4 E5:.5:3 | E5:1:3 D5:4:2 C5:.5:1 D5:.5:2 | E5:1:3 D5:1:2 C5:1:1 | B4:.5:3 A4:.5:2 G4:2:1 | G5:1:5 F5:1:4 E5:1:3 | D5:3:2',c:'AmL AmL GL GL FaL EmL CL GL'},
+ b2:{m:'F5:1:3 F5:1:3 F5:1:3 | A5:1:5 G5:1:4 F5:1:3 | E5:.5:2 D5:.5:1 C5:5:2 | F5:.5:5 F5:.5:5 E5:1:4 D5:1:3',c:'DmL DmL AmL FaL DmL'},
+ e1:{m:'D5:1:3 E5:1:4 F5:1:5 | E5:5:4 R:.5 C5:.5:1',c:'BhL EsL EL'},
+ e2:{m:'D5:.5:5 C5:.5:4 B4:1:3 A4:.5:2 G4:.5:1 | A4:6:2',c:'EmL AmL AmL'}
+};
+const achM=(parts,ups=[])=>parts.map(p=>ups.includes(p)?shiftSrc(ACH[p].m,12):ACH[p].m).join(' | ');
+const achC=(...parts)=>parts.flatMap(p=>ACH[p].c.split(' '));
+const achImg=(...parts)=>parts.map(p=>`<img class="sheet" src="sheets/acheinu-${p==='e1'?'b2':p==='e2'?'end2':p}.png" alt="Acheinu sheet, ${p}">`).join('');
+function achMel(parts,label,o={}){const imgs=[...new Set(parts.map(p=>p==='e1'?'b2':p))];
+  return `<div class="sheets">${achImg(...imgs)}</div>`+melody(achM(parts,o.ups||[]),label,{chords:achC(...parts),bpm:o.bpm||70,both:o.both})}
+/* left-hand chord run for a section: merge repeated bars into one chord with more beats */
+function achChords(parts,label,bpm){const c=achC(...parts);const keys=[],beats=[];c.forEach(k=>{if(keys.length&&keys[keys.length-1]===k)beats[beats.length-1]+=3;else{keys.push(k);beats.push(3)}});
+  return walker(keys,label,0,{songBpm:bpm||80,beats})}
 
 /* ---------- songs used in lessons ---------- */
 const SONG={
@@ -680,12 +781,27 @@ const LESSONS=[
  {t:'Extra: with the band',min:5,style:'freilach',b:`<p><b>Optional.</b> <b>[ACMP]</b> on, <b>[SYNC START]</b>, a freilach. Gm → Cm → D → Gm, picture off. Connect the app <b>before</b> you start the style, so it can read the band's beat.</p>`,d:()=>walker(['GmL','CmL','DL'],'Gm with the band',0,{hide:true})},
  {t:'Ear: major or minor',min:4,b:`<p>Your Baseline said you can't hear major vs minor yet. That's the next ear skill, and it's quick to build.</p><ul><li><b>Major</b> sounds bright and open.</li><li><b>Minor</b> sounds darker, more serious: the sound of most of your freilachs.</li></ul><p>Tap <b>Compare</b> first to hear the same chord both ways. Then do 10.</p>`,d:()=>earQuiz()}
 ]},
-{id:'s1',title:'Nishmas · Yiboneh Hamikdash',status:'song',goal:'The first song Nishmas sings: the Chabad niggun Yiboneh Hamikdash, piano style. It\'s in A minor, so Am, Dm and E are shapes you already passed. Three new shapes, each one finger move away from what you know.',steps:[
+{id:'s1',title:'Song 1 · Yiboneh Hamikdash',status:'song',goal:'The first song Nishmas sings: the Chabad niggun Yiboneh Hamikdash, piano style. It\'s in A minor, so Am, Dm and E are shapes you already passed. Three new shapes, each one finger move away from what you know.',steps:[
  {t:'The chords',min:3,b:`<div class="say">Piano setup: <b>[ACMP] off</b>. <b>PART ON/OFF [LEFT]</b> on, <b>PART SELECT [LEFT]</b> → <b>[PIANO]</b>. Right hand on piano too.</div><p>This niggun lives in <b>A minor</b>, the key from your Tyros 1 and 2 lessons. Here's the whole song:</p><div class="card" style="margin:10px 0"><div class="eyebrow">Yiboneh Hamikdash · Chabad niggun · A minor · about 140 bpm</div><table style="width:100%;border-collapse:collapse;font-size:1.1em;text-align:center"><tr><td colspan="4" style="text-align:left;padding-top:6px"><b>A part</b> (4 bars)</td></tr><tr><td>Am</td><td>F · B7</td><td>E</td><td>E</td></tr><tr><td colspan="4" style="text-align:left;padding-top:10px"><b>B part</b> (12 bars)</td></tr><tr><td>Am</td><td>Dm · E</td><td>E</td><td>C</td></tr><tr><td>Dm</td><td>Am</td><td>E</td><td>C</td></tr><tr><td>Dm</td><td>Am · F</td><td>E</td><td>E</td></tr></table><p class="note" style="margin-top:8px">Form: A, B, A, B. Each box is one bar; two chords in a box = 2 beats each. Worked out with Chord ai from the recording you sent. Chord ai also heard two quick passing chords (a Bdim before the first E of the B part, and a G at the end of the second E); they're left out here to keep it simple. If a spot sounds off to your ear, tell Claude.</p></div><p>Sing or hum it to yourself while you read the chart, so you can feel where the chords change.</p>`},
  {t:'Three new shapes',min:6,b:`<p>Each new chord is one move away from a shape you already own:</p><ul><li><b>F</b> (C F A): play Am (C E A) and move the <b>middle finger up from E to F</b>. Pinky and thumb stay.</li><li><b>C</b> (C E G): play Am and move the <b>thumb down from A to G</b>. Pinky and middle stay.</li><li><b>B7</b> (B D♯ A): play E (B E G♯), then move the <b>middle finger down to the black key D♯</b> and the <b>thumb up from G♯ to A</b>. Pinky stays on B. It leans hard into E.</li></ul><p>Below: each new chord next to the one it comes from.</p>`,d:()=>walker(['AmL','FaL','AmL','CL','AmL','EL','B7L','EL'],'Yiboneh new shapes')},
  {t:'A part',min:5,b:`<p><b>Am | F · B7 | E | E</b>, with the song's real timing. The app counts the beats; the − / + buttons set the speed when the band is off. Start slow, around 100, then work up to 140.</p><div class="card" style="margin:10px 0"><div class="eyebrow">Yiboneh Hamikdash · Chabad niggun · A minor · about 140 bpm</div><table style="width:100%;border-collapse:collapse;font-size:1.1em;text-align:center"><tr><td colspan="4" style="text-align:left;padding-top:6px"><b>A part</b> (4 bars)</td></tr><tr><td>Am</td><td>F · B7</td><td>E</td><td>E</td></tr><tr><td colspan="4" style="text-align:left;padding-top:10px"><b>B part</b> (12 bars)</td></tr><tr><td>Am</td><td>Dm · E</td><td>E</td><td>C</td></tr><tr><td>Dm</td><td>Am</td><td>E</td><td>C</td></tr><tr><td>Dm</td><td>Am · F</td><td>E</td><td>E</td></tr></table><p class="note" style="margin-top:8px">Form: A, B, A, B. Each box is one bar; two chords in a box = 2 beats each. Worked out with Chord ai from the recording you sent. Chord ai also heard two quick passing chords (a Bdim before the first E of the B part, and a G at the end of the second E); they're left out here to keep it simple. If a spot sounds off to your ear, tell Claude.</p></div>`,d:()=>walker(['AmL','FaL','B7L','EL'],'Yiboneh A',0,{songBpm:100,beats:[4,2,2,8]})},
  {t:'B part',min:7,b:`<p>The long part. Three lines that all end on E. Line 1 goes Am → Dm → E → C, line 2 Dm → Am → E → C, line 3 Dm → Am · F → E.</p><div class="card" style="margin:10px 0"><div class="eyebrow">Yiboneh Hamikdash · Chabad niggun · A minor · about 140 bpm</div><table style="width:100%;border-collapse:collapse;font-size:1.1em;text-align:center"><tr><td colspan="4" style="text-align:left;padding-top:6px"><b>A part</b> (4 bars)</td></tr><tr><td>Am</td><td>F · B7</td><td>E</td><td>E</td></tr><tr><td colspan="4" style="text-align:left;padding-top:10px"><b>B part</b> (12 bars)</td></tr><tr><td>Am</td><td>Dm · E</td><td>E</td><td>C</td></tr><tr><td>Dm</td><td>Am</td><td>E</td><td>C</td></tr><tr><td>Dm</td><td>Am · F</td><td>E</td><td>E</td></tr></table><p class="note" style="margin-top:8px">Form: A, B, A, B. Each box is one bar; two chords in a box = 2 beats each. Worked out with Chord ai from the recording you sent. Chord ai also heard two quick passing chords (a Bdim before the first E of the B part, and a G at the end of the second E); they're left out here to keep it simple. If a spot sounds off to your ear, tell Claude.</p></div>`,d:()=>walker(['AmL','DmL','EL','CL','DmL','AmL','EL','CL','DmL','AmL','FaL','EL'],'Yiboneh B',0,{songBpm:100,beats:[4,2,6,4,4,4,4,4,4,2,2,8]})},
  {t:'Whole song, melody on top',min:8,b:`<p>A, B, A, B. Left hand plays the chords; right hand plays the niggun's melody <b>by ear</b>, since you know how it goes.</p><ul><li>Start with the A part only: left-hand chords, right hand picks out the tune slowly.</li><li>Melody notes that land on the beat with a chord change are usually one of that chord's notes. If you're lost, try those first.</li><li>Keep the left hand going even when the right hand misses. That's what keeps the room singing.</li></ul><div class="card" style="margin:10px 0"><div class="eyebrow">Yiboneh Hamikdash · Chabad niggun · A minor · about 140 bpm</div><table style="width:100%;border-collapse:collapse;font-size:1.1em;text-align:center"><tr><td colspan="4" style="text-align:left;padding-top:6px"><b>A part</b> (4 bars)</td></tr><tr><td>Am</td><td>F · B7</td><td>E</td><td>E</td></tr><tr><td colspan="4" style="text-align:left;padding-top:10px"><b>B part</b> (12 bars)</td></tr><tr><td>Am</td><td>Dm · E</td><td>E</td><td>C</td></tr><tr><td>Dm</td><td>Am</td><td>E</td><td>C</td></tr><tr><td>Dm</td><td>Am · F</td><td>E</td><td>E</td></tr></table><p class="note" style="margin-top:8px">Form: A, B, A, B. Each box is one bar; two chords in a box = 2 beats each. Worked out with Chord ai from the recording you sent. Chord ai also heard two quick passing chords (a Bdim before the first E of the B part, and a G at the end of the second E); they're left out here to keep it simple. If a spot sounds off to your ear, tell Claude.</p></div><p class="note">Extra: turn <b>[ACMP]</b> on with a freilach or Chabad-style dance style, and the band plays it with you.</p>`,d:()=>walker(['AmL','FaL','B7L','EL','AmL','DmL','EL','CL','DmL','AmL','EL','CL','DmL','AmL','FaL','EL'],'Yiboneh whole',0,{songBpm:120,beats:[4,2,2,8,4,2,6,4,4,4,4,4,4,2,2,8]})}
+]},
+{id:'s2',title:'Song 2 · Acheinu',status:'song',goal:'Acheinu (Baruch Levine), straight from your sheet. The right hand learns the melody note by note with the right fingers, the left hand learns the chords, then you put them together. A minor, 3 beats to a bar.',steps:[
+ {t:'The song and the sheet',min:4,b:`<div class="say">Piano setup: <b>[ACMP] off</b>. <b>PART ON/OFF [LEFT]</b> on, <b>PART SELECT [LEFT]</b> → <b>[PIANO]</b>. Right hand on piano too.</div><p>This is your page of Acheinu, from Baruch Levine's album. It's a <b>ballad in 3/4</b>: <b>three beats in every bar</b>, counted <b>1</b> 2 3, <b>1</b> 2 3. The sheet says ♩ = 115; you'll start much slower.</p><p><b>How it's built:</b> an Intro (skip it for now, it's the band's part), the <b>A part</b> (4 lines), then the <b>B part</b> played twice. The first time through, the B part takes box <b>1</b> at the end and goes back to the top of B. The second time, it skips box 1 and takes box <b>2</b>, which ends the song.</p><div class="card" style="margin:10px 0"><div class="eyebrow">Reading the notes</div><ul><li>The five lines from the bottom up are <b>E G B D F</b>. The four spaces spell <b>F A C E</b>.</li><li>Middle C sits on its own short line just below the staff.</li><li>A <b>curved line between two of the same note</b> (a tie) means hold it, don't play it again. The app has already added the tied beats together for you.</li><li>A <b>dot</b> after a note makes it half as long again: a dotted half note = 3 beats.</li></ul></div><p>Every step after this shows the line you're on and follows you as you play. Each note shows its <b>finger number</b>.</p>`,d:()=>`<img class="sheet" src="sheets/acheinu-page.png" alt="Acheinu, the whole page">`+listen('Baruch Levine Acheinu')},
+ {t:'How your right hand should play',min:5,b:`<p>In piano style, <b>the right hand plays the melody</b>, the tune people sing. Later it adds chord notes under the melody. These habits make it sound smooth and keep you from getting lost:</p><ul><li><b>Curved fingers</b>, as if you're holding a small ball. Play on the <b>fingertips</b>, not the flat of the finger. Keep the wrist level with the keys, not dropped.</li><li><b>All five fingers have a job, including the pinky.</b> In line 1 the pinky plays every E. Don't swap it for the 4th finger.</li><li><b>One finger over each key.</b> Where your thumb sits is called the hand's <b>position</b>. Stay in one position as long as the tune fits under your five fingers.</li><li><b>Move only when you have to</b>, and move during a long note or a rest. The app tells you when: "move your hand", "cross finger 3 over your thumb", or "tuck your thumb under".</li><li><b>Smooth:</b> keep each note down until the next one goes down, so the tune sings. For a repeated note (E E E), lift just enough to play it again.</li><li><b>Melody on top:</b> right hand a little firmer, left hand lighter, so the tune is heard over the chords.</li></ul><p>Warm-up: five fingers on the five keys from <b>A below middle C up to E</b>. That's the position for the start of the song. Up and back, slowly, one finger per key. Tap <b>Hear it</b> first if you like; it plays through your Tyros.</p>`,d:()=>melody('A3:1:1 B3:1:2 C4:1:3 D4:1:4 E4:1:5 | D4:1:4 C4:1:3 B3:1:2 | A3:3:1','Warm-up: A position',{bpm:70})},
+ {t:'A part, line 1 · right hand',min:6,b:`<p>Right hand only. Thumb on the <b>A below middle C</b> and the pinky on E: that covers the first three bars. In bar 4 the hand moves up so the thumb takes that same E, then down again so the thumb sits on middle C. The app tells you each move.</p><ul><li>Bar 2 starts with a quick <b>E-E</b>: a short one, then a longer one ("E... E-e").</li><li>Go slow enough that you never stop to hunt for a note. Speed comes later.</li></ul>`,d:()=>achMel(['a1'],'A part, line 1')},
+ {t:'A part, line 2 · right hand',min:5,b:`<p>Almost the same as line 1. The difference is in bar 3: it goes <b>up to G</b> instead of down to B. That G is where the hand moves up, with the thumb on E. The line ends with two quick E's that lead into line 3.</p>`,d:()=>achMel(['a2'],'A part, line 2')},
+ {t:'A part, line 3 · right hand',min:6,b:`<p>The melody climbs. Put your <b>thumb on G</b> (the G above middle C): B, A, B, C sit under fingers 3, 2, 3, 4. "B-A B-C, B-A B-C."</p><ul><li>After the long G there's a short E (thumb). Then the hand jumps up so the pinky lands on C.</li><li>Bar 5 has a quick turn, <b>F-G-F</b>. Keep it light.</li></ul>`,d:()=>achMel(['a3'],'A part, line 3')},
+ {t:'A part, line 4 · right hand',min:6,b:`<p>Starts like line 3, thumb on G. In bar 2 the pinky reaches up to D. In bars 4 and 5 it's <b>C-B-A twice</b>, fingers 4-3-2. Then it jumps up to a long high <b>E</b> (finger 3), which leads into the B part.</p>`,d:()=>achMel(['a4'],'A part, line 4')},
+ {t:'B part · right hand',min:6,b:`<p>The B part is the high, open part. Start with your <b>thumb on the C above middle C</b>, so E is finger 3.</p><ul><li>"E, E-e E": three E's, all with finger 3.</li><li>Bars 4–5 walk down: E-D-C, then <b>B-A-G</b>. To get past the thumb, <b>cross finger 3 over it</b> onto B. This is a basic piano move; go slow and it will feel normal.</li><li>Then the hand jumps up an octave to the high G (pinky).</li></ul>`,d:()=>achMel(['b1'],'B part, first line')},
+ {t:'B part endings · right hand',min:6,b:`<p>Line 2 of the B part, then the two endings.</p><ul><li><b>Box 1</b> (the first time) climbs D-E-F, holds E, and the short C at the end takes you back to the start of the B part.</li><li><b>Box 2</b> (the second time) walks down D-C-B-A-G and lands on A: the end of the song. Swap to the pinky on that first D so the whole walk-down fits under your hand.</li></ul>`,d:()=>achMel(['b2','e1'],'B part, line 2 + box 1')+achMel(['e2'],'Box 2: the ending')},
+ {t:'Left hand: chords for the A part',min:6,b:`<p>Now the left hand, same spot as before (just below middle C). Three new shapes, each one move away from one you know:</p><ul><li><b>Em</b> (B E G): play <b>E</b> (B E G♯) and drop the thumb from G♯ to <b>G</b>.</li><li><b>G</b> (B D G): play <b>Gm</b> (B♭ D G) and move the pinky up from B♭ to <b>B</b>.</li><li><b>Esus4</b> (B E A): play E and move the thumb <b>up from G♯ to A</b>. The sheet says E7sus4; Esus4 is the same sound minus one note. It pulls toward E, so the thumb drops back to G♯ on the next bar.</li></ul><p>Then the A part's chords in order. Each chord gets 3 beats per bar, and the app counts them for you. Where the sheet writes "/F" (line 3, bar 2), keep the G chord for now.</p>`,d:()=>walker(['EL','EmL','GmL','GL','EL','EsL'],'New shapes')+achChords(['a1','a2','a3','a4'],'Acheinu A chords',80)},
+ {t:'Left hand: chords for the B part',min:5,b:`<p>The B part: <b>Am, G, F, Em, C, G</b>, then <b>Dm, Am, F, Dm</b>. One more new shape for box 1:</p><ul><li><b>Bm7♭5</b> (B D F A): play <b>Dm</b> (D F A) and add the <b>B below with your pinky</b>. It's Dm with a B under it. The middle fingers shift down one to make room.</li></ul><p>Box 2 ends Em → Am. (The sheet says Em7; plain Em is fine.)</p>`,d:()=>achChords(['b1','b2','e1'],'Acheinu B chords',80)},
+ {t:'Hands together: A part',min:8,b:`<p>Left hand holds the chord for each bar, right hand plays the melody. The app follows the right hand. The left hand's chord shows next to each note.</p><ul><li><b>Lines 1–2: play the melody an octave higher than written</b> (thumb on the A above middle C). Otherwise the right hand bumps into the left. The fingers are exactly the same.</li><li>Press the chord <b>together with the first melody note of the bar</b>, and hold it while the right hand moves.</li><li>If it falls apart, slow down with the speed buttons. Don't drop the left hand.</li></ul>`,d:()=>achMel(['a1','a2'],'Together: A lines 1–2',{both:true,ups:['a1','a2'],bpm:60})+achMel(['a3','a4'],'Together: A lines 3–4',{both:true,bpm:60})},
+ {t:'Hands together: B part',min:8,b:`<p>B part with both hands, then box 2. Watch for the chord change in the middle of the descending run (F → Em in bar 5). The left hand changes on beat 1 while the right hand keeps walking.</p>`,d:()=>achMel(['b1','b2','e1'],'Together: B part + box 1',{both:true,bpm:60})+achMel(['e2'],'Together: box 2',{both:true,bpm:60})},
+ {t:'The whole song',min:8,b:`<p>All the way through, the way it's played: <b>A part, B part with box 1, B part again with box 2</b>. Lines 1–2 an octave up. When it's smooth at 70, raise <b>Hear it</b> by 10 and try to keep up. The goal is the sheet's 115.</p><p class="note">Finished? Your results go to Claude automatically. Next comes adding chord notes under the melody in the right hand, the full piano sound.</p>`,d:()=>achMel(['a1','a2','a3','a4','b1','b2','e1','b1','b2','e2'],'Acheinu, whole song',{both:true,ups:['a1','a2'],bpm:70})}
 ]}
 ];
 const ROADMAP=[
@@ -752,7 +868,7 @@ const WHYSTEP={
 
 /* ---------- lesson state ---------- */
 /* lessons Claude has unlocked; a lesson's "Next" button only works when the next lesson is listed here */
-const OPEN=['l1','l2','l3','l4','t1','t2','b1','t3','s1'];
+const OPEN=['l1','l2','l3','l4','t1','t2','b1','t3','s1','s2'];
 let prog=store.get('bkc-prog',{});
 let curLesson=store.get('bkc-cur','l3');
 function lp(id){if(!prog[id])prog[id]={step:0,done:[]};return prog[id]}
@@ -943,6 +1059,7 @@ function show(tab){document.querySelectorAll('nav.tabs button').forEach(b=>b.set
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>show(b.dataset.tab));
 let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,3200)}
 if(!store.get('bkc-t3open',false)){curLesson='t3';save();store.set('bkc-t3open',true)}
+if(!store.get('bkc-s2open',false)){curLesson='s2';save();store.set('bkc-s2open',true)}
 show('lesson');
 </script>
 
