@@ -676,7 +676,7 @@ function lmChords(parts,label){const c=parts.flatMap(p=>LMA[p].c.split(' ')).fil
 /* bars: [[chordA,chordB],...] one entry per dotted-quarter half-bar. Each bar = bass note of the first chord on beat 1, the full (second) chord on beat 4 */
 const BASS={GmL:'G2',CmL:'C2',D7L:'D2',DL:'D2',G7L:'G2',F7L:'F2',BbL:'A#2',EbL:'D#2',Cm6L:'C2',AmL:'A2',DmL:'D2',EL:'E2',FaL:'F2',CL:'C2',GL:'G2',EmL:'E2'};
 function lhEvents(bars,split){const ev=[];bars.forEach((b,i)=>{if(split){ev.push({type:'bass',n:BASS[b[0]],k:b[0],bar:i+1,len:3});ev.push({type:'chord',k:b[1],bar:i+1,len:3})}
-  else if(b[0]===b[1])ev.push({type:'both',n:BASS[b[0]],k:b[0],bar:i+1,len:6});else b.forEach(k=>ev.push({type:'both',n:BASS[k],k,bar:i+1,len:3}))});return ev}
+  else (b[0]===b[1]?[b[0]]:b).forEach(k=>{const last=ev[ev.length-1];const len=b[0]===b[1]?6:3;if(last&&last.type==='both'&&last.k===k){last.len+=len;last.bars=(last.bars||1)+1}else ev.push({type:'both',n:BASS[k],k,bar:i+1,len})})});return ev}
 function lhFollow(bars,label,opts={}){const id='lh'+Math.random().toString(36).slice(2,7);const E=lhEvents(bars,opts.split);
   let cur=0,clean=0,miss=false,slips=[],flash=null,playing=false,timers=[],sawSplit=false,check=null,lastHeard='',nudge='';const held=new Map();
   const bk='bkc-lhbpm-'+label;const bpm=()=>store.get(bk,opts.bpm||100);
@@ -712,9 +712,9 @@ function lhFollow(bars,label,opts={}){const id='lh'+Math.random().toString(36).s
       if(viaKb)midiOut(notes,at,(e.len||3)*step/3*.9);else if(a)notes.forEach(n=>tone(n,a.currentTime+.05+at,(e.len||3)*step/3*.9,.12))});
     timers.push(setTimeout(()=>{stopPlay();cur=start;draw()},(acc*step/3+.3)*1000));draw()};
   const draw=()=>{const el=document.getElementById(id);if(!el)return;const e=E[cur];
-    const chips=bars.map((b,i)=>{const on=e.bar===i+1;return `<span class="mbar"><span class="mn${on?' on':e.bar>i+1?' past':''}">${b[0]===b[1]?nameOf(b[0]):nameOf(b[0])+'·'+nameOf(b[1])}</span></span>`}).join('');
+    const span=e.type==='both'?Math.max(1,Math.round((e.len||6)/6)):1;const chips=bars.map((b,i)=>{const on=i+1>=e.bar&&i+1<e.bar+span;return `<span class="mbar"><span class="mn${on?' on':e.bar>i+1?' past':''}">${b[0]===b[1]?nameOf(b[0]):nameOf(b[0])+'·'+nameOf(b[1])}</span></span>`}).join('');
     const marks=e.type==='bass'?[{n:e.n,f:5,h:'l'}]:e.type==='both'?[{n:e.n,f:5,h:'l'},...V[e.k].l.map(x=>({n:x[0],f:'',h:'l'}))]:V[e.k].l.map(x=>({n:x[0],f:x[1],h:'l'}));
-    const what=e.type==='both'?`Low <b>${SP(pc(e.n))}</b> (pinky) + <b>${nameOf(e.k)}</b> chord (${V[e.k].l.map(x=>SP(pc(x[0]))).join(' ')}), together${e.len===3?' · half a bar':''}`:e.type==='bass'?`Beat 1 · bass: <b>${SP(pc(e.n))}</b> (low, pinky)`:`Beat 4 · chord: <b>${nameOf(e.k)}</b> (${V[e.k].l.map(x=>SP(pc(x[0]))).join(' ')})`;
+    const what=e.type==='both'?`Low <b>${SP(pc(e.n))}</b> (pinky) + <b>${nameOf(e.k)}</b> chord (${V[e.k].l.map(x=>SP(pc(x[0]))).join(' ')}), together${e.len===3?' · half a bar':e.len>6?` · hold ${e.len/6} bars`:''}`:e.type==='bass'?`Beat 1 · bass: <b>${SP(pc(e.n))}</b> (low, pinky)`:`Beat 4 · chord: <b>${nameOf(e.k)}</b> (${V[e.k].l.map(x=>SP(pc(x[0]))).join(' ')})`;
     let heard='';if(!MID.ok)heard=`<p class="note">Tap <b>Connect keyboard</b> at the top and I'll follow your left hand.</p>`;
     else if(playing)heard=`<div class="what">Listen…</div>`;
     else if(flash&&!flash.ok)heard=`<div class="what"><span class="v">✗</span> ${flash.txt}</div>`;
