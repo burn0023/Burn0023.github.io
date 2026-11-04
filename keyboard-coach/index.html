@@ -51,7 +51,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .check{display:flex;flex-direction:column;gap:8px}
 .check label{display:flex;gap:10px;align-items:flex-start;font-size:15px}
 .check input{width:20px;height:20px;margin-top:2px;flex:0 0 auto}
-.rate{display:flex;gap:8px;flex-wrap:wrap}.rate .btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.rate{display:flex;gap:8px;flex-wrap:wrap}.row .btn[aria-pressed="true"],.rate .btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 textarea{font:inherit;width:100%;box-sizing:border-box;border:1px solid var(--rule);border-radius:10px;padding:10px;background:var(--bg);color:var(--ink);min-height:70px}
 .nav{display:flex;gap:10px;justify-content:space-between}
 .locked-box{background:var(--bg);border-radius:10px;padding:14px;color:var(--muted)}
@@ -195,13 +195,106 @@ const ROADMAP=[
 ];
 const OPEN=['p1'];
 
+/* ---------- Chord Trainer: flashcards that check the chord on the keyboard ---------- */
+/* Placement rule for now: ROOT POSITION. The chord's name note at the bottom, then skip-a-note, skip-a-note.
+   Left hand = below middle C (fingers 5-3-1). Right hand = middle C and up (fingers 1-3-5). */
+const Q={'':[0,4,7],m:[0,3,7]};
+const ROOTS={C:0,'C♯':1,D:2,'E♭':3,E:4,F:5,'F♯':6,G:7,'A♭':8,A:9,'B♭':10,B:11};
+const SETS={
+ am:{name:'A minor songs',chords:['Am','Dm','E','C','F','G']},
+ gm:{name:'G minor songs',chords:['Gm','Cm','D','B♭','E♭','F']},
+ dm:{name:'D minor songs',chords:['Dm','Gm','A','F','B♭','C']},
+ c:{name:'Plain white keys',chords:['C','F','G','Am','Dm','Em']}
+};
+function chordInfo(name){const mm=name.match(/^([A-G][♯♭]?)(m?)$/);const r=ROOTS[mm[1]];return {name,root:r,pcs:Q[mm[2]].map(i=>(r+i)%12),minor:!!mm[2]}}
+function voicing(name,hand){const c=chordInfo(name);const base=hand==='l'?48:60;const root=base+c.root;const iv=Q[c.minor?'m':''];
+  const fing=hand==='l'?[5,3,1]:[1,3,5];const r0=hand==='l'&&root+iv[2]>=60?root-12:root;return iv.map((x,j)=>({k:r0+x,f:fing[j],h:hand}))}
+const TR={set:store.get('tr-set','am'),hand:store.get('tr-hand','l'),mode:store.get('tr-mode','learn'),queue:[],i:0,shownAt:0,miss:false,log:[],fb:'',check:null,stats:store.get('tr-stats',{})};
+function trStatKey(c,h){return h+':'+c}
+function trBuild(){const S=SETS[TR.set].chords;const st=TR.stats;
+  // 12 cards; slower / missed chords come up more often
+  const w=S.map(c=>{const s=st[trStatKey(c,TR.hand)];if(!s)return 3;return 1+Math.min(4,(s.avg||3000)/1500)+(s.miss||0)/Math.max(1,s.n)*4});
+  const q=[];let last='';for(let n=0;n<12;n++){let pick;do{let r=Math.random()*w.reduce((a,b)=>a+b,0);pick=S.find((c,j)=>(r-=w[j])<0)||S[0]}while(pick===last&&S.length>1);q.push(pick);last=pick}
+  TR.queue=q;TR.i=0;TR.log=[];TR.miss=false;TR.fb='';TR.shownAt=performance.now()}
+function trZone(k){return k<60?'l':'r'}
+function trJudge(){const c=chordInfo(TR.queue[TR.i]);const held=[...MIDI.held].sort((a,b)=>a-b);
+  const hands=TR.hand==='both'?['l','r']:[TR.hand];let allOk=true,msgs=[],enough=true;
+  hands.forEach(h=>{const ns=held.filter(k=>trZone(k)===h);if(ns.length<3){enough=false;return}
+    const pcs=new Set(ns.map(k=>k%12));const right=c.pcs.every(p=>pcs.has(p))&&[...pcs].every(p=>c.pcs.includes(p));
+    const rootLow=ns[0]%12===c.root;const tight=ns[ns.length-1]-ns[0]<=12;
+    const H=h==='l'?'Left hand':'Right hand';
+    if(!right){allOk=false;msgs.push(`${H}: you played ${ns.map(k=>nm(k)).join(' ')}. ${c.name} is ${c.pcs.map(nm).join(' ')}.`)}
+    else if(!rootLow){allOk=false;msgs.push(`${H}: right notes. Now put <b>${nm(c.root)}</b> at the bottom: ${c.pcs.map(nm).join(' ')}, bottom to top.`)}
+    else if(!tight){allOk=false;msgs.push(`${H}: right notes. Keep them close together, all inside one hand-span.`)}
+    else if(h==='l'&&ns[0]<36){msgs.push('')}});
+  if(!enough)return;
+  if(allOk){const t=performance.now()-TR.shownAt;const name=TR.queue[TR.i];TR.log.push({c:name,t,miss:TR.miss});
+    const k=trStatKey(name,TR.hand);const s=TR.stats[k]||{n:0,avg:0,miss:0};s.avg=s.n?Math.round((s.avg*Math.min(s.n,4)+t)/(Math.min(s.n,4)+1)):Math.round(t);s.n++;if(TR.miss)s.miss++;TR.stats[k]=s;store.set('tr-stats',TR.stats);
+    TR.fb=`✓ ${name} in ${(t/1000).toFixed(1)} s`;TR.miss=false;TR.i++;TR.shownAt=performance.now();
+    if(TR.i>=TR.queue.length){trDone();return}}
+  else{TR.miss=true;TR.fb='✗ '+msgs.filter(Boolean).join('<br>')}
+  trPaint()}
+function trDone(){const L=TR.log;const first=L.filter(x=>!x.miss).length;const avg=L.reduce((a,x)=>a+x.t,0)/L.length;
+  const by={};L.forEach(x=>{(by[x.c]=by[x.c]||[]).push(x)});
+  const slow=Object.entries(by).map(([c,a])=>[c,a.reduce((s,x)=>s+x.t,0)/a.length,a.some(x=>x.miss)]).sort((a,b)=>b[1]-a[1]);
+  TR.summary={first,avg,slow};
+  sendReport(`CHORD TRAINER · ${SETS[TR.set].name} · ${TR.hand==='l'?'left hand':TR.hand==='r'?'right hand':'both hands'} · ${TR.mode==='learn'?'with keys shown':'from memory'} · ${first} of ${L.length} right first time · avg ${(avg/1000).toFixed(1)} s · per chord: ${slow.map(([c,t,m])=>`${c} ${(t/1000).toFixed(1)}s${m?' (missed)':''}`).join(', ')}`);
+  trPaint()}
+function trainerHTML(){if(!TR.queue.length)trBuild();
+  const sets=Object.entries(SETS).map(([k,s])=>`<button class="btn small" data-set="${k}" aria-pressed="${TR.set===k}">${s.name}</button>`).join('');
+  const hands=[['l','Left hand'],['r','Right hand'],['both','Both hands']].map(([k,t])=>`<button class="btn small" data-hand="${k}" aria-pressed="${TR.hand===k}">${t}</button>`).join('');
+  const modes=[['learn','Keys shown'],['recall','From memory']].map(([k,t])=>`<button class="btn small" data-mode="${k}" aria-pressed="${TR.mode===k}">${t}</button>`).join('');
+  return `<div class="head"><div class="eyebrow">Practice tool</div><h2>Chord Trainer</h2><p>A chord name appears. Play it in the right place, and the next one comes up. Do a round of 12 a few times a day until every chord comes up instantly, without thinking.</p></div>
+  <article class="card"><h3>Where chords go</h3>
+   <ul><li><b>Root position:</b> the chord's <b>name note at the bottom</b>, then skip a key, play, skip a key, play. Am = <b>A</b> C E. Gm = <b>G</b> B♭ D.</li>
+   <li><b>Left hand:</b> just below middle C. Fingers <b>5-3-1</b> (pinky on the name note).</li>
+   <li><b>Right hand:</b> from middle C up. Fingers <b>1-3-5</b> (thumb on the name note).</li>
+   <li>Every chord is the <b>same shape</b>. Only the starting key changes, so there's one shape to learn, not a new one for each chord.</li></ul>
+   <p class="say">Tyros: <b>[ACMP] off</b>, <b>[LEFT] off</b>, piano voice on <b>[RIGHT 1]</b>. The app counts everything below middle C as your left hand.</p></article>
+  <div class="card" style="gap:8px"><div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Chords:</span>${sets}</div>
+  <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Hand:</span>${hands}</div>
+  <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Mode:</span>${modes}</div></div>
+  <article class="card" id="trCard"></article>
+  <article class="card"><h3>Your chords so far</h3><div id="trStats"></div><p style="font-size:13px;color:var(--muted)">Slow or missed chords come up more often in the next round. Inversions (the same chord stacked other ways) come later, once these are automatic.</p></article>`}
+function trPaint(){const el=document.getElementById('trCard');if(!el){MIDI.subs.delete(trPaint);return}
+  if(TR.i>=TR.queue.length&&TR.summary){const s=TR.summary;
+    el.innerHTML=`<h3>Round done: ${s.first} of 12 right first time</h3><p>Average: <b>${(s.avg/1000).toFixed(1)} seconds</b> per chord. The goal is under 2 seconds for every chord, from memory.</p>
+     <p>Slowest this round: ${s.slow.slice(0,3).map(([c,t,m])=>`<b>${c}</b> ${(t/1000).toFixed(1)} s${m?' (missed once)':''}`).join(', ')}</p><p style="font-size:14px;color:var(--muted)">Sent to Claude.</p>
+     <button class="btn primary" id="trAgain">Next round</button>`;
+    document.getElementById('trAgain').onclick=()=>{TR.summary=null;trBuild();trPaint()};trStats();return}
+  const name=TR.queue[TR.i];const hands=TR.hand==='both'?['l','r']:[TR.hand];
+  const marks=hands.flatMap(h=>voicing(name,h));const show=TR.mode==='learn'||TR.miss;
+  el.innerHTML=`<div class="step">Chord ${TR.i+1} of 12 · ${TR.hand==='l'?'left hand':TR.hand==='r'?'right hand':'both hands'}</div>
+   <div style="font-family:var(--f-d);font-size:56px;font-weight:700;line-height:1;text-align:center;padding:8px 0">${name}</div>
+   <div class="kb">${keyboardSVG(hands.includes('l')?41:60,hands.includes('r')?83:71,show?marks:[],new Set(),MIDI.held)}</div>
+   <p class="now">${TR.fb||(MIDI.ok?(show?'Play it. The keys you press light up gold.':'Play it from memory. If you miss, the keys appear.'):'Tap <b>Connect keyboard</b> at the top first.')}</p>
+   <div class="row"><button class="btn small" id="trHear">▶ Hear it</button><button class="btn small" id="trSkip">Show me</button><button class="btn small" id="trNew">New round ↺</button></div>`;
+  document.getElementById('trHear').onclick=()=>{const ns=marks.map(x=>x.k);if(outOK())sendOut(ns,0,1200);else{const a=ac();if(a)ns.forEach(k=>tone(k,a.currentTime+.05,1.2))}};
+  document.getElementById('trSkip').onclick=()=>{TR.miss=true;TR.fb='Here it is. Play it to go on.';trPaint()};
+  document.getElementById('trNew').onclick=()=>{TR.summary=null;trBuild();trPaint()};
+  trStats()}
+function trStats(){const el=document.getElementById('trStats');if(!el)return;const S=SETS[TR.set].chords;
+  el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px">${S.map(c=>{const s=TR.stats[trStatKey(c,TR.hand)];
+    const t=s?s.avg/1000:null;const col=t==null?'var(--rule)':t<2?'var(--ok)':t<4?'var(--gold)':'#c0392b';
+    return `<div style="border:1px solid var(--rule);border-radius:10px;padding:8px;text-align:center"><div style="font-weight:700;font-size:18px">${c}</div><div style="font-size:13px;color:var(--muted)">${t==null?'not yet':t.toFixed(1)+' s'}</div><div style="height:4px;border-radius:2px;margin-top:6px;background:${col}"></div></div>`}).join('')}</div>`}
+let trWait=null;
+function trMidi(){if(!document.getElementById('trCard'))return;clearTimeout(trWait);trWait=setTimeout(trJudge,220);
+  const kb=document.querySelector('#trCard .kb');if(kb){const name=TR.queue[TR.i];if(!name)return;const hands=TR.hand==='both'?['l','r']:[TR.hand];const show=TR.mode==='learn'||TR.miss;
+    kb.innerHTML=keyboardSVG(hands.includes('l')?41:60,hands.includes('r')?83:71,show?hands.flatMap(h=>voicing(name,h)):[],new Set(),MIDI.held)}}
+MIDI.subs.add(trMidi);
+
 /* ---------- render ---------- */
 let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','p1');
 const P=id=>prog[id]||(prog[id]={step:0,done:[]});const save=()=>{store.set('pb-prog',prog);store.set('pb-cur',cur)};
 function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
+  if(cur==='trainer'){const app=document.getElementById('app');
+    app.innerHTML=`<div class="lessons">${LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="false">Lesson ${j+1}</button>`).join('')}<button class="lchip" data-l="trainer" aria-pressed="true">Chord Trainer</button></div>`+trainerHTML();
+    app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
+    const pick=(attr,key)=>app.querySelectorAll(`[data-${attr}]`).forEach(b=>b.onclick=()=>{TR[key]=b.dataset[attr];store.set('tr-'+key,TR[key]);TR.summary=null;trBuild();render()});
+    pick('set','set');pick('hand','hand');pick('mode','mode');trPaint();return}
   const L=LESSONS.find(l=>l.id===cur)||LESSONS[0];const p=P(L.id);const i=Math.min(p.step,L.steps.length-1);const S=L.steps[i];const n=LESSONS.indexOf(L)+1;
   const app=document.getElementById('app');
-  const chips=LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="${l.id===L.id}">Lesson ${j+1}</button>`).join('')+ROADMAP.map((r,j)=>`<button class="lchip locked" disabled>🔒 Lesson ${LESSONS.length+j+1}</button>`).join('');
+  const chips=LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="${l.id===L.id}">Lesson ${j+1}</button>`).join('')+`<button class="lchip" data-l="trainer" aria-pressed="false">Chord Trainer</button>`+ROADMAP.map((r,j)=>`<button class="lchip locked" disabled>🔒 Lesson ${LESSONS.length+j+1}</button>`).join('');
   let extra='';
   if(S.x)extra+=exercise(EX[S.x]);
   if(S.metro)extra+=metroWidget();
