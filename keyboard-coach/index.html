@@ -119,18 +119,20 @@ const LEGEND=`<div class="legend"><span><i style="background:var(--accent)"></i>
 
 /* ---------- exercise widget: picture + Hear it + live keys (no scoring) ---------- */
 /* ex: {lo,hi,marks:[{k,f,h}], seq:[{k:[midi..],beats}] , bpm} */
-function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let timers=[],playing=false,lit=new Set(),nowTxt='';
+function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let timers=[],playing=false,lit=new Set(),nowTxt='',held=new Set(),cm=ex.marks;
   const bk='pb-bpm-'+ex.key;const bpm=()=>store.get(bk,ex.bpm||60);
   const draw=()=>{const el=document.getElementById(id);if(!el){MIDI.subs.delete(draw);return}
-    el.querySelector('[data-kb]').innerHTML=keyboardSVG(ex.lo,ex.hi,ex.marks,lit,MIDI.held);
+    el.querySelector('[data-kb]').innerHTML=keyboardSVG(ex.lo,ex.hi,cm,new Set([...lit,...held]),MIDI.held);
     el.querySelector('[data-now]').innerHTML=nowTxt||(MIDI.ok?'Play along. The keys you press light up gold.':'Tap <b>Hear it</b> to hear and watch it first.');
     el.querySelector('[data-a=hear]').textContent=playing?'■ Stop':'▶ Hear it';el.querySelector('[data-bpm]').textContent=bpm()+' bpm'};
-  const stop=()=>{timers.forEach(clearTimeout);timers=[];playing=false;lit=new Set();nowTxt='';draw()};
+  const stop=()=>{timers.forEach(clearTimeout);timers=[];playing=false;lit=new Set();held=new Set();cm=ex.marks;nowTxt='';if(outOK())MIDI.acc.outputs.forEach(o=>{for(let n=24;n<100;n++)o.send([0x80,n,0])});draw()};
   const hear=()=>{if(playing){stop();return}playing=true;const spb=60000/bpm();let t=300;const a=ac();const viaOut=outOK();
     ex.seq.forEach(st=>{const dur=st.beats*spb;const at=t;
-      timers.push(setTimeout(()=>{lit=new Set(st.k);const mk=st.k.map(k=>ex.marks.find(x=>x.k===k)).filter(Boolean);
-        nowTxt=mk.length?mk.map(x=>`<b>${x.h==='l'?'Left':'Right'} hand, finger ${x.f}</b> on ${nm(x.k)}`).join(' · '):'';draw()},at));
-      if(viaOut)sendOut(st.k,at,dur*.9);else if(a)st.k.forEach(k=>tone(k,a.currentTime+at/1000,dur/1000*.9));t+=dur});
+      timers.push(setTimeout(()=>{if(st.marks)cm=st.marks;lit=new Set(st.k);const mk=st.k.map(k=>cm.find(x=>x.k===k)).filter(Boolean);
+        nowTxt=st.say!=null?st.say:mk.length?mk.map(x=>`<b>${x.h==='l'?'Left':'Right'} hand, finger ${x.f}</b> on ${nm(x.k)}`).join(' · '):'';draw()},at));
+      if(st.hold){const hd=st.hold.beats*spb;timers.push(setTimeout(()=>{st.hold.k.forEach(k=>held.add(k));draw()},at));timers.push(setTimeout(()=>{st.hold.k.forEach(k=>held.delete(k));draw()},at+hd*.95));
+        if(viaOut)sendOut(st.hold.k,at,hd*.95,90);else if(a)st.hold.k.forEach(k=>tone(k,a.currentTime+at/1000,hd/1000*.95))}
+      const sd=dur*(st.short||.9);if(viaOut)sendOut(st.k,at,sd,st.vel||80);else if(a)st.k.forEach(k=>tone(k,a.currentTime+at/1000,sd/1000));t+=dur});
     timers.push(setTimeout(()=>{stop();nowTxt='Your turn: same notes, same fingers, same speed.';draw()},t+200));draw()};
   setTimeout(()=>{const el=document.getElementById(id);if(!el)return;MIDI.subs.add(draw);
     el.querySelector('[data-a=hear]').onclick=hear;
@@ -340,7 +342,7 @@ function songHTML(set){const sg=TSONGS[set];if(!sg)return '';const g=trGreens(se
      ${pt.end1?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:6px">${pt.end1.map((b,i)=>barBox(b,i===0?'1st time':'')).join('')}</div>`:''}
      ${pt.end2?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:6px">${pt.end2.map((b,i)=>barBox(b,i===0?'2nd time':'')).join('')}</div>`:''}</div>`).join('')}
    ${sg.simple.length?`<p style="font-size:13px;color:var(--muted);margin:0">Simplified to this set's chords: ${sg.simple.join('; ')}.</p>`:''}
-   ${metroWidget()}</article>${styleHTML(set)}`}
+   ${metroWidget()}</article>${p2HTML(set)}${styleHTML(set)}`}
 /* ---------- Make it sound like music: accompaniment patterns, demoed on the song's own bars ---------- */
 const PATS=[
  {id:'oom',name:'1 · Bass and chord (oom-pah)',how:'Left hand plays <b>one low note</b>, the chord\'s name note, an octave below where you\'ve been playing. Right hand plays the <b>chord</b> in between. Count <b>1</b> bass, <b>2</b> chord, <b>3</b> bass, <b>4</b> chord. Keep the chords short and light; let the bass ring.',fit:'Good for Borcheinu and slower songs.'},
@@ -358,6 +360,34 @@ function patStop(){patTimers.forEach(clearTimeout);patTimers=[];if(outOK())MIDI.
 function patPlay(id,set){patStop();const sg=TSONGS[set];const bars=sg.parts[0].bars.slice(0,4);const ev=patEvents(id,bars,set==='am'||set==='c'?100:80);
   if(outOK())ev.forEach(([ns,at,d,v])=>{patTimers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x90,n,v]))),at));patTimers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x80,n,0]))),at+d))});else{const a=ac();if(a)ev.forEach(([ns,at,d,v])=>ns.forEach(k=>tone(k,a.currentTime+.05+at/1000,d/1000,.08+v/1200)))}
   const btn=document.querySelector(`[data-pat="${id}"]`);if(btn){btn.textContent='■ Stop';patTimers.push(setTimeout(()=>{btn.textContent='▶ Hear it on '+sg.title},(ev.length?ev[ev.length-1][1]+ev[ev.length-1][2]:0)+200))}}
+/* Pattern 2 step by step. Left hand: octave on the name note (pinky low, thumb high). Right hand: root position chord from A3 up, 1-3-5, like A position in Lesson 2. */
+function p2Notes(c){const ci=chordInfo(c),pc=ci.root;let lo=33;while(lo%12!==pc)lo++;let r=55;while(r%12!==pc)r++;const q=ci.minor?3:4;return {lh:[lo,lo+12],rh:[r,r+q,r+7]}}
+function p2Marks(c){const n=p2Notes(c);return [{k:n.lh[0],f:5,h:'l'},{k:n.lh[1],f:1,h:'l'},{k:n.rh[0],f:1,h:'r'},{k:n.rh[1],f:3,h:'r'},{k:n.rh[2],f:5,h:'r'}]}
+const CNT=(x,c)=>`<span style="font-size:28px;font-weight:700">${x}</span>`+(c?`  <span style="color:var(--muted)">${c}</span>`:'');
+function p2Bar(c,mode,first){const n=p2Notes(c);const st=[];const cnt=['1','&','2','&','3','&','4','&'];
+  for(let i=0;i<8;i++){const and=i%2===1;const bassHit=(i===0||i===4)&&mode!=='r';const chordHit=and&&mode!=='l';
+    const say=CNT(cnt[i],bassHit?'left hand: low '+c.replace('m','')+'s':chordHit?'right hand: '+c+' chord, quick':'');
+    st.push({k:chordHit?n.rh:[],beats:.5,short:.45,vel:68,say,hold:bassHit?{k:n.lh,beats:2}:null,marks:i===0?p2Marks(c):null})}
+  return st}
+function p2Ex(key,bars,mode,bpm){const marks=p2Marks(bars[0]);const all=bars.flatMap(b=>p2Marks(b)).map(x=>x.k);
+  return {key,lo:Math.min(...all)-2,hi:Math.max(...all)+2,bpm,marks:mode==='l'?marks.filter(x=>x.h==='l'):mode==='r'?marks.filter(x=>x.h==='r'):marks,
+   seq:bars.flatMap((c,i)=>p2Bar(c,mode).map(st=>st.marks&&mode!=='both'?{...st,marks:st.marks.filter(x=>x.h===mode)}:st))}}
+function p2HTML(set){if(set!=='am'||!trGreens(set).l)return '';
+  return `<article class="card"><div class="step">Pattern 2, step by step</div><h3>Bass and pushing chords</h3>
+   <p>Four small steps. In each one: tap <b>▶ Hear it</b>, watch which keys light up and listen, then play it yourself. Say the count out loud: <b>“1 and 2 and 3 and 4 and”</b>. Sustain <b>off</b>.</p>
+   <h4 style="margin:6px 0 0">Step 1 · Right hand alone</h4>
+   <p style="margin:0">Am chord (A C E, fingers 1-3-5, the A position from Lesson 2). Play it only on the <b>“and”</b>, never on the numbers. Short, like a bounce: press and let go.</p>
+   ${exercise(p2Ex('p2r',['Am','Am'],'r',60))}
+   <h4 style="margin:6px 0 0">Step 2 · Left hand alone</h4>
+   <p style="margin:0">Two A's, an octave apart: <b>pinky</b> on the low A, <b>thumb</b> on the A above. Press on <b>1</b> and hold, press again on <b>3</b> and hold. This is your bass.</p>
+   ${exercise(p2Ex('p2l',['Am','Am'],'l',60))}
+   <h4 style="margin:6px 0 0">Step 3 · Together, one chord</h4>
+   <p style="margin:0">The hands take turns: <b>left</b> on 1, <b>right</b> on “and”, right on “and”, <b>left</b> on 3, right, right. They never press at the same time. Go slow; speed comes by itself.</p>
+   ${exercise(p2Ex('p2b',['Am','Am'],'both',56))}
+   <h4 style="margin:6px 0 0">Step 4 · Changing chords: first line of Shehechiyonu</h4>
+   <p style="margin:0">Am, Dm, Am, Dm. Both hands move to the new chord together on the <b>1</b>. Dm: left hand on two D's, right hand D F A.</p>
+   ${exercise(p2Ex('p2s',['Am','Dm','Am','Dm'],'both',56))}
+   <p style="font-size:13px;color:var(--muted);margin:0">When step 4 feels easy at 56, tap + a few times each day. Then play all of Part A above with this pattern.</p></article>`}
 function styleHTML(set){const sg=TSONGS[set];if(!sg||!trGreens(set).l)return '';
   return `<article class="card"><div class="step">Make it sound like music</div><h3>Stop just hitting the chords</h3>
    <p>Plain chords sound boring because every note starts and stops together. Real piano playing splits the job: the <b>left hand</b> plays the low bass, the <b>right hand</b> plays the chord, and they take turns in a rhythm. Pick one pattern and play the whole song with it.</p>
