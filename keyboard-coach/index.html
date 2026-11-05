@@ -121,7 +121,7 @@ const LEGEND=`<div class="legend"><span><i style="background:var(--accent)"></i>
 /* ex: {lo,hi,marks:[{k,f,h}], seq:[{k:[midi..],beats}] , bpm} */
 const PASS=store.get('pb-pass',{});
 /* Steps Bernard has passed, confirmed from his results sheet; survive the browser losing its storage */
-const CONFIRMED_PASS={};
+const CONFIRMED_PASS={chC:1,tuneC:1,chG:1,chCG:1,chF:1,chCFG:1}; /* Lesson 2, all passed 5 Nov 2026 */
 const isPassed=k=>!!(PASS[k]||CONFIRMED_PASS[k]);
 function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let timers=[],playing=false,lit=new Set(),nowTxt='',held=new Set(),cm=ex.marks;
   const need=ex.need||2;const T={on:false,idx:0,fresh:new Set(),miss:0,clean:0,msg:''};
@@ -196,6 +196,14 @@ const EX={
    seq:[S(['G3','C4']),S(['F3','D4']),S(['E3','E4']),S(['D3','F4']),S(['C3','G4']),S(['D3','F4']),S(['E3','E4']),S(['F3','D4']),S(['G3','C4'],2)]},
  para:{key:'para',lo:m('C3'),hi:m('B4'),bpm:52,marks:[L('C3',5),L('D3',4),L('E3',3),L('F3',2),L('G3',1),R('C4',1),R('D4',2),R('E4',3),R('F4',4),R('G4',5)],
    seq:[S(['C3','C4']),S(['D3','D4']),S(['E3','E4']),S(['F3','F4']),S(['G3','G4']),S(['F3','F4']),S(['E3','E4']),S(['D3','D4']),S(['C3','C4'],2)]},
+ /* Lesson 3: C major scale, thumb under. RH fingering C1 D2 E3 F1 G2 A3 B4 C5; LH (going up) C5 D4 E3 F2 G1 A3 B2 C1 */
+ thR:{key:'thR',lo:m('B3'),hi:m('A4'),bpm:56,marks:[R('C4',1),R('D4',2),R('E4',3),R('F4',1)],seq:[...seqOf(['C4','D4','E4','F4','E4','D4','C4'])]},
+ hiR:{key:'hiR',lo:m('E4'),hi:m('D5'),bpm:56,marks:[R('F4',1),R('G4',2),R('A4',3),R('B4',4),R('C5',5)],seq:seqOf(['F4','G4','A4','B4','C5','B4','A4','G4','F4'])},
+ scR:{key:'scR',lo:m('B3'),hi:m('D5'),bpm:56,marks:[R('C4',1),R('D4',2),R('E4',3),R('F4',1),R('G4',2),R('A4',3),R('B4',4),R('C5',5)],seq:seqOf(['C4','D4','E4','F4','G4','A4','B4','C5','B4','A4','G4','F4','E4','D4','C4'])},
+ thL:{key:'thL',lo:m('E3'),hi:m('D4'),bpm:56,marks:[L('F3',2),L('G3',1),L('A3',3),L('B3',2),L('C4',1)],seq:seqOf(['F3','G3','A3','B3','C4','B3','A3','G3','F3'])},
+ scL:{key:'scL',lo:m('B2'),hi:m('D4'),bpm:56,marks:[L('C3',5),L('D3',4),L('E3',3),L('F3',2),L('G3',1),L('A3',3),L('B3',2),L('C4',1)],seq:seqOf(['C3','D3','E3','F3','G3','A3','B3','C4','B3','A3','G3','F3','E3','D3','C3'])},
+ scCh:{key:'scCh',lo:m('B2'),hi:m('D5'),bpm:60,marks:[R('C4',1),R('D4',2),R('E4',3),R('F4',1),R('G4',2),R('A4',3),R('B4',4),R('C5',5),L('C3',5),L('E3',3),L('G3',1)],
+   seq:[...['C4','D4','E4','F4','G4','A4','B4'].map(n=>S([n])),S(['C5'],2),S(['C3','E3','G3','C4','E4','G4'],4)]},
  /* Lesson 2 (major): C, F and G chords. Same hand spots as Lesson 1 and the Chord Trainer: RH from middle C up, LH below middle C. */
  chC:{key:'chC',lo:m('C3'),hi:m('B4'),bpm:60,marks:[L('C3',5),L('E3',3),L('G3',1),R('C4',1),R('E4',3),R('G4',5)],
    seq:[S(['C4']),S(['E4']),S(['G4']),S(['C4','E4','G4'],2),S(['C3']),S(['E3']),S(['G3']),S(['C3','E3','G3'],2),S(['C3','E3','G3','C4','E4','G4'],3)]},
@@ -234,16 +242,25 @@ const LESSONS=[
   {t:'The F chord',b:`<p>Same shape again, starting on <b>F</b>: F A C.</p><ul><li>Right hand: thumb on the <b>F above middle C</b>, 1-3-5 = F A C.</li><li>Left hand: pinky on the <b>F below the G</b> you just used, 5-3-1 = F A C.</li></ul><p>F is the white key just left of the group of three black keys.</p>`,x:'chF'},
   {t:'C - F - G - C',b:`<p>The three chords in a row, both hands, 4 beats each: <b>C F G C · C F G C</b>.</p><p>Say the chord name out loud as you land on it. When this is comfortable at 60, try 70.</p>`,x:'chCFG',metro:true},
   {t:'How did it go?',report:true,b:`<p>Practise this lesson a few days, about 10 minutes a day. Then tick what's true and send it. Claude opens Lesson 3 when you're ready.</p>`}
+ ]},
+ {id:'p3',gate:true,title:'Your first scale: C major',goal:'Five fingers only cover five keys. To play more, the thumb tucks under the hand (or the hand crosses over the thumb). That one move is what lets you play a whole scale, and later whole tunes, without jumping.',
+  check:['My thumb tucked under smoothly, without my elbow sticking out','My wrist stayed level during the thumb-under','The notes were even, no bump or gap where the thumb goes under','I can play the right-hand scale up and down without the screen','I can play the left-hand scale up and down without the screen','My fingers stayed curved, playing on the tips'],steps:[
+  {t:'The thumb goes under',b:`<p>Right hand, C position. Play <b>C D E</b> with fingers <b>1 2 3</b>. Now, while finger 3 holds E, slide the thumb <b>under your hand</b> and play <b>F</b> with it.</p><ul><li>Only the thumb moves. The hand stays level and the elbow stays still.</li><li>Then come back: F E D C with fingers <b>1 3 2 1</b>. Finger 3 crosses <b>over</b> the thumb to land on E.</li></ul><p class="say">Start the thumb moving under early, while you're still playing D. Then it's already there when you need it.</p>`,x:'thR'},
+  {t:'The top half',b:`<p>Thumb now on <b>F</b>. Fingers 1-2-3-4-5 cover <b>F G A B C</b>. That's just a five-finger position, like Lesson 1, one step higher.</p><p>Up and back.</p>`,x:'hiR',metro:true},
+  {t:'Right hand: the whole scale',b:`<p>Join the two halves: <b>C D E</b> (1 2 3), thumb under to <b>F</b>, then <b>F G A B C</b> (1 2 3 4 5). Then back down: 5 4 3 2 1, finger 3 over to <b>E</b>, then 2 1.</p><p><b>Fingers up:</b> 1 2 3 · 1 2 3 4 5<br><b>Fingers down:</b> 5 4 3 2 1 · 3 2 1</p><p>Slow and even. The thumb-under should make no bump in the sound.</p>`,x:'scR',metro:true},
+  {t:'Left hand: the crossing',b:`<p>The left hand does it the other way round. Going <b>up</b>, finger 3 crosses <b>over</b> the thumb.</p><p>Left thumb on <b>G</b> just below middle C, finger 2 on F. Play <b>F G</b> (2 1), then finger 3 crosses over the thumb to <b>A</b>, then <b>B C</b> (2 1). Then back down: C B A (1 2 3), thumb tucks <b>under</b> to G, then F (2).</p>`,x:'thL',metro:true},
+  {t:'Left hand: the whole scale',b:`<p>Left pinky on the <b>C below middle C</b>.</p><p><b>Fingers up:</b> 5 4 3 2 1 · 3 2 1 (C D E F G · A B C)<br><b>Fingers down:</b> 1 2 3 · 1 2 3 4 5 (C B A · G F E D C)</p><p>The crossing is right after the thumb, on A going up and on G going down.</p>`,x:'scL',metro:true},
+  {t:'Scale up, land on the chord',b:`<p>Right hand plays the scale <b>up</b> to the high C. Then both hands land on the <b>C chord</b> (from Lesson 2) and hold it.</p><p>This is a real ending: a run up to the top, then the chord. You'll hear it at the end of a lot of songs.</p>`,x:'scCh',metro:true},
+  {t:'How did it go?',report:true,b:`<p>Practise this lesson a few days, about 10 minutes a day. The scale gets smoother every day, even when it doesn't feel like it. Then tick what's true and send it.</p>`}
  ]}
 ];
 const ROADMAP=[
- ['Your first scale','C major all the way up and down, with the thumb passing under. This is how the hand moves past five notes.'],
  ['Minor: the niggun sound','A minor, the sad cousin of C: same white keys, different home. Am, Dm and E, the chords most of your songs use.'],
  ['Left-hand patterns','One at a time, slowly: block chord, then root note, then root + chord, then broken chord.'],
  ['Right hand: melody + one chord note','A tune you know in the right hand, with one chord note added under the melody.'],
  ['First song, both hands','A song you know, putting it all together.']
 ];
-const OPEN=['p1','p2'];
+const OPEN=['p1','p2','p3'];
 if(store.get('pb-p2v',1)!==2){const pr=store.get('pb-prog',{});delete pr.p2;store.set('pb-prog',pr);store.set('pb-p2v',2)}
 
 /* ---------- Chord Trainer: flashcards that check the chord on the keyboard ---------- */
