@@ -161,6 +161,9 @@ function sendReport(txt){try{const body=new URLSearchParams();body.append('entry
 /* ---------- exercises ---------- */
 const R=(n,f)=>({k:m(n),f,h:'r'}),L=(n,f)=>({k:m(n),f,h:'l'});
 const S=(notes,beats=1)=>({k:notes.map(m),beats});
+/* C, F, G in the Chord Trainer spots (same as voicing()), written out so they exist before the chord code loads */
+const CFG={C:{l:[48,52,55],r:[60,64,67]},F:{l:[41,45,48],r:[65,69,72]},G:{l:[43,47,50],r:[67,71,74]}};
+const cfgStep=(c,say)=>({k:[...CFG[c].l,...CFG[c].r],beats:4,marks:[...CFG[c].l.map((k,j)=>({k,f:[5,3,1][j],h:'l'})),...CFG[c].r.map((k,j)=>({k,f:[1,3,5][j],h:'r'}))],say});
 const up=ns=>ns.map(n=>S([n])),seqOf=(ns,last=2)=>[...up(ns).slice(0,-1),S([ns[ns.length-1]],last)];
 const EX={
  rhC:{key:'rhC',lo:m('C4'),hi:m('B4'),bpm:60,marks:[R('C4',1),R('D4',2),R('E4',3),R('F4',4),R('G4',5)],seq:seqOf(['C4','D4','E4','F4','G4','F4','E4','D4','C4'])},
@@ -170,19 +173,19 @@ const EX={
    seq:[S(['G3','C4']),S(['F3','D4']),S(['E3','E4']),S(['D3','F4']),S(['C3','G4']),S(['D3','F4']),S(['E3','E4']),S(['F3','D4']),S(['G3','C4'],2)]},
  para:{key:'para',lo:m('C3'),hi:m('B4'),bpm:52,marks:[L('C3',5),L('D3',4),L('E3',3),L('F3',2),L('G3',1),R('C4',1),R('D4',2),R('E4',3),R('F4',4),R('G4',5)],
    seq:[S(['C3','C4']),S(['D3','D4']),S(['E3','E4']),S(['F3','F4']),S(['G3','G4']),S(['F3','F4']),S(['E3','E4']),S(['D3','D4']),S(['C3','C4'],2)]},
- /* Lesson 2: five-finger positions in the minor keys. RH around middle C, LH an octave lower */
- majmin:{key:'majmin',lo:m('A3'),hi:m('B4'),bpm:66,marks:[R('C4',1),R('D4',2),R('E4',3),R('F4',4),R('G4',5)],seq:[...seqOf(['C4','D4','E4','F4','G4','E4','C4'],2),S(['C4','E4','G4'],2),...seqOf(['A3','B3','C4','D4','E4','C4','A3'],2),S(['A3','C4','E4'],3)]},
- rhA:{key:'rhA',lo:m('G3'),hi:m('G4'),bpm:60,marks:[R('A3',1),R('B3',2),R('C4',3),R('D4',4),R('E4',5)],seq:seqOf(['A3','B3','C4','D4','E4','D4','C4','B3','A3'])},
- lhA:{key:'lhA',lo:m('G2'),hi:m('G3'),bpm:60,marks:[L('A2',5),L('B2',4),L('C3',3),L('D3',2),L('E3',1)],seq:seqOf(['A2','B2','C3','D3','E3','D3','C3','B2','A2'])},
- chA:{key:'chA',lo:m('G2'),hi:m('G4'),bpm:60,marks:[L('A2',5),L('C3',3),L('E3',1),R('A3',1),R('C4',3),R('E4',5)],seq:[S(['A3']),S(['C4']),S(['E4']),S(['A3','C4','E4'],2),S(['A2']),S(['C3']),S(['E3']),S(['A2','C3','E3'],2),S(['A2','C3','E3','A3','C4','E4'],3)]},
- rhD:{key:'rhD',lo:m('C4'),hi:m('B4'),bpm:60,marks:[R('D4',1),R('E4',2),R('F4',3),R('G4',4),R('A4',5)],seq:[...seqOf(['D4','E4','F4','G4','A4','G4','F4','E4','D4']),S(['D4','F4','A4'],2)]},
- lhD:{key:'lhD',lo:m('C3'),hi:m('B3'),bpm:60,marks:[L('D3',5),L('E3',4),L('F3',3),L('G3',2),L('A3',1)],seq:[...seqOf(['D3','E3','F3','G3','A3','G3','F3','E3','D3']),S(['D3','F3','A3'],2)]},
- rhG:{key:'rhG',lo:m('F3'),hi:m('E4'),bpm:56,marks:[R('G3',1),R('A3',2),R('Bb3',3),R('C4',4),R('D4',5)],seq:[...seqOf(['G3','A3','Bb3','C4','D4','C4','Bb3','A3','G3']),S(['G3','Bb3','D4'],2)]},
- lhG:{key:'lhG',lo:m('F2'),hi:m('E3'),bpm:56,marks:[L('G2',5),L('A2',4),L('Bb2',3),L('C3',2),L('D3',1)],seq:[...seqOf(['G2','A2','Bb2','C3','D3','C3','Bb2','A2','G2']),S(['G2','Bb2','D3'],2)]},
- togA:{key:'togA',lo:m('G2'),hi:m('G4'),bpm:52,marks:[L('A2',5),L('B2',4),L('C3',3),L('D3',2),L('E3',1),R('A3',1),R('B3',2),R('C4',3),R('D4',4),R('E4',5)],
-   seq:[S(['A2','A3']),S(['B2','B3']),S(['C3','C4']),S(['D3','D4']),S(['E3','E4']),S(['D3','D4']),S(['C3','C4']),S(['B2','B3']),S(['A2','A3'],2)]},
- tuneA:{key:'tuneA',lo:m('G2'),hi:m('G4'),bpm:72,marks:[L('A2',5),L('C3',3),L('E3',1),R('A3',1),R('B3',2),R('C4',3),R('D4',4),R('E4',5)],
-   seq:[S(['A2','C3','E3','A3']),S(['B3']),S(['C4']),S(['A3']),S(['A2','C3','E3','C4']),S(['D4']),S(['E4'],2),S(['A2','C3','E3','E4']),S(['D4']),S(['C4']),S(['B3']),S(['A2','C3','E3','A3'],4)]}
+ /* Lesson 2 (major): C, F and G chords. Same hand spots as Lesson 1 and the Chord Trainer: RH from middle C up, LH below middle C. */
+ chC:{key:'chC',lo:m('C3'),hi:m('B4'),bpm:60,marks:[L('C3',5),L('E3',3),L('G3',1),R('C4',1),R('E4',3),R('G4',5)],
+   seq:[S(['C4']),S(['E4']),S(['G4']),S(['C4','E4','G4'],2),S(['C3']),S(['E3']),S(['G3']),S(['C3','E3','G3'],2),S(['C3','E3','G3','C4','E4','G4'],3)]},
+ tuneC:{key:'tuneC',lo:m('C3'),hi:m('B4'),bpm:72,marks:[L('C3',5),L('E3',3),L('G3',1),R('C4',1),R('D4',2),R('E4',3),R('F4',4),R('G4',5)],
+   seq:[{...S(['C4']),hold:{k:[48,52,55],beats:4}},S(['D4']),S(['E4']),S(['C4']),{...S(['E4']),hold:{k:[48,52,55],beats:4}},S(['F4']),S(['G4'],2),{...S(['G4']),hold:{k:[48,52,55],beats:4}},S(['F4']),S(['E4']),S(['D4']),{...S(['C4'],4),hold:{k:[48,52,55],beats:4}}]},
+ chG:{key:'chG',lo:m('F2'),hi:m('E5'),bpm:60,marks:[L('G2',5),L('B2',3),L('D3',1),R('G4',1),R('B4',3),R('D5',5)],
+   seq:[S(['G4']),S(['B4']),S(['D5']),S(['G4','B4','D5'],2),S(['G2']),S(['B2']),S(['D3']),S(['G2','B2','D3'],2),S(['G2','B2','D3','G4','B4','D5'],3)]},
+ chCG:{key:'chCG',lo:m('F2'),hi:m('E5'),bpm:60,marks:[L('C3',5),L('E3',3),L('G3',1),R('C4',1),R('E4',3),R('G4',5)],
+   seq:['C','G','C','G','C'].map(c=>cfgStep(c,`<b>${c}</b> chord, both hands. Hold it for 4 beats.`))},
+ chF:{key:'chF',lo:m('E2'),hi:m('D5'),bpm:60,marks:[L('F2',5),L('A2',3),L('C3',1),R('F4',1),R('A4',3),R('C5',5)],
+   seq:[S(['F4']),S(['A4']),S(['C5']),S(['F4','A4','C5'],2),S(['F2']),S(['A2']),S(['C3']),S(['F2','A2','C3'],2),S(['F2','A2','C3','F4','A4','C5'],3)]},
+ chCFG:{key:'chCFG',lo:m('E2'),hi:m('E5'),bpm:60,marks:[L('C3',5),L('E3',3),L('G3',1),R('C4',1),R('E4',3),R('G4',5)],
+   seq:['C','F','G','C','C','F','G','C'].map(c=>cfgStep(c,`<b>${c}</b> · 1 2 3 4`))}
 };
 
 /* ---------- lessons ---------- */
@@ -199,27 +202,26 @@ const LESSONS=[
   {t:'Both hands: same direction',b:`<p>Now both hands play the <b>same note names</b> together, going up: C+C, D+D, E+E, F+F, G+G, and back down.</p><p>This one is harder: the left hand uses <b>5-4-3-2-1</b> while the right uses <b>1-2-3-4-5</b>. Go slow (around 50). Getting it right slowly is the goal.</p>`,x:'para',metro:true},
   {t:'How did it go?',report:true,b:`<p>Practise this lesson a few days, about 10 minutes a day. Then tick what's true, pick how it felt, and send it. Claude reads it and opens Lesson 2 when you're ready.</p>`}
  ]},
- {id:'p2',title:'Five fingers in your keys',goal:'The same five-finger work, now starting on A, D and G: the minor keys your songs use. You will hear what makes a key minor, and see that each chord you drill is already sitting under your fingers.',
-  check:['My fingers stayed curved, playing on the tips','My wrist stayed level','I can find the A, D and G positions without looking at the screen','In G position, finger 3 reached B♭ without my hand going flat','I can hear that A position sounds sadder (minor) than C position','Both hands together in A stayed even'],steps:[
-  {t:'What makes it minor',b:`<p>Your songs are in <b>minor keys</b>: A minor, D minor, G minor. Here's the difference, with your right hand only:</p><ul><li><b>C position</b> (C D E F G), the one from Lesson 1: bright, happy. That's <b>major</b>.</li><li><b>A position</b> (A B C D E): the same five-finger shape, all white keys, but it sounds sad and serious. That's <b>minor</b>, the sound of a niggun.</li></ul><p>Tap <b>Hear it</b>: first C position with its chord, then A position with its chord. Then play both yourself and listen.</p><p class="say">Keep the Lesson 1 hand: curved fingers, tips, level wrist. Every step in this lesson.</p>`,x:'majmin'},
-  {t:'Right hand: A position',b:`<p>Right thumb on the <b>A just below middle C</b>. Fingers 1-2-3-4-5 cover A B C D E, and <b>middle C is under finger 3</b>.</p><p>Up and back, slowly, 5 times.</p>`,x:'rhA',metro:true},
-  {t:'Left hand: A position',b:`<p>Left pinky on the <b>A an octave lower</b> (the second A below middle C). Fingers 5-4-3-2-1 cover A B C D E.</p><p>Find it by feel: A is the white key between the 2nd and 3rd black keys of the group of three.</p>`,x:'lhA',metro:true},
-  {t:'The chord is already under your fingers',b:`<p>In A position, fingers <b>1, 3 and 5</b> land on <b>A, C and E</b>. That's the <b>Am chord</b>.</p><ul><li>Right hand: 1-3-5 = A C E.</li><li>Left hand: 5-3-1 = A C E.</li></ul><p>So a chord is notes 1, 3 and 5 of the position: skip a finger, skip a finger. Play the three notes one at a time, then together, in each hand. Then both hands at once.</p>`,x:'chA'},
-  {t:'D position',b:`<p>Same shape, starting on <b>D</b>: D E F G A. Still all white keys.</p><ul><li>Right thumb on the D just above middle C.</li><li>Left pinky on the D below middle C.</li></ul><p>Walk up and down, then play 1-3-5 together: <b>D F A = Dm</b>.</p>`,x:['rhD','lhD'],metro:true},
-  {t:'G position, with a black key',b:`<p>Starting on <b>G</b>: G A <b>B♭</b> C D. Finger 3 plays B♭, the black key just left of B.</p><ul><li>Move your whole hand a little <b>in toward the black keys</b> so finger 3 reaches B♭ with the finger still curved. Don't flatten it to reach.</li><li>1-3-5 together = <b>G B♭ D = Gm</b>, the chord of your Tyros 3 key.</li></ul>`,x:['rhG','lhG'],metro:true},
-  {t:'Both hands together in A',b:`<p>Left in A position (pinky on the low A), right in A position (thumb on the A below middle C). Play the <b>same note names together</b>, up and back: A+A, B+B, C+C, D+D, E+E.</p><p>Like Lesson 1's last step: left goes 5-4-3-2-1 while right goes 1-2-3-4-5. Start slow, around 50.</p>`,x:'togA',metro:true},
-  {t:'A little tune in A minor',b:`<p>A short tune in A position for the right hand, with the left hand holding the <b>Am chord</b> (5-3-1) at the start of each bar.</p><p>Right hand: <b>A B C A · C D E · E D C B · A</b>.</p><p>This is the whole idea of piano playing in miniature: tune on top, chord underneath. Play it until it feels easy, then try it from memory.</p>`,x:'tuneA',metro:true},
+ {id:'p2',title:'Your first chords: C, F and G',goal:'Straight on from Lesson 1, still in C major, still white keys only. The C position you learned already holds a chord. Then two more chords, F and G, and moving between them. These three chords are the backbone of C major.',
+  check:['My fingers stayed curved, playing on the tips','My wrist stayed level','I can play C, F and G in each hand without looking at the screen','All three notes of each chord sound together, not one after the other','In the C-F-G-C step I changed chords on time with the metronome','The tune with the held C chord felt comfortable'],steps:[
+  {t:'The C chord is already under your fingers',b:`<p>Put both hands in the <b>C position</b> from Lesson 1: right thumb on middle C, left pinky on the C below.</p><p>Now play only fingers <b>1, 3 and 5</b>: skip a finger, play, skip a finger, play.</p><ul><li>Right hand: 1-3-5 = <b>C E G</b>.</li><li>Left hand: 5-3-1 = <b>C E G</b>.</li></ul><p>Those three notes together are the <b>C chord</b>. Play them one at a time, then together, in each hand. Then both hands at once.</p><p class="say">Keep the Lesson 1 hand: curved fingers, tips, level wrist. Press all three keys at exactly the same moment.</p>`,x:'chC'},
+  {t:'Tune on top, chord underneath',b:`<p>Left hand presses the <b>C chord</b> at the start of each bar and holds it. Right hand plays a short tune in the C position:</p><p><b>C D E C · E F G · G F E D · C</b></p><p>This is piano playing in miniature: tune in the right hand, chord in the left. Watch <b>Hear it</b> first, then play it slowly.</p>`,x:'tuneC',metro:true},
+  {t:'The G chord',b:`<p>Same shape, starting on <b>G</b>: G B D, all white keys.</p><ul><li>Right hand: thumb on the <b>G above middle C</b>, 1-3-5 = G B D.</li><li>Left hand: pinky on the <b>G below the C</b> where your left pinky was, 5-3-1 = G B D.</li></ul><p>One note at a time, then together, each hand, then both.</p>`,x:'chG'},
+  {t:'Moving C → G',b:`<p>Both hands play <b>C</b>, hold 4 beats, then jump to <b>G</b>, hold 4 beats, and back. C G C G C.</p><p>The trick: keep the <b>same hand shape</b> in the air and just move it. Look at where you're going a moment before you go. Slow is fine; landing on time is the goal.</p>`,x:'chCG',metro:true},
+  {t:'The F chord',b:`<p>Same shape again, starting on <b>F</b>: F A C.</p><ul><li>Right hand: thumb on the <b>F above middle C</b>, 1-3-5 = F A C.</li><li>Left hand: pinky on the <b>F below the G</b> you just used, 5-3-1 = F A C.</li></ul><p>F is the white key just left of the group of three black keys.</p>`,x:'chF'},
+  {t:'C - F - G - C',b:`<p>The three chords in a row, both hands, 4 beats each: <b>C F G C · C F G C</b>.</p><p>Say the chord name out loud as you land on it. When this is comfortable at 60, try 70.</p>`,x:'chCFG',metro:true},
   {t:'How did it go?',report:true,b:`<p>Practise this lesson a few days, about 10 minutes a day. Then tick what's true and send it. Claude opens Lesson 3 when you're ready.</p>`}
  ]}
 ];
 const ROADMAP=[
- ['Your first scale','A minor all the way up and down, with the thumb passing under. This is how the hand moves past five notes.'],
- ['What a chord is','Built from the scale: notes 1, 3 and 5. Why Am is A C E, and why the same chord can be stacked three ways.'],
+ ['Your first scale','C major all the way up and down, with the thumb passing under. This is how the hand moves past five notes.'],
+ ['Minor: the niggun sound','A minor, the sad cousin of C: same white keys, different home. Am, Dm and E, the chords most of your songs use.'],
  ['Left-hand patterns','One at a time, slowly: block chord, then root note, then root + chord, then broken chord.'],
  ['Right hand: melody + one chord note','A tune you know in the right hand, with one chord note added under the melody.'],
  ['First song, both hands','A song you know, putting it all together.']
 ];
 const OPEN=['p1','p2'];
+if(store.get('pb-p2v',1)!==2){const pr=store.get('pb-prog',{});delete pr.p2;store.set('pb-prog',pr);store.set('pb-p2v',2)}
 
 /* ---------- Chord Trainer: flashcards that check the chord on the keyboard ---------- */
 /* Placement rule for now: ROOT POSITION. The chord's name note at the bottom, then skip-a-note, skip-a-note.
