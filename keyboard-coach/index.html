@@ -90,7 +90,7 @@ function onMidi(e){const d=e.data;if(d.length<3)return;const t=d[0]&0xf0;
   MIDI.subs.forEach(f=>{try{f()}catch(x){}})}
 document.getElementById('connBtn').onclick=connect;
 function outOK(){return MIDI.acc&&MIDI.acc.outputs&&MIDI.acc.outputs.size>0}
-function sendOut(notes,atMs,durMs){MIDI.acc.outputs.forEach(o=>{setTimeout(()=>notes.forEach(n=>o.send([0x90,n,80])),atMs);setTimeout(()=>notes.forEach(n=>o.send([0x80,n,0])),atMs+durMs)})}
+function sendOut(notes,atMs,durMs,vel=80){MIDI.acc.outputs.forEach(o=>{setTimeout(()=>notes.forEach(n=>o.send([0x90,n,vel])),atMs);setTimeout(()=>notes.forEach(n=>o.send([0x80,n,0])),atMs+durMs)})}
 
 /* ---------- audio fallback (iPad speaker) ---------- */
 let ctx=null;function ac(){if(!ctx){try{ctx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(ctx&&ctx.state==='suspended')ctx.resume();return ctx}
@@ -253,7 +253,7 @@ function trJudge(){const c=chordInfo(TR.queue[TR.i]);const held=[...MIDI.held].s
     else if(h==='l'&&ns[0]<36){msgs.push('')}});
   if(!enough)return;
   if(allOk){const t=performance.now()-TR.shownAt;const name=TR.queue[TR.i];TR.log.push({c:name,t,miss:TR.miss});
-    const k=trStatKey(name,TR.hand);const s=TR.stats[k]||{n:0,avg:0,miss:0};s.avg=s.n?Math.round((s.avg*Math.min(s.n,4)+t)/(Math.min(s.n,4)+1)):Math.round(t);s.n++;if(TR.miss)s.miss++;TR.stats[k]=s;store.set('tr-stats',TR.stats);
+    const k=trStatKey(name,TR.hand);const s=TR.stats[k]||{n:0,avg:0,miss:0};s.avg=s.n?Math.round((s.avg*Math.min(s.n,4)+t)/(Math.min(s.n,4)+1)):Math.round(t);s.n++;if(TR.miss)s.miss++;if(s.n>=2&&s.avg<2000)s.green=true;TR.stats[k]=s;store.set('tr-stats',TR.stats);
     TR.fb=`✓ ${name} in ${(t/1000).toFixed(1)} s`;TR.miss=false;TR.i++;TR.shownAt=performance.now();
     if(TR.i>=TR.queue.length){trDone();return}}
   else{TR.miss=true;TR.fb='✗ '+msgs.filter(Boolean).join('<br>')}
@@ -300,8 +300,8 @@ function trPaint(){const el=document.getElementById('trCard');if(!el){MIDI.subs.
   trStats()}
 function trStats(){const el=document.getElementById('trStats');if(!el)return;const S=SETS[TR.set].chords;
   el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px">${S.map(c=>{const s=TR.stats[trStatKey(c,TR.hand)];
-    const t=s?s.avg/1000:null;const col=t==null?'var(--rule)':t<2?'var(--ok)':t<4?'var(--gold)':'#c0392b';
-    return `<div style="border:1px solid var(--rule);border-radius:10px;padding:8px;text-align:center"><div style="font-weight:700;font-size:18px">${c}</div><div style="font-size:13px;color:var(--muted)">${t==null?'not yet':t.toFixed(1)+' s'}</div><div style="height:4px;border-radius:2px;margin-top:6px;background:${col}"></div></div>`}).join('')}</div>`}
+    const t=s?s.avg/1000:null;const g=isGreen(c,TR.hand,TR.mode==='recall');const col=g?'var(--ok)':t==null?'var(--rule)':t<4?'var(--gold)':'#c0392b';
+    return `<div style="border:1px solid var(--rule);border-radius:10px;padding:8px;text-align:center"><div style="font-weight:700;font-size:18px">${c}</div><div style="font-size:13px;color:var(--muted)">${t==null?(g?'passed ✓':'not yet'):t.toFixed(1)+' s'+(g&&t>=2?' · passed ✓':'')}</div><div style="height:4px;border-radius:2px;margin-top:6px;background:${col}"></div></div>`}).join('')}</div>`}
 let trWait=null;
 function trMidi(){if(!document.getElementById('trCard'))return;clearTimeout(trWait);trWait=setTimeout(trJudge,220);
   const kb=document.querySelector('#trCard .kb');if(kb){const name=TR.queue[TR.i];if(!name)return;const hands=TR.hand==='both'?['l','r']:[TR.hand];const show=TR.mode==='learn'||TR.miss;
@@ -325,7 +325,10 @@ const TSONGS={
   parts:[{name:'A',note:'Play twice: first ending, then second ending',bars:[['C'],['C'],['Am'],['Am']],end1:[['F'],['G'],['C'],['G']],end2:[['F'],['G'],['C'],['F','G']]},
          {name:'B',note:'Play twice: first ending, then second ending',bars:[['C'],['C'],['Am'],['Am'],['F'],['F'],['G']],end1:[['G']],end2:[['G']]}]}
 };
-function trGreens(set){const S=SETS[set].chords;const res={};['l','r','both'].forEach(h=>{res[h]=S.every(c=>{const s=TR.stats['R:'+h+':'+c];return s&&s.avg<2000})});return res}
+/* Sets Bernard has passed, confirmed from his results sheet. Kept in the code so they survive the browser losing its storage. */
+const CONFIRMED={am:'5 Nov 2026'};
+function isGreen(c,h,rec){if(rec&&CONFIRMED[TR.set]&&SETS[TR.set].chords.includes(c))return true;const s=TR.stats[(rec?'R:':'')+h+':'+c];return !!(s&&(s.green||s.avg<2000))}
+function trGreens(set){if(CONFIRMED[set])return {l:true,r:true,both:true};const S=SETS[set].chords;const res={};['l','r','both'].forEach(h=>{res[h]=S.every(c=>{const s=TR.stats['R:'+h+':'+c];return !!(s&&(s.green||s.avg<2000))})});return res}
 function barBox(b,label){return `<div style="border:1px solid var(--rule);border-left:3px solid var(--ink);border-radius:4px;padding:10px 6px;min-height:44px;display:flex;flex-direction:column;justify-content:center;gap:2px;background:var(--card)">${label?`<div style="font-size:11px;color:var(--muted);font-weight:600">${label}</div>`:''}<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px 10px;font-weight:700;font-size:${b.length>2?15:18}px">${b.map(c=>`<span>${c}</span>`).join('')}</div></div>`}
 function songHTML(set){const sg=TSONGS[set];if(!sg)return '';const g=trGreens(set);const ok=g.l&&g.r&&g.both;
   const status=['l','r','both'].map(h=>`<span style="font-size:13px;padding:3px 8px;border-radius:999px;background:${g[h]?'var(--ok-soft)':'var(--bg)'};color:${g[h]?'var(--ok)':'var(--muted)'}">${g[h]?'✓':'○'} ${h==='l'?'Left':h==='r'?'Right':'Both'}</span>`).join(' ');
@@ -337,7 +340,34 @@ function songHTML(set){const sg=TSONGS[set];if(!sg)return '';const g=trGreens(se
      ${pt.end1?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:6px">${pt.end1.map((b,i)=>barBox(b,i===0?'1st time':'')).join('')}</div>`:''}
      ${pt.end2?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:6px">${pt.end2.map((b,i)=>barBox(b,i===0?'2nd time':'')).join('')}</div>`:''}</div>`).join('')}
    ${sg.simple.length?`<p style="font-size:13px;color:var(--muted);margin:0">Simplified to this set's chords: ${sg.simple.join('; ')}.</p>`:''}
-   ${metroWidget()}</article>`}
+   ${metroWidget()}</article>${styleHTML(set)}`}
+/* ---------- Make it sound like music: accompaniment patterns, demoed on the song's own bars ---------- */
+const PATS=[
+ {id:'oom',name:'1 · Bass and chord (oom-pah)',how:'Left hand plays <b>one low note</b>, the chord\'s name note, an octave below where you\'ve been playing. Right hand plays the <b>chord</b> in between. Count <b>1</b> bass, <b>2</b> chord, <b>3</b> bass, <b>4</b> chord. Keep the chords short and light; let the bass ring.',fit:'Good for Borcheinu and slower songs.'},
+ {id:'rock',name:'2 · Bass and pushing chords (for fast songs)',how:'Left hand: low name note on <b>1</b> and <b>3</b>, held. Right hand: chord on every <b>“and”</b> between the beats (1 <b>&</b> 2 <b>&</b> 3 <b>&</b> 4 <b>&</b>), short and bouncy. This gives the drive that Shehechiyonu (a 170 rock) has on the recording.',fit:'Good for Shehechiyonu and Boruch Hagever.'},
+ {id:'arp',name:'3 · Broken chord (kumzitz)',how:'Left hand plays the chord <b>one note at a time</b>: low name note, the 5th, the name note an octave up, the 5th again (1-5-8-5). Right hand holds the chord, or plays the tune. Use the pedal and change it on every new chord.',fit:'Good for slow, soulful singing.'}];
+function patBeats(bar){return bar.length===1?[bar[0],bar[0],bar[0],bar[0]]:bar.length===2?[bar[0],bar[0],bar[1],bar[1]]:[bar[0],bar[0],bar[1],bar[2]]}
+function patEvents(id,bars,bpm){const q=60000/bpm;const ev=[];let t=0;
+  bars.forEach(bar=>{const B=patBeats(bar);B.forEach((c,i)=>{const L=voicing(c,'l').map(x=>x.k),R=voicing(c,'r').map(x=>x.k);const root=L[0]-12,fifth=L[2]-12,at=t+i*q;
+    const newC=i===0||B[i-1]!==c;
+    if(id==='oom'){if(i%2===0)ev.push([[i===2&&!newC?fifth:root],at,q*1.6,90]);else ev.push([R,at,q*.45,62])}
+    else if(id==='rock'){if(i%2===0||newC)ev.push([[root,root+12],at,q*(newC&&i%2?1:2)*.95,92]);ev.push([R,at+q/2,q*.35,i%2?70:60])}
+    else{ev.push([[[root,fifth,root+12,fifth][i]],at,q*1.9,78]);if(newC){let n=0;while(i+n<4&&B[i+n]===c)n++;ev.push([R,at,q*n*.98,55])}}});t+=4*q});return ev}
+let patTimers=[];
+function patStop(){patTimers.forEach(clearTimeout);patTimers=[];if(outOK())MIDI.acc.outputs.forEach(o=>{for(let n=24;n<100;n++)o.send([0x80,n,0])})}
+function patPlay(id,set){patStop();const sg=TSONGS[set];const bars=sg.parts[0].bars.slice(0,4);const ev=patEvents(id,bars,set==='am'||set==='c'?100:80);
+  if(outOK())ev.forEach(([ns,at,d,v])=>{patTimers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x90,n,v]))),at));patTimers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x80,n,0]))),at+d))});else{const a=ac();if(a)ev.forEach(([ns,at,d,v])=>ns.forEach(k=>tone(k,a.currentTime+.05+at/1000,d/1000,.08+v/1200)))}
+  const btn=document.querySelector(`[data-pat="${id}"]`);if(btn){btn.textContent='■ Stop';patTimers.push(setTimeout(()=>{btn.textContent='▶ Hear it on '+sg.title},(ev.length?ev[ev.length-1][1]+ev[ev.length-1][2]:0)+200))}}
+function styleHTML(set){const sg=TSONGS[set];if(!sg||!trGreens(set).l)return '';
+  return `<article class="card"><div class="step">Make it sound like music</div><h3>Stop just hitting the chords</h3>
+   <p>Plain chords sound boring because every note starts and stops together. Real piano playing splits the job: the <b>left hand</b> plays the low bass, the <b>right hand</b> plays the chord, and they take turns in a rhythm. Pick one pattern and play the whole song with it.</p>
+   <h4 style="margin:4px 0 0">First: fix the sustain</h4>
+   <ul><li>Turn the panel <b>SUSTAIN</b> button <b>off</b>. It blurs every chord into the next one, which is a big part of why it sounds muddy.</li>
+   <li>If you have a <b>foot pedal</b> plugged into the Tyros, use that instead, and <b>change it on every new chord</b>: play the new chord, then lift the pedal and press it straight back down. That keeps it full without smearing.</li>
+   <li>No pedal: leave sustain off. The patterns below sound good without it.</li></ul>
+   ${PATS.map(p=>`<div style="border-top:1px solid var(--rule);padding-top:10px;display:flex;flex-direction:column;gap:6px"><div style="font-weight:700">${p.name}</div><p style="margin:0">${p.how}</p><p style="margin:0;font-size:13px;color:var(--muted)">${p.fit}</p><div class="row"><button class="btn small" data-pat="${p.id}" data-pset="${set}">▶ Hear it on ${sg.title}</button></div></div>`).join('')}
+   <p style="border-top:1px solid var(--rule);padding-top:10px;margin:0"><b>Then:</b> once a pattern is steady with the metronome, sing or hum the tune on top. Next step after that is the tune in your right hand with the bass in your left. That's what the main lessons are building toward.</p></article>`}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-pat]');if(!b)return;if(b.textContent.startsWith('■')){patStop();b.textContent='▶ Hear it on '+TSONGS[b.dataset.pset].title;return}document.querySelectorAll('[data-pat]').forEach(x=>{if(x!==b)x.textContent='▶ Hear it on '+TSONGS[x.dataset.pset].title});patPlay(b.dataset.pat,b.dataset.pset)});
 
 /* ---------- render ---------- */
 let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','p1');
@@ -373,5 +403,3 @@ function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
 }
 render();paintConn();
 </script>
-
-</body></html>
