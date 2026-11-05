@@ -86,7 +86,7 @@ async function connect(){if(!navigator.requestMIDIAccess){toast('This browser ha
     const hook=()=>{let n=0;acc.inputs.forEach(i=>{i.onmidimessage=onMidi;n++});MIDI.ok=n>0;paintConn();if(!MIDI.ok)toast('No keyboard found. Check the USB cable, then tap Connect again.')};
     acc.onstatechange=hook;hook();if(MIDI.ok)toast('Keyboard connected.')}catch(e){toast('Couldn\'t open MIDI. Tap Connect again.')}}
 function onMidi(e){const d=e.data;if(d.length<3)return;const t=d[0]&0xf0;
-  if(t===0x90&&d[2]>0)MIDI.held.add(d[1]);else if(t===0x80||t===0x90)MIDI.held.delete(d[1]);else return;
+  if(t===0x90&&d[2]>0){MIDI.held.add(d[1]);MIDI.ev={on:true,n:d[1]}}else if(t===0x80||t===0x90){MIDI.held.delete(d[1]);MIDI.ev={on:false,n:d[1]}}else return;
   MIDI.subs.forEach(f=>{try{f()}catch(x){}})}
 document.getElementById('connBtn').onclick=connect;
 function outOK(){return MIDI.acc&&MIDI.acc.outputs&&MIDI.acc.outputs.size>0}
@@ -119,14 +119,37 @@ const LEGEND=`<div class="legend"><span><i style="background:var(--accent)"></i>
 
 /* ---------- exercise widget: picture + Hear it + live keys (no scoring) ---------- */
 /* ex: {lo,hi,marks:[{k,f,h}], seq:[{k:[midi..],beats}] , bpm} */
+const PASS=store.get('pb-pass',{});
+/* Steps Bernard has passed, confirmed from his results sheet; survive the browser losing its storage */
+const CONFIRMED_PASS={};
+const isPassed=k=>!!(PASS[k]||CONFIRMED_PASS[k]);
 function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let timers=[],playing=false,lit=new Set(),nowTxt='',held=new Set(),cm=ex.marks;
+  const need=ex.need||2;const T={on:false,idx:0,fresh:new Set(),miss:0,clean:0,msg:''};
+  const steps=ex.seq.map(st=>({exp:new Set([...st.k,...(st.hold?st.hold.k:[])]),hold:st.hold?st.hold.k:null})).filter(x=>x.exp.size);
+  const expMarks=e=>[...e].map(k=>ex.marks.find(x=>x.k===k)||(ex.seq.flatMap(st=>st.marks||[]).find(x=>x.k===k))||{k,h:k<60?'l':'r'});
+  const nameList=e=>[...e].sort((a,b)=>a-b).map(nm).join(' ');
+  const turnTxt=()=>{const st=steps[T.idx];return (T.msg?T.msg+'<br>':'')+`<b>Your turn:</b> play <b>${nameList(st.exp)}</b> (the keys with dots) · ${T.idx+1} of ${steps.length} · clean run${need>1?'s':''} ${T.clean} of ${need}`};
+  const startTurn=()=>{if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}if(playing)stop();T.on=true;T.idx=0;T.fresh=new Set();T.miss=0;T.msg='';cm=expMarks(steps[0].exp);nowTxt=turnTxt();draw()};
+  const endTurn=()=>{T.on=false;cm=ex.marks;nowTxt='';draw()};
+  const allowed=()=>{const a=new Set();for(let j=T.idx;j>=0;j--){if(steps[j].hold){steps[j].hold.forEach(k=>a.add(k));break}}if(T.idx>0)steps[T.idx-1].exp.forEach(k=>a.add(k));return a};
+  const judge=()=>{if(!T.on||playing||!MIDI.ev)return;const ev=MIDI.ev;MIDI.ev=null;const st=steps[T.idx];
+    if(ev.on){if(st.exp.has(ev.n))T.fresh.add(ev.n);else if(!allowed().has(ev.n)){T.miss++;
+      T.msg=st.exp.has(ev.n-12)?`✗ ${nm(ev.n)} is one octave too <b>high</b>. Move the hand down.`:st.exp.has(ev.n+12)?`✗ ${nm(ev.n)} is one octave too <b>low</b>. Move the hand up.`:`✗ That was <b>${nm(ev.n)}</b>. Wanted <b>${nameList(st.exp)}</b>.`}}
+    if([...st.exp].every(k=>T.fresh.has(k)&&MIDI.held.has(k))){T.idx++;T.fresh=new Set();if(!ev.on||st.exp.has(ev.n))T.msg='';
+      if(T.idx>=steps.length){if(T.miss===0)T.clean++;
+        if(T.clean>=need&&!isPassed(ex.key)){PASS[ex.key]=true;store.set('pb-pass',PASS);sendReport(`STEP PASSED · ${ex.key} · ${need} clean runs`);document.dispatchEvent(new Event('ex-pass'))}
+        const done=isPassed(ex.key);T.on=false;cm=ex.marks;
+        nowTxt=T.miss===0?(done?`<b style="color:var(--ok)">✓ Passed.</b> ${T.clean>=need?'Clean run'+(need>1?'s':'')+' done.':''} You can go on, or keep practising.`:`<b style="color:var(--ok)">✓ Clean run.</b> ${need-T.clean} more to pass. Tap <b>Your turn</b> again.`):`Finished with ${T.miss} wrong note${T.miss>1?'s':''}. A run counts when it has none. Tap <b>Your turn</b> to go again, slowly.`;
+        draw();return}
+      cm=expMarks(steps[T.idx].exp)}
+    nowTxt=turnTxt();draw()};
   const bk='pb-bpm-'+ex.key;const bpm=()=>store.get(bk,ex.bpm||60);
-  const draw=()=>{const el=document.getElementById(id);if(!el){MIDI.subs.delete(draw);return}
+  const draw=()=>{const el=document.getElementById(id);if(!el){MIDI.subs.delete(draw);MIDI.subs.delete(judge);return}const tb=el.querySelector('[data-a=turn]');if(tb){tb.textContent=T.on?'■ Stop':(isPassed(ex.key)?'✓ Your turn':'🎯 Your turn');tb.classList.toggle('primary',!isPassed(ex.key))}
     el.querySelector('[data-kb]').innerHTML=keyboardSVG(ex.lo,ex.hi,cm,new Set([...lit,...held]),MIDI.held);
-    el.querySelector('[data-now]').innerHTML=nowTxt||(MIDI.ok?'Play along. The keys you press light up gold.':'Tap <b>Hear it</b> to hear and watch it first.');
+    el.querySelector('[data-now]').innerHTML=nowTxt||(isPassed(ex.key)?'<b style="color:var(--ok)">✓ Passed.</b> Practise it any time.':MIDI.ok?`Tap <b>Hear it</b> to watch, then <b>Your turn</b>. Pass = ${need} run${need>1?'s':''} with no wrong notes.`:'Tap <b>Connect keyboard</b> at the top, then <b>Hear it</b>.');
     el.querySelector('[data-a=hear]').textContent=playing?'■ Stop':'▶ Hear it';const fb=el.querySelector('[data-a=fast]');if(fb)fb.textContent=playing?'■ Stop':`▶ Song speed (${ex.fast})`;el.querySelector('[data-bpm]').textContent=bpm()+' bpm'};
   const stop=()=>{timers.forEach(clearTimeout);timers=[];playing=false;lit=new Set();held=new Set();cm=ex.marks;nowTxt='';if(outOK())MIDI.acc.outputs.forEach(o=>{for(let n=24;n<100;n++)o.send([0x80,n,0])});draw()};
-  const hear=(fast)=>{if(playing){stop();return}playing=true;const spb=60000/(fast||bpm());let t=300;const a=ac();const viaOut=outOK();
+  const hear=(fast)=>{if(playing){stop();return}if(T.on)endTurn();playing=true;const spb=60000/(fast||bpm());let t=300;const a=ac();const viaOut=outOK();
     ex.seq.forEach(st=>{const dur=st.beats*spb;const at=t;
       timers.push(setTimeout(()=>{if(st.marks)cm=st.marks;lit=new Set(st.k);const mk=st.k.map(k=>cm.find(x=>x.k===k)).filter(Boolean);
         nowTxt=st.say!=null?st.say:mk.length?mk.map(x=>`<b>${x.h==='l'?'Left':'Right'} hand, finger ${x.f}</b> on ${nm(x.k)}`).join(' · '):'';draw()},at));
@@ -134,13 +157,13 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
         if(viaOut)sendOut(st.hold.k,at,hd*.95,90);else if(a)st.hold.k.forEach(k=>tone(k,a.currentTime+at/1000,hd/1000*.95))}
       const sd=dur*(st.short||.9);if(viaOut)sendOut(st.k,at,sd,st.vel||80);else if(a)st.k.forEach(k=>tone(k,a.currentTime+at/1000,sd/1000));t+=dur});
     timers.push(setTimeout(()=>{stop();nowTxt='Your turn: same notes, same fingers, same speed.';draw()},t+200));draw()};
-  setTimeout(()=>{const el=document.getElementById(id);if(!el)return;MIDI.subs.add(draw);
+  setTimeout(()=>{const el=document.getElementById(id);if(!el)return;MIDI.subs.add(judge);MIDI.subs.add(draw);el.querySelector('[data-a=turn]').onclick=()=>T.on?endTurn():startTurn();
     el.querySelector('[data-a=hear]').onclick=()=>hear();const fb=el.querySelector('[data-a=fast]');if(fb)fb.onclick=()=>hear(ex.fast);
     el.querySelector('[data-a="s-"]').onclick=()=>{store.set(bk,Math.max(40,bpm()-5));draw()};
     el.querySelector('[data-a="s+"]').onclick=()=>{store.set(bk,Math.min(180,bpm()+5));draw()};draw()});
   return `<div id="${id}" class="check"><div class="kb" data-kb></div>${LEGEND}<p class="now" data-now></p>
-   <div class="row"><button class="btn primary" data-a="hear">▶ Hear it</button>${ex.fast?`<button class="btn" data-a="fast">▶ Song speed (${ex.fast})</button>`:''}<span class="row"><button class="btn small" data-a="s-" aria-label="Slower">−</button><span class="bpm" data-bpm></span><button class="btn small" data-a="s+" aria-label="Faster">+</button></span></div>
-   <p class="note" style="font-size:13px;color:var(--muted);margin:0">${outOK()||MIDI.ok?'Hear it plays through the Tyros.':'Connect the keyboard and Hear it plays through the Tyros, so you hear it in your headphones.'}</p></div>`}
+   <div class="row"><button class="btn" data-a="hear">▶ Hear it</button><button class="btn primary" data-a="turn">🎯 Your turn</button>${ex.fast?`<button class="btn" data-a="fast">▶ Song speed (${ex.fast})</button>`:''}<span class="row"><button class="btn small" data-a="s-" aria-label="Slower">−</button><span class="bpm" data-bpm></span><button class="btn small" data-a="s+" aria-label="Faster">+</button></span></div>
+   <p class="note" style="font-size:13px;color:var(--muted);margin:0">Speed only changes <b>Hear it</b>. In <b>Your turn</b> the app waits for you, so go at your own pace.</p></div>`}
 
 /* ---------- metronome ---------- */
 const metro={on:false,next:0,beat:0,iv:null};
@@ -202,7 +225,7 @@ const LESSONS=[
   {t:'Both hands: same direction',b:`<p>Now both hands play the <b>same note names</b> together, going up: C+C, D+D, E+E, F+F, G+G, and back down.</p><p>This one is harder: the left hand uses <b>5-4-3-2-1</b> while the right uses <b>1-2-3-4-5</b>. Go slow (around 50). Getting it right slowly is the goal.</p>`,x:'para',metro:true},
   {t:'How did it go?',report:true,b:`<p>Practise this lesson a few days, about 10 minutes a day. Then tick what's true, pick how it felt, and send it. Claude reads it and opens Lesson 2 when you're ready.</p>`}
  ]},
- {id:'p2',title:'Your first chords: C, F and G',goal:'Straight on from Lesson 1, still in C major, still white keys only. The C position you learned already holds a chord. Then two more chords, F and G, and moving between them. These three chords are the backbone of C major.',
+ {id:'p2',gate:true,title:'Your first chords: C, F and G',goal:'Straight on from Lesson 1, still in C major, still white keys only. The C position you learned already holds a chord. Then two more chords, F and G, and moving between them. These three chords are the backbone of C major.',
   check:['My fingers stayed curved, playing on the tips','My wrist stayed level','I can play C, F and G in each hand without looking at the screen','All three notes of each chord sound together, not one after the other','In the C-F-G-C step I changed chords on time with the metronome','The tune with the held C chord felt comfortable'],steps:[
   {t:'The C chord is already under your fingers',b:`<p>Put both hands in the <b>C position</b> from Lesson 1: right thumb on middle C, left pinky on the C below.</p><p>Now play only fingers <b>1, 3 and 5</b>: skip a finger, play, skip a finger, play.</p><ul><li>Right hand: 1-3-5 = <b>C E G</b>.</li><li>Left hand: 5-3-1 = <b>C E G</b>.</li></ul><p>Those three notes together are the <b>C chord</b>. Play them one at a time, then together, in each hand. Then both hands at once.</p><p class="say">Keep the Lesson 1 hand: curved fingers, tips, level wrist. Press all three keys at exactly the same moment.</p>`,x:'chC'},
   {t:'Tune on top, chord underneath',b:`<p>Left hand presses the <b>C chord</b> at the start of each bar and holds it. Right hand plays a short tune in the C position:</p><p><b>C D E C · E F G · G F E D · C</b></p><p>This is piano playing in miniature: tune in the right hand, chord in the left. Watch <b>Hear it</b> first, then play it slowly.</p>`,x:'tuneC',metro:true},
@@ -422,6 +445,7 @@ function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
   const L=LESSONS.find(l=>l.id===cur)||LESSONS[0];const p=P(L.id);const i=Math.min(p.step,L.steps.length-1);const S=L.steps[i];const n=LESSONS.indexOf(L)+1;
   const app=document.getElementById('app');
   const chips=LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="${l.id===L.id}">Lesson ${j+1}</button>`).join('')+`<button class="lchip" data-l="trainer" aria-pressed="false">Chord Trainer</button>`+ROADMAP.map((r,j)=>`<button class="lchip locked" disabled>🔒 Lesson ${LESSONS.length+j+1}</button>`).join('');
+  const xs=S.x?(Array.isArray(S.x)?S.x:[S.x]):[];const locked=()=>!!L.gate&&xs.some(k=>!isPassed(k));
   let extra='';
   if(S.x)extra+=(Array.isArray(S.x)?S.x:[S.x]).map(k=>exercise(EX[k])).join('<hr style="border:none;border-top:1px solid var(--rule);margin:4px 0">');
   if(S.metro)extra+=metroWidget();
@@ -432,11 +456,12 @@ function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
   app.innerHTML=`<div class="lessons">${chips}</div>
    <div class="head"><div class="eyebrow">Lesson ${n}</div><h2>${L.title}</h2><p>${L.goal}</p><div class="prog">${L.steps.map((s,j)=>`<span data-s="${j}" title="${s.t}" class="${j===i?'cur':p.done.includes(j)?'done':''}"></span>`).join('')}</div></div>
    <article class="card"><div class="step">Step ${i+1} of ${L.steps.length}</div><h3>${S.t}</h3>${S.b}${extra}
-    <div class="nav"><button class="btn" id="back" ${i===0?'disabled':''}>◀ Back</button>${i<L.steps.length-1?'<button class="btn primary" id="next">Next step ▶</button>':''}</div></article>
+    <div class="nav"><button class="btn" id="back" ${i===0?'disabled':''}>◀ Back</button>${i<L.steps.length-1?`<button class="btn primary" id="next" ${locked()?'disabled':''}>${locked()?'🔒 Pass this step first':'Next step ▶'}</button>`:''}</div></article>
    <article class="card"><h3>Coming next</h3><p style="color:var(--muted);font-size:15px">Claude opens each lesson after reading how the last one went.</p><ol class="road">${ROADMAP.map((r,j)=>`<li><span class="n">${LESSONS.length+j+1}</span><span>${r[0]}</span><span class="d">${r[1]}</span></li>`).join('')}</ol></article>`;
   app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
   app.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{p.step=+b.dataset.s;save();render()});
   const bk=document.getElementById('back');if(bk)bk.onclick=()=>{p.step=Math.max(0,i-1);save();render();scrollTo(0,0)};
+  document.onexpass&&document.removeEventListener('ex-pass',document.onexpass);document.onexpass=()=>{const b=document.getElementById('next');if(b&&!locked()){b.disabled=false;b.textContent='Next step ▶'}};document.addEventListener('ex-pass',document.onexpass);
   const nx=document.getElementById('next');if(nx)nx.onclick=()=>{if(!p.done.includes(i))p.done.push(i);p.step=i+1;save();render();scrollTo(0,0)};
   if(S.report){let rate='';app.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{rate=b.dataset.r;app.querySelectorAll('[data-r]').forEach(x=>x.setAttribute('aria-pressed',x===b))});
     document.getElementById('send').onclick=()=>{const ticks=(L.check||CHECK1).map((c,j)=>(document.getElementById('c'+j).checked?'✓ ':'✗ ')+c).join('; ');
