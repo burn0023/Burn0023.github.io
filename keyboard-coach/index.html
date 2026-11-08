@@ -143,6 +143,7 @@ function handFrame(notes,marks,prev){const fr=JSON.parse(JSON.stringify(prev||{}
 /* Drawn hands, seen from where you sit: the palm sits below the keyboard and the fingers reach up onto the keys,
    exactly like looking down at your own hands. Each fingertip rests on the key it will play; the playing finger's tip turns gold.
    Thumb-under: the thumb slides under the palm (dashed). Cross-over: the finger reaches over the thumb. */
+const SHOW_HANDS=false; /* hand drawing parked: Bernard found it confusing (8 Nov) */
 const SKIN='#e9b98f',SKIN_EDGE='#9c6a43',HY=60; /* hand svg y=0 is HY units above the bottom of the keyboard picture */
 const tipY=k=>(isBlack(k)?52:84)-HY+ -0; /* keyboard y of a fingertip, converted to hand-svg y */
 function handLayer(){let s='';['l','r'].forEach(h=>{
@@ -223,7 +224,7 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
     el.querySelector('[data-a=hear]').onclick=()=>hear();const fb=el.querySelector('[data-a=fast]');if(fb)fb.onclick=()=>hear(ex.fast);
     el.querySelector('[data-a="s-"]').onclick=()=>{store.set(bk,Math.max(40,bpm()-5));draw()};
     el.querySelector('[data-a="s+"]').onclick=()=>{store.set(bk,Math.min(180,bpm()+5));draw()};draw()});
-  return `<div id="${id}" class="check"><div class="kb" data-kb><div data-kbs></div><svg data-handsvg viewBox="-1 0 938 160" style="display:block;width:100%;height:auto;margin-top:calc(-100% * ${HY} / 938);pointer-events:none;position:relative">${handLayer()}</svg></div>${LEGEND}<p class="now" data-now></p>
+  return `<div id="${id}" class="check"><div class="kb" data-kb><div data-kbs></div>${SHOW_HANDS?`<svg data-handsvg viewBox="-1 0 938 160" style="display:block;width:100%;height:auto;margin-top:calc(-100% * ${HY} / 938);pointer-events:none;position:relative">${handLayer()}</svg>`:''}</div>${LEGEND}<p class="now" data-now></p>
    <div class="row"><button class="btn" data-a="hear">▶ Hear it</button><button class="btn primary" data-a="turn">🎯 Your turn</button>${ex.fast?`<button class="btn" data-a="fast">▶ Song speed (${ex.fast})</button>`:''}<span class="row"><button class="btn small" data-a="s-" aria-label="Slower">−</button><span class="bpm" data-bpm></span><button class="btn small" data-a="s+" aria-label="Faster">+</button></span></div>
    <p class="note" style="font-size:13px;color:var(--muted);margin:0">Speed only changes <b>Hear it</b>. In <b>Your turn</b> the app waits for you, so go at your own pace.</p></div>`}
 
