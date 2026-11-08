@@ -41,7 +41,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .card .step{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .card p,.card ul,.card ol{margin:0}.card ul,.card ol{padding-left:20px;display:flex;flex-direction:column;gap:4px}
 .say{background:var(--gold-soft);border-radius:10px;padding:10px 12px;font-size:15px}
-.kb{overflow-x:auto}.kb svg{display:block;width:100%;max-width:560px;height:auto;margin:0 auto}
+.kb{overflow-x:auto}.kb svg{display:block;width:100%;max-width:none;height:auto;margin:0 auto}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
 .now{font-size:15px;min-height:1.5em;color:var(--muted)}.now b{color:var(--ink)}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -62,7 +62,7 @@ textarea{font:inherit;width:100%;box-sizing:border-box;border:1px solid var(--ru
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
-<div class="top"><h1>Piano Basics</h1><div class="conn"><span class="dot" id="dot"></span><span id="connTxt">Not connected</span><button class="btn small" id="connBtn">Connect keyboard</button></div></div>
+<div class="top"><h1>Piano Basics</h1><div class="conn"><span class="dot" id="dot"></span><span id="connTxt">Not connected</span><button class="btn small" id="connBtn">Connect keyboard</button><button class="btn small" id="calBtn">Line up keys</button></div></div>
 <div class="wrap" id="app"></div>
 <div id="toast" hidden></div>
 
@@ -84,11 +84,26 @@ function paintConn(){document.getElementById('dot').classList.toggle('on',MIDI.o
 async function connect(){if(!navigator.requestMIDIAccess){toast('This browser has no MIDI. Open the page in the Web MIDI Browser app.');return}
   try{const acc=await navigator.requestMIDIAccess();MIDI.acc=acc;
     const hook=()=>{let n=0;acc.inputs.forEach(i=>{i.onmidimessage=onMidi;n++});MIDI.ok=n>0;paintConn();if(!MIDI.ok)toast('No keyboard found. Check the USB cable, then tap Connect again.')};
-    acc.onstatechange=hook;hook();if(MIDI.ok)toast('Keyboard connected.')}catch(e){toast('Couldn\'t open MIDI. Tap Connect again.')}}
-function onMidi(e){const d=e.data;if(d.length<3)return;const t=d[0]&0xf0;
+    acc.onstatechange=hook;hook();if(MIDI.ok){toast('Keyboard connected.');if(!localStorage.getItem('pb-cal'))setTimeout(calStart,600)}}catch(e){toast('Couldn\'t open MIDI. Tap Connect again.')}}
+const CAL=store.get('pb-cal',{});let calStep=0,calSeen={};
+function onMidi(e){const d0=e.data;if(d0.length<3)return;const t=d0[0]&0xf0,ch=d0[0]&0x0f;
+  if(calStep&&t===0x90&&d0[2]>0){calNote(ch,d0[1]);return}if(calStep)return;
+  const d=[d0[0],d0[1]-(CAL[ch]||0),d0[2]];
   if(t===0x90&&d[2]>0){MIDI.held.add(d[1]);MIDI.ev={on:true,n:d[1]}}else if(t===0x80||t===0x90){MIDI.held.delete(d[1]);MIDI.ev={on:false,n:d[1]}}else return;
   MIDI.subs.forEach(f=>{try{f()}catch(x){}})}
-document.getElementById('connBtn').onclick=connect;
+document.getElementById('connBtn').onclick=connect;document.getElementById('calBtn').onclick=()=>calStart();
+/* Line up keys: the Tyros can send some parts an octave off (e.g. the LEFT part's octave setting). Bernard presses two known keys; the app learns the offset for each MIDI channel. */
+function calShow(html){let b=document.getElementById('calBar');if(!b){b=document.createElement('div');b.id='calBar';b.className='card';b.style.cssText='margin:12px 16px;border:2px solid var(--accent)';document.getElementById('app').before(b)}b.innerHTML=html;b.hidden=!html}
+function calStart(){if(!MIDI.ok){toast('Tap Connect keyboard first.');return}calStep=1;calSeen={};
+  calShow(`<h3 style="margin:0">Line up the keys · 1 of 2</h3><p>With your <b>left hand</b>, press the <b>lowest key on your keyboard</b>: the C at the far left end.</p><button class="btn small" onclick="calStep=0;calShow('')">Cancel</button>`)}
+function calNote(ch,n){if(calStep===1){calSeen.low={ch,off:n-36};calStep=2;
+    calShow(`<h3 style="margin:0">Line up the keys · 2 of 2</h3><p>Now with your <b>right hand</b>, press <b>middle C</b>: the <b>3rd C</b> counting from the left end.</p><button class="btn small" onclick="calStep=0;calShow('')">Cancel</button>`)}
+  else if(calStep===2){calSeen.mid={ch,off:n-60};calStep=0;
+    Object.keys(CAL).forEach(k=>delete CAL[k]);CAL[calSeen.low.ch]=calSeen.low.off;if(calSeen.mid.ch!==calSeen.low.ch||calSeen.mid.off===calSeen.low.off)CAL[calSeen.mid.ch]=calSeen.mid.off;
+    store.set('pb-cal',CAL);const fixed=calSeen.low.off!==0||calSeen.mid.off!==0;
+    calShow(`<h3 style="margin:0">${fixed?'Lined up ✓':'Already lined up ✓'}</h3><p>${fixed?`Your keyboard was sending ${calSeen.low.off?'the left side '+Math.abs(calSeen.low.off/12)+' octave '+(calSeen.low.off>0?'high':'low'):''}${calSeen.low.off&&calSeen.mid.off?' and ':''}${calSeen.mid.off?'the right side '+Math.abs(calSeen.mid.off/12)+' octave '+(calSeen.mid.off>0?'high':'low'):''}. The app now corrects for it, so the picture matches your 61 keys.`:'The app and your keyboard already match.'} If you change Tyros settings (like turning LEFT on or off), tap <b>Line up keys</b> again.</p><button class="btn small" onclick="calShow('')">OK</button>`);
+    if(calSeen.mid.ch===calSeen.low.ch&&calSeen.mid.off!==calSeen.low.off)toast('The two keys disagree. Check the Tyros octave settings, then line up again.')}}
+
 function outOK(){return MIDI.acc&&MIDI.acc.outputs&&MIDI.acc.outputs.size>0}
 function sendOut(notes,atMs,durMs,vel=80){MIDI.acc.outputs.forEach(o=>{setTimeout(()=>notes.forEach(n=>o.send([0x90,n,vel])),atMs);setTimeout(()=>notes.forEach(n=>o.send([0x80,n,0])),atMs+durMs)})}
 
@@ -108,7 +123,7 @@ function keyboardSVG(lo,hi,marks,lit=new Set(),pressed=new Set()){
   let s=`<svg viewBox="-1 -1 ${width+2} ${H+2}" role="img" aria-label="Keyboard">`;
   whites.forEach((k,i)=>{const mk=by[k];const fill=lit.has(k)||pressed.has(k)?'var(--gold-soft)':mk?soft(mk.h):'var(--key-white)';
     s+=`<rect x="${i*W}" y="0" width="${W}" height="${H}" rx="3" fill="${fill}" stroke="var(--key-edge)"/>`;
-    if(k%12===0)s+=`<text x="${i*W+W/2}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="sans-serif">${k===60?'Mid C':k===36?'Low C':'C'}</text>`});
+    if(k%12===0)s+=`<text x="${i*W+W/2}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="sans-serif">${{36:'1st C',48:'2nd C',60:'Mid C',72:'4th C',84:'5th C',96:'Top C'}[k]||'C'}</text>`});
   for(let k=lo;k<=hi;k++)if(isBlack(k)){const mk=by[k];s+=`<rect x="${xOf(k)}" y="0" width="${BW}" height="${BH}" rx="2" fill="${lit.has(k)||pressed.has(k)?'var(--gold)':mk?col(mk.h):'var(--key-black)'}" stroke="var(--key-edge)"/>`}
   marks.forEach(x=>{const b=isBlack(x.k),cx=b?xOf(x.k)+BW/2:xOf(x.k)+W/2,cy=b?BH-14:H-32;const on=lit.has(x.k);
     s+=`<circle cx="${cx}" cy="${cy}" r="10" fill="${on?'var(--gold)':col(x.h)}"/><text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">${x.f??''}</text>`;
@@ -145,7 +160,7 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
     nowTxt=turnTxt();draw()};
   const bk='pb-bpm-'+ex.key;const bpm=()=>store.get(bk,ex.bpm||60);
   const draw=()=>{const el=document.getElementById(id);if(!el){MIDI.subs.delete(draw);MIDI.subs.delete(judge);return}const tb=el.querySelector('[data-a=turn]');if(tb){tb.textContent=T.on?'■ Stop':(isPassed(ex.key)?'✓ Your turn':'🎯 Your turn');tb.classList.toggle('primary',!isPassed(ex.key))}
-    el.querySelector('[data-kb]').innerHTML=keyboardSVG(ex.lo<60?36:ex.lo,ex.hi,cm,new Set([...lit,...held]),MIDI.held);
+    el.querySelector('[data-kb]').innerHTML=keyboardSVG(36,96,cm,new Set([...lit,...held]),MIDI.held);
     el.querySelector('[data-now]').innerHTML=nowTxt||(isPassed(ex.key)?'<b style="color:var(--ok)">✓ Passed.</b> Practise it any time.':MIDI.ok?`Tap <b>Hear it</b> to watch, then <b>Your turn</b>. Pass = ${need} run${need>1?'s':''} with no wrong notes.`:'Tap <b>Connect keyboard</b> at the top, then <b>Hear it</b>.');
     el.querySelector('[data-a=hear]').textContent=playing?'■ Stop':'▶ Hear it';const fb=el.querySelector('[data-a=fast]');if(fb)fb.textContent=playing?'■ Stop':`▶ Song speed (${ex.fast})`;el.querySelector('[data-bpm]').textContent=bpm()+' bpm'};
   const stop=()=>{timers.forEach(clearTimeout);timers=[];playing=false;lit=new Set();held=new Set();cm=ex.marks;nowTxt='';if(outOK())MIDI.acc.outputs.forEach(o=>{for(let n=24;n<100;n++)o.send([0x80,n,0])});draw()};
@@ -356,7 +371,7 @@ function trPaint(){const el=document.getElementById('trCard');if(!el){MIDI.subs.
   const marks=hands.flatMap(h=>voicing(name,h));const show=TR.mode==='learn'||TR.miss;
   el.innerHTML=`<div class="step">Chord ${TR.i+1} of 12 · ${TR.hand==='l'?'left hand':TR.hand==='r'?'right hand':'both hands'}</div>
    <div style="font-family:var(--f-d);font-size:56px;font-weight:700;line-height:1;text-align:center;padding:8px 0">${name}</div>
-   <div class="kb">${keyboardSVG(hands.includes('l')?41:60,hands.includes('r')?83:71,show?marks:[],new Set(),MIDI.held)}</div>
+   <div class="kb">${keyboardSVG(36,96,show?marks:[],new Set(),MIDI.held)}</div>
    <p class="now">${TR.fb||(MIDI.ok?(show?'Play it. The keys you press light up gold.':'Play it from memory. If you miss, the keys appear.'):'Tap <b>Connect keyboard</b> at the top first.')}</p>
    <div class="row"><button class="btn small" id="trHear">▶ Hear it</button><button class="btn small" id="trSkip">Show me</button><button class="btn small" id="trNew">New round ↺</button></div>`;
   document.getElementById('trHear').onclick=()=>{const ns=marks.map(x=>x.k);if(outOK())sendOut(ns,0,1200);else{const a=ac();if(a)ns.forEach(k=>tone(k,a.currentTime+.05,1.2))}};
@@ -370,7 +385,7 @@ function trStats(){const el=document.getElementById('trStats');if(!el)return;con
 let trWait=null;
 function trMidi(){if(!document.getElementById('trCard'))return;clearTimeout(trWait);trWait=setTimeout(trJudge,220);
   const kb=document.querySelector('#trCard .kb');if(kb){const name=TR.queue[TR.i];if(!name)return;const hands=TR.hand==='both'?['l','r']:[TR.hand];const show=TR.mode==='learn'||TR.miss;
-    kb.innerHTML=keyboardSVG(hands.includes('l')?41:60,hands.includes('r')?83:71,show?hands.flatMap(h=>voicing(name,h)):[],new Set(),MIDI.held)}}
+    kb.innerHTML=keyboardSVG(36,96,show?hands.flatMap(h=>voicing(name,h)):[],new Set(),MIDI.held)}}
 MIDI.subs.add(trMidi);
 
 /* ---------- Chord Trainer songs: unlocked per chord set when every chord is green, from memory, in all three hand modes ---------- */
