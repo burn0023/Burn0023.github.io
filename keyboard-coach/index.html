@@ -130,6 +130,28 @@ function keyboardSVG(lo,hi,marks,lit=new Set(),pressed=new Set()){
     if(!b)s+=`<text x="${cx}" y="${cy-15}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--ink)" font-family="sans-serif">${nm(x.k)}</text>`});
   pressed.forEach(k=>{if(k<lo||k>hi||by[k])return;const b=isBlack(k),cx=b?xOf(k)+BW/2:xOf(k)+W/2,cy=b?BH-14:H-32;s+=`<circle cx="${cx}" cy="${cy}" r="6" fill="var(--gold)"/>`});
   return s+'</svg>'}
+/* ---------- moving hands: five finger pads drawn over the keyboard, animated as the demo plays ---------- */
+const KB_WI=(()=>{const m={};let i=0;for(let k=36;k<=96;k++){if(!isBlack(k)){m[k]=i;i++}else m[k]=i-1+0.5}return m})();
+const slotX=sl=>sl*26+13;
+function handFrame(notes,marks,prev){const fr=JSON.parse(JSON.stringify(prev||{}));const known={l:{},r:{}};const press={l:[],r:[]};
+  notes.forEach(k=>{const mk=marks.find(x=>x.k===k);if(!mk||!mk.f)return;known[mk.h][mk.f]=KB_WI[k];press[mk.h].push(mk.f)});
+  ['l','r'].forEach(h=>{const kn=known[h];const fs=Object.keys(kn).map(Number).sort((a,b)=>a-b);if(!fs.length){if(fr[h])fr[h].press=[];return}
+    const dir=h==='r'?1:-1;const sl=[];for(let f=1;f<=5;f++){if(kn[f]!=null){sl[f]=kn[f];continue}
+      const lo=fs.filter(x=>x<f).pop(),hi=fs.find(x=>x>f);
+      sl[f]=lo!=null&&hi!=null?kn[lo]+(kn[hi]-kn[lo])*(f-lo)/(hi-lo):lo!=null?kn[lo]+(f-lo)*dir:kn[hi]-(hi-f)*dir}
+    fr[h]={sl,press:press[h],cross:null}});return fr}
+function handLayer(){let s='';['l','r'].forEach(h=>{const col=h==='l'?'var(--lh)':'var(--accent)';
+  s+=`<g data-hand="${h}" style="opacity:0;transition:opacity .2s"><rect data-palm x="0" y="2" width="10" height="30" rx="12" fill="${col}" opacity=".16"/>`;
+  for(let f=1;f<=5;f++)s+=`<g data-f="${f}" style="transition:transform .28s ease"><circle r="9" fill="${col}" stroke="#fff" stroke-width="1.5"/><text y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="sans-serif">${f}</text></g>`;
+  s+='</g>'});return s}
+function paintHands(svg,fr,show){if(!svg)return;['l','r'].forEach(h=>{const g=svg.querySelector(`[data-hand="${h}"]`);const st=fr&&fr[h];
+  if(!show||!st){g.style.opacity=0;return}g.style.opacity=1;let mn=1e9,mx=-1e9;
+  for(let f=1;f<=5;f++){const x=slotX(st.sl[f]);const pr=st.press.includes(f);const cr=st.cross===f;
+    const y=cr?(f===1?40:6):pr?30:18;const el=g.querySelector(`[data-f="${f}"]`);el.style.transform=`translate(${x}px,${y}px)`;
+    el.querySelector('circle').setAttribute('fill',pr?'var(--gold)':cr?'#fff':(h==='l'?'var(--lh)':'var(--accent)'));
+    el.querySelector('circle').setAttribute('stroke',cr?(h==='l'?'var(--lh)':'var(--accent)'):'#fff');el.querySelector('circle').setAttribute('stroke-width',cr?3:1.5);
+    el.querySelector('text').setAttribute('fill',cr?(h==='l'?'var(--lh)':'var(--accent)'):'#fff');mn=Math.min(mn,x);mx=Math.max(mx,x)}
+  const pl=g.querySelector('[data-palm]');pl.setAttribute('x',mn-14);pl.setAttribute('width',mx-mn+28)})}
 const LEGEND=`<div class="legend"><span><i style="background:var(--accent)"></i>Right hand</span><span><i style="background:var(--lh)"></i>Left hand</span><span><i style="background:var(--gold)"></i>Playing now / keys you press</span><span>Numbers = fingers: 1 thumb … 5 pinky</span></div>`;
 
 /* ---------- exercise widget: picture + Hear it + live keys (no scoring) ---------- */
@@ -138,13 +160,14 @@ const PASS=store.get('pb-pass',{});
 /* Steps Bernard has passed, confirmed from his results sheet; survive the browser losing its storage */
 const CONFIRMED_PASS={chC:1,tuneC:1,chG:1,chCG:1,chF:1,chCFG:1,thR:1,hiR:1,scR:1,thL:1,scL:1,scCh:1}; /* Lessons 2 and 3, all steps passed 5 Nov 2026 */
 const isPassed=k=>!!(PASS[k]||CONFIRMED_PASS[k]);
-function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let timers=[],playing=false,lit=new Set(),nowTxt='',held=new Set(),cm=ex.marks;
+function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let timers=[],playing=false,lit=new Set(),nowTxt='',held=new Set(),cm=ex.marks,hf=null;
+  const mem=()=>typeof ex.memory==='function'&&ex.memory();const allMarks=[...ex.marks,...ex.seq.flatMap(st=>st.marks||[])];
   const need=ex.need||2;const T={on:false,idx:0,fresh:new Set(),miss:0,clean:0,msg:''};
   const steps=ex.seq.map(st=>({exp:new Set([...st.k,...(st.hold?st.hold.k:[])]),hold:st.hold?st.hold.k:null})).filter(x=>x.exp.size);
   const expMarks=e=>[...e].map(k=>ex.marks.find(x=>x.k===k)||(ex.seq.flatMap(st=>st.marks||[]).find(x=>x.k===k))||{k,h:k<60?'l':'r'});
   const nameList=e=>[...e].sort((a,b)=>a-b).map(nm).join(' ');
-  const turnTxt=()=>{const st=steps[T.idx];return (T.msg?T.msg+'<br>':'')+`<b>Your turn:</b> play <b>${nameList(st.exp)}</b> (the keys with dots) · ${T.idx+1} of ${steps.length} · clean run${need>1?'s':''} ${T.clean} of ${need}`};
-  const startTurn=()=>{if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}if(playing)stop();T.on=true;T.idx=0;T.fresh=new Set();T.miss=0;T.msg='';cm=expMarks(steps[0].exp);nowTxt=turnTxt();draw()};
+  const turnTxt=()=>{const st=steps[T.idx];return (T.msg?T.msg+'<br>':'')+(mem()?`<b>From memory:</b> note ${T.idx+1} of ${steps.length}`:`<b>Your turn:</b> play <b>${nameList(st.exp)}</b> (the keys with dots) · ${T.idx+1} of ${steps.length}`)+` · clean run${need>1?'s':''} ${T.clean} of ${need}`};
+  const startTurn=()=>{if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}if(playing)stop();hf=null;T.on=true;T.idx=0;T.fresh=new Set();T.miss=0;T.msg='';cm=expMarks(steps[0].exp);nowTxt=turnTxt();draw()};
   const endTurn=()=>{T.on=false;cm=ex.marks;nowTxt='';draw()};
   const allowed=()=>{const a=new Set();for(let j=T.idx;j>=0;j--){if(steps[j].hold){steps[j].hold.forEach(k=>a.add(k));break}}if(T.idx>0)steps[T.idx-1].exp.forEach(k=>a.add(k));return a};
   const judge=()=>{if(!T.on||playing||!MIDI.ev)return;const ev=MIDI.ev;MIDI.ev=null;const st=steps[T.idx];
@@ -160,12 +183,22 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
     nowTxt=turnTxt();draw()};
   const bk='pb-bpm-'+ex.key;const bpm=()=>store.get(bk,ex.bpm||60);
   const draw=()=>{const el=document.getElementById(id);if(!el){MIDI.subs.delete(draw);MIDI.subs.delete(judge);return}const tb=el.querySelector('[data-a=turn]');if(tb){tb.textContent=T.on?'■ Stop':(isPassed(ex.key)?'✓ Your turn':'🎯 Your turn');tb.classList.toggle('primary',!isPassed(ex.key))}
-    el.querySelector('[data-kb]').innerHTML=keyboardSVG(36,96,cm,new Set([...lit,...held]),MIDI.held);
+    el.querySelector('[data-kbs]').innerHTML=keyboardSVG(36,96,(T.on&&mem())?[]:cm,new Set([...lit,...held]),MIDI.held);
+    const hl=el.querySelector('[data-handsvg]');if(T.on&&!mem())hf=handFrame([...steps[T.idx].exp],allMarks,hf);paintHands(hl,hf,(playing||T.on)&&!(T.on&&mem()));
     el.querySelector('[data-now]').innerHTML=nowTxt||(isPassed(ex.key)?'<b style="color:var(--ok)">✓ Passed.</b> Practise it any time.':MIDI.ok?`Tap <b>Hear it</b> to watch, then <b>Your turn</b>. Pass = ${need} run${need>1?'s':''} with no wrong notes.`:'Tap <b>Connect keyboard</b> at the top, then <b>Hear it</b>.');
     el.querySelector('[data-a=hear]').textContent=playing?'■ Stop':'▶ Hear it';const fb=el.querySelector('[data-a=fast]');if(fb)fb.textContent=playing?'■ Stop':`▶ Song speed (${ex.fast})`;el.querySelector('[data-bpm]').textContent=bpm()+' bpm'};
-  const stop=()=>{timers.forEach(clearTimeout);timers=[];playing=false;lit=new Set();held=new Set();cm=ex.marks;nowTxt='';if(outOK())MIDI.acc.outputs.forEach(o=>{for(let n=24;n<100;n++)o.send([0x80,n,0])});draw()};
+  const stop=()=>{timers.forEach(clearTimeout);timers=[];playing=false;hf=null;lit=new Set();held=new Set();cm=ex.marks;nowTxt='';if(outOK())MIDI.acc.outputs.forEach(o=>{for(let n=24;n<100;n++)o.send([0x80,n,0])});draw()};
   const hear=(fast)=>{if(playing){stop();return}if(T.on)endTurn();playing=true;const spb=60000/(fast||bpm());let t=300;const a=ac();const viaOut=outOK();
+    let pf=null,prevSingle=null,prevDur=0;
     ex.seq.forEach(st=>{const dur=st.beats*spb;const at=t;
+      const nk=[...st.k,...(st.hold?st.hold.k:[])];const nf=handFrame(nk,[...(st.marks||[]),...allMarks],pf);
+      if(nk.length===1&&prevSingle&&pf){const mk=allMarks.find(x=>x.k===nk[0]);const h=mk&&mk.h;
+        if(h&&pf[h]&&nf[h]&&Math.abs(nf[h].sl[1]-pf[h].sl[1])>=1.5&&Math.abs(nf[h].sl[1]-pf[h].sl[1])<=5&&(mk.f===1||prevSingle.f===1)){
+          const mid=JSON.parse(JSON.stringify(pf));mid[h].sl[mk.f]=nf[h].sl[mk.f];mid[h].cross=mk.f;mid[h].press=[prevSingle.f];
+          const say=mk.f===1?`<b>${h==='l'?'Left':'Right'} thumb tucks under</b> to ${nm(nk[0])} while finger ${prevSingle.f} holds`:`<b>${h==='l'?'Left':'Right'} finger ${mk.f} crosses over</b> the thumb to ${nm(nk[0])}`;
+          timers.push(setTimeout(()=>{hf=mid;nowTxt=say;draw()},Math.max(at-Math.min(prevDur*.5,450),0)))}}
+      const fixed=nf;timers.push(setTimeout(()=>{hf=fixed},at));
+      pf=nf;prevSingle=nk.length===1?allMarks.find(x=>x.k===nk[0]):null;prevDur=dur;
       timers.push(setTimeout(()=>{if(st.marks)cm=st.marks;lit=new Set(st.k);const mk=st.k.map(k=>cm.find(x=>x.k===k)).filter(Boolean);
         nowTxt=st.say!=null?st.say:mk.length?mk.map(x=>`<b>${x.h==='l'?'Left':'Right'} hand, finger ${x.f}</b> on ${nm(x.k)}`).join(' · '):'';draw()},at));
       if(st.hold){const hd=st.hold.beats*spb;timers.push(setTimeout(()=>{st.hold.k.forEach(k=>held.add(k));draw()},at));timers.push(setTimeout(()=>{st.hold.k.forEach(k=>held.delete(k));draw()},at+hd*.95));
@@ -176,7 +209,7 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
     el.querySelector('[data-a=hear]').onclick=()=>hear();const fb=el.querySelector('[data-a=fast]');if(fb)fb.onclick=()=>hear(ex.fast);
     el.querySelector('[data-a="s-"]').onclick=()=>{store.set(bk,Math.max(40,bpm()-5));draw()};
     el.querySelector('[data-a="s+"]').onclick=()=>{store.set(bk,Math.min(180,bpm()+5));draw()};draw()});
-  return `<div id="${id}" class="check"><div class="kb" data-kb></div>${LEGEND}<p class="now" data-now></p>
+  return `<div id="${id}" class="check"><div class="kb" data-kb style="position:relative"><div data-kbs></div><svg data-handsvg viewBox="-1 -1 938 112" preserveAspectRatio="xMinYMin meet" style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none">${handLayer()}</svg></div>${LEGEND}<p class="now" data-now></p>
    <div class="row"><button class="btn" data-a="hear">▶ Hear it</button><button class="btn primary" data-a="turn">🎯 Your turn</button>${ex.fast?`<button class="btn" data-a="fast">▶ Song speed (${ex.fast})</button>`:''}<span class="row"><button class="btn small" data-a="s-" aria-label="Slower">−</button><span class="bpm" data-bpm></span><button class="btn small" data-a="s+" aria-label="Faster">+</button></span></div>
    <p class="note" style="font-size:13px;color:var(--muted);margin:0">Speed only changes <b>Hear it</b>. In <b>Your turn</b> the app waits for you, so go at your own pace.</p></div>`}
 
@@ -486,18 +519,57 @@ function styleHTML(set){const sg=TSONGS[set];if(!sg||!trGreens(set).l)return '';
    <p style="border-top:1px solid var(--rule);padding-top:10px;margin:0"><b>Then:</b> once a pattern is steady with the metronome, sing or hum the tune on top. Next step after that is the tune in your right hand with the bass in your left. That's what the main lessons are building toward.</p></article>`}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pat]');if(!b)return;if(b.textContent.startsWith('■')){patStop();b.textContent='▶ Hear it on '+TSONGS[b.dataset.pset].title;return}document.querySelectorAll('[data-pat]').forEach(x=>{if(x!==b)x.textContent='▶ Hear it on '+TSONGS[x.dataset.pset].title});patPlay(b.dataset.pat,b.dataset.pset)});
 
+/* ---------- Key Drill: scale, a chord on every scale note, then 1-4-5-1. Only keys a lesson has taught. ---------- */
+const KD={key:store.get('kd-key','C'),mem:store.get('kd-mem',false)};
+const ROMAN=['1','2','3','4','5','6','7','8'];
+function kdChordStep(notes,label,f=[1,3,5]){const gap=notes[1]-notes[0];return {k:notes,beats:2,marks:notes.map((k,i)=>({k,f:f[i],h:'r'})),
+  say:`<b>${label}</b> · ${notes.map(nm).join(' ')} · ${gap===4?'<b>major</b>: middle note 4 keys up':gap===3?'<b>minor</b>: middle note 3 keys up':''}`}}
+const KEYS={
+ C:{name:'C major',unlock:()=>['thR','hiR','scR','thL','scL','scCh'].every(isPassed),lockMsg:'Pass Lesson 3 first.',
+  rh:[[60,1],[62,2],[64,3],[65,1],[67,2],[69,3],[71,4],[72,5]],lh:[[48,5],[50,4],[52,3],[53,2],[55,1],[57,3],[59,2],[60,1]],
+  chords:[[[60,64,67],'1 · C'],[[62,65,69],'2 · Dm'],[[64,67,71],'3 · Em'],[[65,69,72],'4 · F'],[[67,71,74],'5 · G'],[[69,72,76],'6 · Am'],[[72,76,79],'8 · C (home, an octave up)']],
+  skip:'B (note 7) is skipped: its chord, B D F, is a rare one.',prog:['C','F','G','C','C','F','G','C'],
+  why:'Each chord is the scale note plus every other note above it. Where the stack crosses a tight spot (E–F or B–C), the chord comes out minor.'},
+ Am:{name:'A minor',unlock:()=>['chAm','chCAm','chDm','chE','chMin','tuneAm'].every(isPassed),lockMsg:'Unlocks when you pass Lesson 4.',
+  rh:[[69,1],[71,2],[72,3],[74,1],[76,2],[77,3],[80,4],[81,5]],lh:[[45,5],[47,4],[48,3],[50,2],[52,1],[53,3],[56,2],[57,1]],
+  chords:[[[69,72,76],'1 · Am'],[[72,76,79],'3 · C'],[[74,77,81],'4 · Dm'],[[76,80,83],'5 · E (with G♯)'],[[77,81,84],'6 · F'],[[79,83,86],'7 · G (with plain G)'],[[81,84,88],'8 · Am (home, an octave up)']],
+  skip:'B (note 2) is skipped: its chord is a rare one. Songs use G♯ in the E chord (for the pull home) but plain G in the G chord.',prog:['Am','Dm','E','Am','Am','Dm','E','Am'],
+  why:'The scale uses G♯ instead of G, the same note that makes the E chord major and pulls back home to A.'}};
+function kdEx(kk,part){const K=KEYS[kk];const mem=()=>KD.mem;
+  if(part==='sr'||part==='sl'){const ns=part==='sr'?K.rh:K.lh;const h=part==='sr'?'r':'l';const up=ns.map(x=>x[0]);const seq=[...up,...up.slice(0,-1).reverse()].map(k=>({k:[k],beats:1}));
+    return exercise({key:`kd${kk}${part}`,lo:36,hi:96,bpm:60,marks:ns.map(([k,f])=>({k,f,h})),seq,memory:mem})}
+  if(part==='ch'){const seq=K.chords.map(([n,l])=>kdChordStep(n,l));return exercise({key:`kd${kk}ch`,lo:36,hi:96,bpm:60,marks:seq[0].marks,seq,memory:mem})}
+  const seq=K.prog.map(c=>cfgStep(c,`<b>${c}</b> · 1 2 3 4`));return exercise({key:`kd${kk}145`,lo:36,hi:96,bpm:60,marks:seq[0].marks,seq,memory:mem})}
+function keyDrillHTML(){const K=KEYS[KD.key];const open=K.unlock();
+  const keys=Object.entries(KEYS).map(([k,x])=>`<button class="btn small" data-kd="${k}" aria-pressed="${KD.key===k}">${x.unlock()?'':'🔒 '}${x.name}</button>`).join(' ');
+  const done=['sr','sl','ch','145'].map(p=>isPassed(`kd${KD.key}${p}`));
+  return `<div class="head"><div class="eyebrow">Practice tool</div><h2>Key Drill</h2><p>One key at a time: its scale, the chord on each scale note, then the main chord moves. About 5 minutes a day, next to the Chord Trainer. Only keys you've learned in a lesson.</p></div>
+  <article class="card"><div class="row">${keys}</div>
+   <div class="row"><button class="btn small" data-kdmem="0" aria-pressed="${!KD.mem}">Keys shown</button><button class="btn small" data-kdmem="1" aria-pressed="${KD.mem}">From memory</button></div>
+   <p style="font-size:13px;color:var(--muted);margin:0">${KD.mem?'From memory: no dots or hands while you play. Hear it still shows them.':'Watch the moving hands in Hear it, then play. Switch to From memory when it feels easy.'} Each part passes with 2 clean runs and stays passed.</p>
+   <div class="row" style="font-size:13px">${['Scale, right hand','Scale, left hand','Chord on every note','1-4-5-1'].map((t,i)=>`<span>${done[i]?'✓':'○'} ${t}</span>`).join(' · ')}</div></article>
+  ${!open?`<article class="card"><h3>🔒 ${K.name}</h3><p>${K.lockMsg}</p></article>`:`
+  <article class="card"><div class="step">Part 1</div><h3>The ${K.name} scale, right hand</h3><p>Up and back down. ${KD.key==='C'?'Thumb on C and F.':'Thumb on A and D. The 7th note is <b>G♯</b>, the black key.'} ${K.why}</p>${kdEx(KD.key,'sr')}</article>
+  <article class="card"><div class="step">Part 1</div><h3>The ${K.name} scale, left hand</h3><p>Going up, finger 3 crosses over the thumb${KD.key==='C'?' to A':' to F'}. Coming down, the thumb tucks under.</p>${kdEx(KD.key,'sl')}</article>
+  <article class="card"><div class="step">Part 2</div><h3>A chord on every scale note</h3><p>Right hand, fingers 1-3-5 the whole way. Walk up the scale and build the chord on each note. Watch the screen say <b>major</b> or <b>minor</b>: the scale decides, you don't. ${K.skip}</p>${kdEx(KD.key,'ch')}</article>
+  <article class="card"><div class="step">Part 3</div><h3>The main moves: ${K.prog.slice(0,4).join(' · ')}</h3><p>Chords <b>1, 4, 5, 1</b>, both hands, 4 beats each. These three chords carry most songs in ${K.name}.</p>${kdEx(KD.key,'145')}</article>`}`}
 /* ---------- render ---------- */
 let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','p1');
 const P=id=>prog[id]||(prog[id]={step:0,done:[]});const save=()=>{store.set('pb-prog',prog);store.set('pb-cur',cur)};
 function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
+  if(cur==='keys'){const app=document.getElementById('app');
+    app.innerHTML=`<div class="lessons">${LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="false">Lesson ${j+1}</button>`).join('')}<button class="lchip" data-l="trainer" aria-pressed="false">Chord Trainer</button><button class="lchip" data-l="keys" aria-pressed="true">Key Drill</button></div>`+keyDrillHTML();
+    app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
+    app.querySelectorAll('[data-kd]').forEach(b=>b.onclick=()=>{KD.key=b.dataset.kd;store.set('kd-key',KD.key);render()});
+    app.querySelectorAll('[data-kdmem]').forEach(b=>b.onclick=()=>{KD.mem=b.dataset.kdmem==='1';store.set('kd-mem',KD.mem);render()});return}
   if(cur==='trainer'){const app=document.getElementById('app');
-    app.innerHTML=`<div class="lessons">${LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="false">Lesson ${j+1}</button>`).join('')}<button class="lchip" data-l="trainer" aria-pressed="true">Chord Trainer</button></div>`+trainerHTML();
+    app.innerHTML=`<div class="lessons">${LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="false">Lesson ${j+1}</button>`).join('')}<button class="lchip" data-l="trainer" aria-pressed="true">Chord Trainer</button><button class="lchip" data-l="keys" aria-pressed="false">Key Drill</button></div>`+trainerHTML();
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
     const pick=(attr,key)=>app.querySelectorAll(`[data-${attr}]`).forEach(b=>b.onclick=()=>{TR[key]=b.dataset[attr];store.set('tr-'+key,TR[key]);TR.summary=null;trBuild();render()});
     pick('set','set');pick('hand','hand');pick('mode','mode');trPaint();return}
   const L=LESSONS.find(l=>l.id===cur)||LESSONS[0];const p=P(L.id);const i=Math.min(p.step,L.steps.length-1);const S=L.steps[i];const n=LESSONS.indexOf(L)+1;
   const app=document.getElementById('app');
-  const chips=LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="${l.id===L.id}">Lesson ${j+1}</button>`).join('')+`<button class="lchip" data-l="trainer" aria-pressed="false">Chord Trainer</button>`+ROADMAP.map((r,j)=>`<button class="lchip locked" disabled>🔒 Lesson ${LESSONS.length+j+1}</button>`).join('');
+  const chips=LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="${l.id===L.id}">Lesson ${j+1}</button>`).join('')+`<button class="lchip" data-l="trainer" aria-pressed="false">Chord Trainer</button><button class="lchip" data-l="keys" aria-pressed="false">Key Drill</button>`+ROADMAP.map((r,j)=>`<button class="lchip locked" disabled>🔒 Lesson ${LESSONS.length+j+1}</button>`).join('');
   const xs=S.x?(Array.isArray(S.x)?S.x:[S.x]):[];const locked=()=>!!L.gate&&xs.some(k=>!isPassed(k));
   let extra='';
   if(S.x)extra+=(Array.isArray(S.x)?S.x:[S.x]).map(k=>exercise(EX[k])).join('<hr style="border:none;border-top:1px solid var(--rule);margin:4px 0">');
