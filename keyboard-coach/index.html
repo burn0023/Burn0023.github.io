@@ -121,7 +121,7 @@ const LEGEND=`<div class="legend"><span><i style="background:var(--accent)"></i>
 /* ex: {lo,hi,marks:[{k,f,h}], seq:[{k:[midi..],beats}] , bpm} */
 const PASS=store.get('pb-pass',{});
 /* Steps Bernard has passed, confirmed from his results sheet; survive the browser losing its storage */
-const CONFIRMED_PASS={chC:1,tuneC:1,chG:1,chCG:1,chF:1,chCFG:1}; /* Lesson 2, all passed 5 Nov 2026 */
+const CONFIRMED_PASS={chC:1,tuneC:1,chG:1,chCG:1,chF:1,chCFG:1,thR:1,hiR:1,scR:1,thL:1,scL:1,scCh:1}; /* Lessons 2 and 3, all steps passed 5 Nov 2026 */
 const isPassed=k=>!!(PASS[k]||CONFIRMED_PASS[k]);
 function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let timers=[],playing=false,lit=new Set(),nowTxt='',held=new Set(),cm=ex.marks;
   const need=ex.need||2;const T={on:false,idx:0,fresh:new Set(),miss:0,clean:0,msg:''};
