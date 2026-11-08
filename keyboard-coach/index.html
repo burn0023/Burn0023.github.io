@@ -72,7 +72,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v)
 let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,3000)}
 
 /* ---------- notes ---------- */
-const NAMES=['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+const NAMES=['C','C♯','D','E♭','E','F','F♯','G','G♯','A','B♭','B'];
 const LETTER={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 function m(n){const x=n.match(/^([A-G])([#b]?)(\d)$/);return LETTER[x[1]]+(x[2]==='#'?1:x[2]==='b'?-1:0)+12*(+x[3]+1)}
 const nm=k=>NAMES[k%12];
@@ -185,7 +185,9 @@ function sendReport(txt){try{const body=new URLSearchParams();body.append('entry
 const R=(n,f)=>({k:m(n),f,h:'r'}),L=(n,f)=>({k:m(n),f,h:'l'});
 const S=(notes,beats=1)=>({k:notes.map(m),beats});
 /* C, F, G in the Chord Trainer spots (same as voicing()), written out so they exist before the chord code loads */
-const CFG={C:{l:[48,52,55],r:[60,64,67]},F:{l:[41,45,48],r:[65,69,72]},G:{l:[43,47,50],r:[67,71,74]}};
+const CFG={C:{l:[48,52,55],r:[60,64,67]},F:{l:[41,45,48],r:[65,69,72]},G:{l:[43,47,50],r:[67,71,74]},Am:{l:[45,48,52],r:[69,72,76]},Dm:{l:[50,53,57],r:[62,65,69]},E:{l:[52,56,59],r:[64,68,71]}};
+const chEx=(key,c,lo,hi)=>{const L3=CFG[c].l,R3=CFG[c].r;const mk=[...L3.map((k,j)=>({k,f:[5,3,1][j],h:'l'})),...R3.map((k,j)=>({k,f:[1,3,5][j],h:'r'}))];
+  return {key,lo,hi,bpm:60,marks:mk,seq:[...R3.map(k=>({k:[k],beats:1})),{k:R3,beats:2},...L3.map(k=>({k:[k],beats:1})),{k:L3,beats:2},{k:[...L3,...R3],beats:3}]}};
 const cfgStep=(c,say)=>({k:[...CFG[c].l,...CFG[c].r],beats:4,marks:[...CFG[c].l.map((k,j)=>({k,f:[5,3,1][j],h:'l'})),...CFG[c].r.map((k,j)=>({k,f:[1,3,5][j],h:'r'}))],say});
 const up=ns=>ns.map(n=>S([n])),seqOf=(ns,last=2)=>[...up(ns).slice(0,-1),S([ns[ns.length-1]],last)];
 const EX={
@@ -196,6 +198,16 @@ const EX={
    seq:[S(['G3','C4']),S(['F3','D4']),S(['E3','E4']),S(['D3','F4']),S(['C3','G4']),S(['D3','F4']),S(['E3','E4']),S(['F3','D4']),S(['G3','C4'],2)]},
  para:{key:'para',lo:m('C3'),hi:m('B4'),bpm:52,marks:[L('C3',5),L('D3',4),L('E3',3),L('F3',2),L('G3',1),R('C4',1),R('D4',2),R('E4',3),R('F4',4),R('G4',5)],
    seq:[S(['C3','C4']),S(['D3','D4']),S(['E3','E4']),S(['F3','F4']),S(['G3','G4']),S(['F3','F4']),S(['E3','E4']),S(['D3','D4']),S(['C3','C4'],2)]},
+ /* Lesson 4: A minor. Same hand spots as the Chord Trainer. */
+ chAm:chEx('chAm','Am',43,77),
+ chCAm:{key:'chCAm',lo:43,hi:77,bpm:60,marks:cfgStep('C').marks,seq:['C','Am','C','Am','C','Am'].map(c=>cfgStep(c,`<b>${c}</b> · ${c==='C'?'bright':'dark'} · hold 4`))},
+ chDm:chEx('chDm','Dm',48,71),
+ chE:chEx('chE','E',50,72),
+ chMin:{key:'chMin',lo:43,hi:77,bpm:60,marks:cfgStep('Am').marks,seq:['Am','Dm','E','Am','Am','Dm','E','Am'].map(c=>cfgStep(c,`<b>${c}</b> · 1 2 3 4`))},
+ tuneAm:{key:'tuneAm',lo:43,hi:77,bpm:72,marks:[...cfgStep('Am').marks.filter(x=>x.h==='l'),{k:69,f:1,h:'r'},{k:71,f:2,h:'r'},{k:72,f:3,h:'r'},{k:74,f:4,h:'r'}],seq:(()=>{const bars=[['Am',[[69,1],[71,1],[72,1],[69,1]]],['Dm',[[74,1],[72,1],[74,2]]],['E',[[71,1],[72,1],[71,2]]],['Am',[[69,4]]]];
+   const fr={69:1,71:2,72:3,74:4};const out=[];bars.forEach(([c,ns])=>ns.forEach(([k,b],j)=>out.push({k:[k],beats:b,hold:j===0?{k:CFG[c].l,beats:4}:null,
+     marks:j===0?[...CFG[c].l.map((x,i)=>({k:x,f:[5,3,1][i],h:'l'})),...[69,71,72,74].map(x=>({k:x,f:fr[x],h:'r'}))]:null,
+     say:`<b>${c}</b> in the left hand · tune note <b>${nm(k)}</b> ${CFG[c].l.some(x=>x%12===k%12)?'is in the chord':'is just passing'}`})));return out})()},
  /* Lesson 3: C major scale, thumb under. RH fingering C1 D2 E3 F1 G2 A3 B4 C5; LH (going up) C5 D4 E3 F2 G1 A3 B2 C1 */
  thR:{key:'thR',lo:m('B3'),hi:m('A4'),bpm:56,marks:[R('C4',1),R('D4',2),R('E4',3),R('F4',1)],seq:[...seqOf(['C4','D4','E4','F4','E4','D4','C4'])]},
  hiR:{key:'hiR',lo:m('E4'),hi:m('D5'),bpm:56,marks:[R('F4',1),R('G4',2),R('A4',3),R('B4',4),R('C5',5)],seq:seqOf(['F4','G4','A4','B4','C5','B4','A4','G4','F4'])},
@@ -252,15 +264,24 @@ const LESSONS=[
   {t:'Left hand: the whole scale',b:`<p>Left pinky on the <b>C below middle C</b>.</p><p><b>Fingers up:</b> 5 4 3 2 1 · 3 2 1 (C D E F G · A B C)<br><b>Fingers down:</b> 1 2 3 · 1 2 3 4 5 (C B A · G F E D C)</p><p>The crossing is right after the thumb, on A going up and on G going down.</p>`,x:'scL',metro:true},
   {t:'Scale up, land on the chord',b:`<p>Right hand plays the scale <b>up</b> to the high C. Then both hands land on the <b>C chord</b> (from Lesson 2) and hold it.</p><p>This is a real ending: a run up to the top, then the chord. You'll hear it at the end of a lot of songs.</p>`,x:'scCh',metro:true},
   {t:'How did it go?',report:true,b:`<p>Practise this lesson a few days, about 10 minutes a day. The scale gets smoother every day, even when it doesn't feel like it. Then tick what's true and send it.</p>`}
+ ]},
+ {id:'p4',gate:true,title:'Minor: the niggun sound',goal:'Same white keys as C major, but with A as home instead of C. That one change makes it sound serious and soulful, the sound of most of your songs. Three chords do most of the work: Am, Dm and E.',
+  check:['I can play Am, Dm and E in each hand without the screen','I can hear the difference between C (bright) and Am (dark)','The G♯ in the E chord felt natural, not a stretch','Am-Dm-E-Am changed on time with the metronome','In the tune, I could tell which notes were in the chord and which were passing','My fingers stayed curved and my wrist level'],steps:[
+  {t:'The Am chord',b:`<p>Same shape as C, F and G: fingers 1-3-5, skip a key each time. Start on <b>A</b>: <b>A C E</b>.</p><ul><li>Right hand: thumb on the <b>A above middle C</b>.</li><li>Left hand: pinky on the <b>A two white keys below your usual left-pinky C</b>.</li></ul><p>All white keys, like C major. Same notes, different home.</p>`,x:'chAm'},
+  {t:'Bright and dark',b:`<p>Back and forth: <b>C</b>, then <b>Am</b>, 4 beats each. Listen while you play.</p><p>C sounds <b>bright and settled</b>. Am sounds <b>dark and longing</b>. They share two notes (C and E); only one note changes. That small change is the whole difference between major and minor.</p>`,x:'chCAm',metro:true},
+  {t:'The Dm chord',b:`<p>Start on <b>D</b>: <b>D F A</b>, all white keys.</p><ul><li>Right hand: thumb on the <b>D just above middle C</b>.</li><li>Left hand: pinky on the <b>D above the C</b> where your left pinky usually sits.</li></ul><p>In A minor, Dm is chord <b>4</b>, the same job F does in C major.</p>`,x:'chDm'},
+  {t:'The E chord: your first black key',b:`<p>Start on <b>E</b>, skip, skip: <b>E G♯ B</b>. The middle note is the <b>black key</b> just right of G.</p><ul><li>Right hand: thumb on the <b>E above middle C</b>, finger 3 on G♯.</li><li>Left hand: pinky on the <b>E just above your usual left-pinky C</b>, finger 3 on G♯.</li></ul><p>Why G♯ and not G? The G♯ sits right next to A, so it pulls hard back home to Am. That pull is the niggun sound. (This is the "7th raised" button from the scale builder.)</p><p class="say">Finger 3 reaches forward onto the black key. Keep the other fingers curved; don't let the hand go flat.</p>`,x:'chE'},
+  {t:'Am - Dm - E - Am',b:`<p>The three chords in a row, both hands, 4 beats each: <b>Am Dm E Am · Am Dm E Am</b>.</p><p>It's the minor version of C-F-G-C: chords <b>1, 4, 5, 1</b>. Hear how E wants to go back to Am.</p>`,x:'chMin',metro:true},
+  {t:'Tune on top: which chord?',b:`<p>The idea you figured out on Nov 8, in action. Right hand: thumb on the A above middle C, A B C D under fingers 1-2-3-4. Left hand holds the chord for each bar.</p><p><b>Am</b>: A B C A · <b>Dm</b>: D C D · <b>E</b>: B C B · <b>Am</b>: A</p><p>The notes on beat 1 and the long notes are <b>in</b> the chord: A and C in Am, D in Dm, B in E. The others (B in bar 1, C in bars 2 and 3) are just passing. The screen tells you which is which as it plays.</p>`,x:'tuneAm',metro:true},
+  {t:'How did it go?',report:true,b:`<p>Practise this lesson a few days, about 10 minutes a day. Then tick what's true and send it. If you can't tell about your wrist and fingers, leave them unticked and send a short side video of your right hand instead.</p>`}
  ]}
 ];
 const ROADMAP=[
- ['Minor: the niggun sound','A minor, the sad cousin of C: same white keys, different home. Am, Dm and E, the chords most of your songs use.'],
  ['Left-hand patterns','One at a time, slowly: block chord, then root note, then root + chord, then broken chord.'],
  ['Right hand: melody + one chord note','A tune you know in the right hand, with one chord note added under the melody.'],
  ['First song, both hands','A song you know, putting it all together.']
 ];
-const OPEN=['p1','p2','p3'];
+const OPEN=['p1','p2','p3','p4'];
 if(store.get('pb-p2v',1)!==2){const pr=store.get('pb-prog',{});delete pr.p2;store.set('pb-prog',pr);store.set('pb-p2v',2)}
 
 /* ---------- Chord Trainer: flashcards that check the chord on the keyboard ---------- */
