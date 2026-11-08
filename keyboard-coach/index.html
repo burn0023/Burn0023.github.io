@@ -549,9 +549,9 @@ function keyDrillHTML(){const K=KEYS[KD.key];const open=K.unlock();
    <p style="font-size:13px;color:var(--muted);margin:0">${KD.mem?'From memory: no dots or hands while you play. Hear it still shows them.':'Watch the moving hands in Hear it, then play. Switch to From memory when it feels easy.'} Each part passes with 2 clean runs and stays passed.</p>
    <div class="row" style="font-size:13px">${['Scale, right hand','Scale, left hand','Chord on every note','1-4-5-1'].map((t,i)=>`<span>${done[i]?'✓':'○'} ${t}</span>`).join(' · ')}</div></article>
   ${!open?`<article class="card"><h3>🔒 ${K.name}</h3><p>${K.lockMsg}</p></article>`:`
-  <article class="card"><div class="step">Part 1</div><h3>The ${K.name} scale, right hand</h3><p>Up and back down. ${KD.key==='C'?'Thumb on C and F.':'Thumb on A and D. The 7th note is <b>G♯</b>, the black key.'} ${K.why}</p>${kdEx(KD.key,'sr')}</article>
+  <article class="card"><div class="step">Part 1</div><h3>The ${K.name} scale, right hand</h3><p>Up and back down. ${KD.key==='C'?'Thumb on C and F.':'Thumb on A and D. The 7th note is <b>G♯</b>, the black key.'}</p>${kdEx(KD.key,'sr')}</article>
   <article class="card"><div class="step">Part 1</div><h3>The ${K.name} scale, left hand</h3><p>Going up, finger 3 crosses over the thumb${KD.key==='C'?' to A':' to F'}. Coming down, the thumb tucks under.</p>${kdEx(KD.key,'sl')}</article>
-  <article class="card"><div class="step">Part 2</div><h3>A chord on every scale note</h3><p>Right hand, fingers 1-3-5 the whole way. Walk up the scale and build the chord on each note. Watch the screen say <b>major</b> or <b>minor</b>: the scale decides, you don't. ${K.skip}</p>${kdEx(KD.key,'ch')}</article>
+  <article class="card"><div class="step">Part 2</div><h3>A chord on every scale note</h3><p>Right hand, fingers 1-3-5 the whole way. Walk up the scale and build the chord on each note. Watch the screen say <b>major</b> or <b>minor</b>: the scale decides, you don't. ${K.why} ${K.skip}</p>${kdEx(KD.key,'ch')}</article>
   <article class="card"><div class="step">Part 3</div><h3>The main moves: ${K.prog.slice(0,4).join(' · ')}</h3><p>Chords <b>1, 4, 5, 1</b>, both hands, 4 beats each. These three chords carry most songs in ${K.name}.</p>${kdEx(KD.key,'145')}</article>`}`}
 /* ---------- render ---------- */
 let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','p1');
