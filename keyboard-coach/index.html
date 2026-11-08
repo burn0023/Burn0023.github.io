@@ -140,26 +140,32 @@ function handFrame(notes,marks,prev){const fr=JSON.parse(JSON.stringify(prev||{}
       const lo=fs.filter(x=>x<f).pop(),hi=fs.find(x=>x>f);
       sl[f]=lo!=null&&hi!=null?kn[lo]+(kn[hi]-kn[lo])*(f-lo)/(hi-lo):lo!=null?kn[lo]+(f-lo)*dir:kn[hi]-(hi-f)*dir}
     fr[h]={sl,press:press[h],cross:null}});return fr}
-/* Drawn hands: a palm with four fingers and a thumb hovering above the keys. Each finger slides to the key it will play;
-   the playing finger presses down (gold tip). Thumb-under: the thumb slides beneath the palm (faded). Cross-over: the finger lifts over. */
-const SKIN='#f0c8a0',SKIN_EDGE='#b98762';
+/* Drawn hands, seen from where you sit: the palm sits below the keyboard and the fingers reach up onto the keys,
+   exactly like looking down at your own hands. Each fingertip rests on the key it will play; the playing finger's tip turns gold.
+   Thumb-under: the thumb slides under the palm (dashed). Cross-over: the finger reaches over the thumb. */
+const SKIN='#e9b98f',SKIN_EDGE='#9c6a43',HY=60; /* hand svg y=0 is HY units above the bottom of the keyboard picture */
+const tipY=k=>(isBlack(k)?52:84)-HY+ -0; /* keyboard y of a fingertip, converted to hand-svg y */
 function handLayer(){let s='';['l','r'].forEach(h=>{
   s+=`<g data-hand="${h}" style="opacity:0;transition:opacity .2s">`;
-  s+=`<g data-f="1" style="transition:transform .3s ease"><path data-th d="" fill="none" stroke="${SKIN_EDGE}" stroke-width="20" stroke-linecap="round"/><path data-th2 d="" fill="none" stroke="${SKIN}" stroke-width="16" stroke-linecap="round"/><circle data-tip r="7" fill="${SKIN}"/></g>`;
-  s+=`<g data-palmg style="transition:transform .3s ease"><rect x="-68" y="2" width="136" height="32" rx="14" fill="${SKIN}" stroke="${SKIN_EDGE}" stroke-width="2"/><text x="0" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="${SKIN_EDGE}" font-family="sans-serif">${h==='l'?'LEFT':'RIGHT'}</text></g>`;
-  for(let f=2;f<=5;f++)s+=`<g data-f="${f}" style="transition:transform .3s ease"><line data-ln x1="0" y1="24" x2="0" y2="60" stroke="${SKIN_EDGE}" stroke-width="20" stroke-linecap="round"/><line data-ln2 x1="0" y1="24" x2="0" y2="60" stroke="${SKIN}" stroke-width="16" stroke-linecap="round"/><circle data-tip r="7" cy="60" fill="${SKIN}"/></g>`;
+  s+=`<g data-f="1"><path data-o d="" fill="none" stroke="${SKIN_EDGE}" stroke-width="24" stroke-linecap="round"/><path data-i d="" fill="none" stroke="${SKIN}" stroke-width="20" stroke-linecap="round"/><circle data-tip r="9" fill="${SKIN}" stroke="${SKIN_EDGE}" stroke-width="1.5"/></g>`;
+  s+=`<g data-palm><rect data-pr x="0" y="70" width="10" height="80" rx="30" fill="${SKIN}" stroke="${SKIN_EDGE}" stroke-width="2"/><text data-pt x="0" y="125" text-anchor="middle" font-size="14" font-weight="700" fill="${SKIN_EDGE}" font-family="sans-serif">${h==='l'?'LEFT HAND':'RIGHT HAND'}</text></g>`;
+  for(let f=2;f<=5;f++)s+=`<g data-f="${f}"><path data-o d="" fill="none" stroke="${SKIN_EDGE}" stroke-width="22" stroke-linecap="round"/><path data-i d="" fill="none" stroke="${SKIN}" stroke-width="18" stroke-linecap="round"/><circle data-tip r="8" fill="${SKIN}" stroke="${SKIN_EDGE}" stroke-width="1.5"/><text data-n font-size="11" font-weight="700" text-anchor="middle" fill="${SKIN_EDGE}" font-family="sans-serif">${f}</text></g>`;
   s+='</g>'});return s}
 function paintHands(svg,fr,show){if(!svg)return;['l','r'].forEach(h=>{const g=svg.querySelector(`[data-hand="${h}"]`);const st=fr&&fr[h];
-  if(!show||!st){g.style.opacity=0;return}g.style.opacity=1;
-  const xs=[0,1,2,3,4,5].map(f=>f?slotX(st.sl[f]):0);const palmX=(xs[2]+xs[5])/2;
-  g.querySelector('[data-palmg]').style.transform=`translate(${palmX}px,0px)`;
-  for(let f=1;f<=5;f++){const pr=st.press.includes(f),cr=st.cross===f;const el=g.querySelector(`[data-f="${f}"]`);
-    const tipY=pr?72:cr&&f!==1?44:62;el.style.transform=`translate(${xs[f]}px,0px)`;el.style.opacity=1;el.querySelectorAll('[data-th]').forEach(t=>t.setAttribute('stroke-dasharray',cr&&f===1?'4 4':'none'));el.querySelectorAll('[data-th2]').forEach(t=>t.setAttribute('opacity',cr&&f===1?.6:1));
-    el.querySelectorAll('[data-tip]').forEach(t=>{t.setAttribute('fill',pr?'var(--gold)':SKIN);t.setAttribute('cy',f===1?tipY-2:tipY)});
-    if(f===1){const bx=palmX-xs[1]+(h==='r'?-50:50);const d=`M ${bx} 26 Q ${bx*0.4} ${tipY-6} 0 ${tipY-2}`;el.querySelector('[data-th]').setAttribute('d',d);el.querySelector('[data-th2]').setAttribute('d',d)}
-    else el.querySelectorAll('[data-ln],[data-ln2]').forEach(l=>l.setAttribute('y2',tipY))}
-  // thumb under: draw it behind the palm; cross-over finger in front
-  const th=g.querySelector('[data-f="1"]');if(st.cross===1)g.appendChild(th);else g.insertBefore(th,g.querySelector('[data-palmg]'));})}
+  if(!show||!st){g.style.opacity=0;return}g.style.opacity=1;const dir=h==='r'?1:-1;
+  const X=f=>slotX(st.sl[f]);const black=f=>st.sl[f]%1!==0;
+  const cx=(X(2)+X(5))/2;const kn=f=>cx+(f-3.5)*24*dir;
+  const pr=g.querySelector('[data-pr]');pr.setAttribute('x',cx-62);pr.setAttribute('width',124);g.querySelector('[data-pt]').setAttribute('x',cx);
+  for(let f=1;f<=5;f++){const el=g.querySelector(`[data-f="${f}"]`);const press=st.press.includes(f),cr=st.cross===f;
+    const tx=X(f),ty=(black(f)?52:86)-HY-(cr&&f!==1?6:0);
+    const bx=f===1?cx-60*dir:kn(f),by=f===1?118:76;
+    const d=f===1?`M ${bx} ${by} Q ${bx+8*dir} ${ty+30} ${tx} ${ty}`:`M ${bx} ${by} L ${tx} ${ty}`;
+    el.querySelectorAll('[data-o],[data-i]').forEach(p=>p.setAttribute('d',d));
+    el.querySelector('[data-o]').setAttribute('stroke-dasharray',cr&&f===1?'6 5':'none');el.querySelector('[data-i]').setAttribute('opacity',cr&&f===1?.6:1);el.querySelector('[data-o]').setAttribute('opacity',cr&&f===1?.8:1);
+    const tip=el.querySelector('[data-tip]');tip.setAttribute('cx',tx);tip.setAttribute('cy',ty);tip.setAttribute('fill',press?'var(--gold)':SKIN);
+    const n=el.querySelector('[data-n]');if(n){n.setAttribute('x',(bx+tx)/2);n.setAttribute('y',(by+ty)/2+4)}}
+  const th=g.querySelector('[data-f="1"]');if(st.cross===1)g.appendChild(th);else g.insertBefore(th,g.querySelector('[data-palm]'));
+  if(st.cross&&st.cross!==1)g.appendChild(g.querySelector(`[data-f="${st.cross}"]`))})}
 const LEGEND=`<div class="legend"><span><i style="background:var(--accent)"></i>Right hand</span><span><i style="background:var(--lh)"></i>Left hand</span><span><i style="background:var(--gold)"></i>Playing now / keys you press</span><span>Numbers = fingers: 1 thumb … 5 pinky</span></div>`;
 
 /* ---------- exercise widget: picture + Hear it + live keys (no scoring) ---------- */
@@ -217,7 +223,7 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
     el.querySelector('[data-a=hear]').onclick=()=>hear();const fb=el.querySelector('[data-a=fast]');if(fb)fb.onclick=()=>hear(ex.fast);
     el.querySelector('[data-a="s-"]').onclick=()=>{store.set(bk,Math.max(40,bpm()-5));draw()};
     el.querySelector('[data-a="s+"]').onclick=()=>{store.set(bk,Math.min(180,bpm()+5));draw()};draw()});
-  return `<div id="${id}" class="check"><div class="kb" data-kb><svg data-handsvg viewBox="-1 -2 938 82" style="display:block;width:100%;height:auto;pointer-events:none">${handLayer()}</svg><div data-kbs></div></div>${LEGEND}<p class="now" data-now></p>
+  return `<div id="${id}" class="check"><div class="kb" data-kb><div data-kbs></div><svg data-handsvg viewBox="-1 0 938 160" style="display:block;width:100%;height:auto;margin-top:calc(-100% * ${HY} / 938);pointer-events:none;position:relative">${handLayer()}</svg></div>${LEGEND}<p class="now" data-now></p>
    <div class="row"><button class="btn" data-a="hear">▶ Hear it</button><button class="btn primary" data-a="turn">🎯 Your turn</button>${ex.fast?`<button class="btn" data-a="fast">▶ Song speed (${ex.fast})</button>`:''}<span class="row"><button class="btn small" data-a="s-" aria-label="Slower">−</button><span class="bpm" data-bpm></span><button class="btn small" data-a="s+" aria-label="Faster">+</button></span></div>
    <p class="note" style="font-size:13px;color:var(--muted);margin:0">Speed only changes <b>Hear it</b>. In <b>Your turn</b> the app waits for you, so go at your own pace.</p></div>`}
 
