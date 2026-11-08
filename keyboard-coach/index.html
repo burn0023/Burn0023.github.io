@@ -178,11 +178,11 @@ const isPassed=k=>!!(PASS[k]||CONFIRMED_PASS[k]);
 function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let timers=[],playing=false,lit=new Set(),nowTxt='',held=new Set(),cm=ex.marks,hf=null;
   const mem=()=>typeof ex.memory==='function'&&ex.memory();const allMarks=[...ex.marks,...ex.seq.flatMap(st=>st.marks||[])];
   const need=ex.need||2;const T={on:false,idx:0,fresh:new Set(),miss:0,clean:0,msg:''};
-  const steps=ex.seq.map(st=>({exp:new Set([...st.k,...(st.hold?st.hold.k:[])]),hold:st.hold?st.hold.k:null})).filter(x=>x.exp.size);
-  const expMarks=e=>[...e].map(k=>ex.marks.find(x=>x.k===k)||(ex.seq.flatMap(st=>st.marks||[]).find(x=>x.k===k))||{k,h:k<60?'l':'r'});
+  let lastMk=null;const steps=ex.seq.map(st=>{if(st.marks)lastMk=st.marks;return {exp:new Set([...st.k,...(st.hold?st.hold.k:[])]),hold:st.hold?st.hold.k:null,mk:lastMk}}).filter(x=>x.exp.size);
+  const expMarks=(e,sm)=>[...e].map(k=>(sm&&sm.find(x=>x.k===k))||ex.marks.find(x=>x.k===k)||(ex.seq.flatMap(st=>st.marks||[]).find(x=>x.k===k))||{k,h:k<60?'l':'r'});
   const nameList=e=>[...e].sort((a,b)=>a-b).map(nm).join(' ');
   const turnTxt=()=>{const st=steps[T.idx];return (T.msg?T.msg+'<br>':'')+(mem()?`<b>From memory:</b> note ${T.idx+1} of ${steps.length}`:`<b>Your turn:</b> play <b>${nameList(st.exp)}</b> (the keys with dots) · ${T.idx+1} of ${steps.length}`)+` · clean run${need>1?'s':''} ${T.clean} of ${need}`};
-  const startTurn=()=>{if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}if(playing)stop();hf=null;T.on=true;T.idx=0;T.fresh=new Set();T.miss=0;T.msg='';cm=expMarks(steps[0].exp);nowTxt=turnTxt();draw()};
+  const startTurn=()=>{if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}if(playing)stop();hf=null;T.on=true;T.idx=0;T.fresh=new Set();T.miss=0;T.msg='';cm=expMarks(steps[0].exp,steps[0].mk);nowTxt=turnTxt();draw()};
   const endTurn=()=>{T.on=false;cm=ex.marks;nowTxt='';draw()};
   const allowed=()=>{const a=new Set();for(let j=T.idx;j>=0;j--){if(steps[j].hold){steps[j].hold.forEach(k=>a.add(k));break}}if(T.idx>0)steps[T.idx-1].exp.forEach(k=>a.add(k));return a};
   const judge=()=>{if(!T.on||playing||!MIDI.ev)return;const ev=MIDI.ev;MIDI.ev=null;const st=steps[T.idx];
@@ -194,7 +194,7 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
         const done=isPassed(ex.key);T.on=false;cm=ex.marks;
         nowTxt=T.miss===0?(done?`<b style="color:var(--ok)">✓ Passed.</b> ${T.clean>=need?'Clean run'+(need>1?'s':'')+' done.':''} You can go on, or keep practising.`:`<b style="color:var(--ok)">✓ Clean run.</b> ${need-T.clean} more to pass. Tap <b>Your turn</b> again.`):`Finished with ${T.miss} wrong note${T.miss>1?'s':''}. A run counts when it has none. Tap <b>Your turn</b> to go again, slowly.`;
         draw();return}
-      cm=expMarks(steps[T.idx].exp)}
+      cm=expMarks(steps[T.idx].exp,steps[T.idx].mk)}
     nowTxt=turnTxt();draw()};
   const bk='pb-bpm-'+ex.key;const bpm=()=>store.get(bk,ex.bpm||60);
   const draw=()=>{const el=document.getElementById(id);if(!el){MIDI.subs.delete(draw);MIDI.subs.delete(judge);return}const tb=el.querySelector('[data-a=turn]');if(tb){tb.textContent=T.on?'■ Stop':(isPassed(ex.key)?'✓ Your turn':'🎯 Your turn');tb.classList.toggle('primary',!isPassed(ex.key))}
