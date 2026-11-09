@@ -438,8 +438,8 @@ function trainerHTML(){if(!TR.queue.length)trBuild();const view=store.get('tr-vi
    <li>Every chord is the <b>same shape</b>. Only the starting key changes, so there's one shape to learn, not a new one for each chord.</li></ul>
    <p class="say">Tyros: <b>[ACMP] off</b>, <b>[LEFT] off</b>, piano voice on <b>[RIGHT 1]</b>. The app counts everything below middle C as your left hand.</p></article>
   <div class="card" style="gap:8px">${viewRow}${view==='cards'?`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Chords:</span>${sets}</div>`:''}
-  <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Hand:</span>${hands}</div>
-  <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Mode:</span>${modes}</div></div>
+  ${view==='cards'?`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Hand:</span>${hands}</div>
+  <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Mode:</span>${modes}</div>`:''}</div>
   ${view==='songs'?srHTML():`<article class="card" id="trCard"></article>
   <div id="trSong">${songHTML(TR.set)}</div>`}
   ${view==='songs'?'':`<article class="card"><h3>Your chords so far <span style="font-weight:400;font-size:14px;color:var(--muted)">(${TR.mode==='recall'?'from memory':'keys shown'})</span></h3><div id="trStats"></div><p style="font-size:13px;color:var(--muted)">Slow or missed chords come up more often in the next round. Inversions (the same chord stacked other ways) come later, once these are automatic.</p></article>`}`}
@@ -531,16 +531,28 @@ function srFinish(){const R=SR.run;clearInterval(R.iv);R.stopped=true;R.done=tru
     const missed=R.E.ev.filter((e,i)=>!R.hit[i]).map(e=>e.c);const cnt={};missed.forEach(c=>cnt[c]=(cnt[c]||0)+1);
     sendReport(`SONG ROUND · ${sg.title} · ${TR.hand==='l'?'left hand':TR.hand==='r'?'right hand':'both hands'} · ${TR.mode==='learn'?'keys shown':'from memory'} · with the beat (${R.ext?'Tyros clock':'app click '+srTempo()}) · ${ontime}/${n} on time, ${late} late, ${n-hits} missed${missed.length?' · missed: '+Object.entries(cnt).map(([c,k])=>c+'×'+k).join(', '):''}`)}
   srPaint()}
-function srHTML(){const ids=Object.keys(SR_SONGS);const sg=SR_SONGS[SR.song];const open=srOpen(SR.song);
-  const picks=ids.map(id=>`<button class="btn small" data-srsong="${id}" aria-pressed="${SR.song===id}">${srOpen(id)?'':'🔒 '}${SR_SONGS[id].title}</button>`).join('');
-  return `<article class="card"><div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Song:</span>${picks}</div>
-   <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Play:</span><button class="btn small" data-srmode="wait" aria-pressed="${SR.mode==='wait'}">Wait for me</button><button class="btn small" data-srmode="beat" aria-pressed="${SR.mode==='beat'}">With the beat</button></div>
-   <p style="margin:0;font-size:14px"><b>Level 1:</b> play each chord when it comes, ${TR.hand==='both'?'<b>both hands together</b>':TR.hand==='l'?'left hand':'right hand'}, and hold it until the next one. ${SR.mode==='wait'?'The song waits for you at every change. Learn the order first.':'The song keeps moving with the beat. Land each change on time.'}</p></article>
-  ${!open?`<article class="card"><h3>🔒 ${sg.title}</h3><p>Opens when the chords in <b>${SETS[sg.set].name}</b> are green from memory in at least one hand.</p></article>`:`
-  ${SR.mode==='beat'?`<article class="card"><h3>Tyros setup</h3><ul><li>Pick ${sg.style}.</li><li><b>[ACMP] off</b>, so only the drums play and your hands stay piano.</li><li>Press <b>[START]</b> (no intro). The app follows your Tyros beat; the first bar is a count-in.</li></ul><p style="font-size:13px;color:var(--muted);margin:0">No Tyros beat coming in? Tap Start here and the app clicks the beat itself at <b>${srTempo()}</b> <button class="btn small" data-srb="-5">−</button> <button class="btn small" data-srb="5">+</button></p></article>`:''}
-  <article class="card" id="srCard"></article>
-  <article class="card"><h3>${sg.title}</h3><p style="color:var(--muted);margin:0">${sg.by?sg.by+' · ':''}${sg.src} · ${sg.ts} · simplified: ${sg.simple}</p><div id="srGrid"></div></article>`}`}
-function srPaint(){const el=document.getElementById('srCard');if(!el)return;const sg=SR_SONGS[SR.song];const R=SR.run;
+/* Song mode, simple: the chord chart and a Listen button. Listen records every key (time, note, on/off) and sends it to Claude to review. */
+const LISTEN={on:false,t0:0,last:0,ev:[],song:null};
+function listenMidi(){if(!LISTEN.on||!MIDI.ev||MIDI.ev===LISTEN.seen)return;LISTEN.seen=MIDI.ev;const now=performance.now();
+  LISTEN.ev.push((Math.round((now-LISTEN.last)/10)).toString(36)+(MIDI.ev.on?'+':'-')+MIDI.ev.n.toString(36));LISTEN.last=now;
+  const st=document.getElementById('lsStat');if(st)st.textContent=`Listening · ${Math.round((now-LISTEN.t0)/1000)} s · ${LISTEN.ev.filter(x=>x.includes('+')).length} notes`}
+MIDI.subs.add(listenMidi);
+function listenToggle(){const btn=document.getElementById('lsBtn');
+  if(!LISTEN.on){if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}Object.assign(LISTEN,{on:true,t0:performance.now(),last:performance.now(),ev:[],song:SR.song,seen:null});
+    btn.textContent='■ Stop and send to Claude';btn.classList.remove('primary');document.getElementById('lsStat').textContent='Listening… play the song.';return}
+  LISTEN.on=false;btn.textContent='● Listen';btn.classList.add('primary');const sg=SR_SONGS[LISTEN.song];const secs=Math.round((performance.now()-LISTEN.t0)/1000);
+  const notes=LISTEN.ev.filter(x=>x.includes('+')).length;if(!notes){document.getElementById('lsStat').textContent='Nothing played, nothing sent.';return}
+  const id=Date.now().toString(36);const data=LISTEN.ev.join(' ');const chunks=[];for(let i=0;i<data.length;i+=6000)chunks.push(data.slice(i,i+6000));
+  chunks.forEach((c,i)=>setTimeout(()=>sendReport(`SONG LISTEN · ${sg.title} · id ${id} · part ${i+1}/${chunks.length} · ${secs} s · ${notes} notes · format: centiseconds since last event (base36), + on / - off, MIDI note (base36) · ${c}`),i*700));
+  document.getElementById('lsStat').textContent=`Sent: ${secs} s, ${notes} notes. Tell Claude in the chat and it gets reviewed.`}
+function srHTML(){const ids=Object.keys(SR_SONGS);const sg=SR_SONGS[SR.song];
+  const picks=ids.map(id=>`<button class="btn small" data-srsong="${id}" aria-pressed="${SR.song===id}">${SR_SONGS[id].title}</button>`).join('');
+  let grid='';sg.parts.forEach(([pn,bars])=>{grid+=`<div style="font-weight:700;margin-top:10px">Part ${pn}</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">${bars.map(b=>`<div style="border:1px solid var(--rule);border-left:3px solid var(--ink);border-radius:4px;padding:12px 4px;display:flex;justify-content:center;gap:10px;font-weight:700;font-size:20px">${b.map(c=>`<span>${c}</span>`).join('')}</div>`).join('')}</div>`});
+  return `<article class="card"><div class="row" style="gap:6px">${picks}</div></article>
+  <article class="card"><h3 style="margin:0">${sg.title}</h3><p style="color:var(--muted);margin:0">${sg.by?sg.by+' · ':''}${sg.src} · ${sg.ts} · one box = one bar</p>
+   <div class="row" style="margin-top:8px;align-items:center"><button class="btn primary" id="lsBtn">● Listen</button><span id="lsStat" style="font-size:14px;color:var(--muted)">Tap Listen, play the song your way, then Stop. Claude gets everything you played.</span></div>${grid}</article>`}
+function srPaint(){const b=document.getElementById('lsBtn');if(b&&!b.onclick)b.onclick=listenToggle;if(b&&LISTEN.on){b.textContent='■ Stop and send to Claude';b.classList.remove('primary')}}
+function srPaintOld(){const el=document.getElementById('srCard');if(!el)return;const sg=SR_SONGS[SR.song];const R=SR.run;
   const E=R?R.E:srEvents(sg);const ev=E.ev;
   const grid=document.getElementById('srGrid');if(grid){let k=0;grid.innerHTML=sg.parts.map(([pn,bars])=>`<div style="font-weight:700;margin-top:8px">Part ${pn}</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">${bars.map(b=>`<div style="border:1px solid var(--rule);border-left:3px solid var(--ink);border-radius:4px;padding:8px 4px;display:flex;justify-content:center;gap:8px;font-weight:700">${b.map(c=>{const i=k++;const st=!R?'':R.hit[i]?(R.late[i]?'color:var(--gold)':'color:var(--ok)'):R.miss[i]?'color:#c0392b':i===R.i&&!R.done?'background:var(--accent);color:#fff;border-radius:4px;padding:0 4px':'';return `<span style="${st}">${c}</span>`}).join('')}</div>`).join('')}</div>`).join('')}
   if(!R){el.innerHTML=`<p>Ready. ${SR.mode==='beat'?'Press <b>[START]</b> on the Tyros, or tap Start here for the app\'s click.':'Tap Start, then play the first chord.'}</p><div class="row"><button class="btn primary" id="srGo">Start</button></div>`;
