@@ -86,7 +86,7 @@ async function connect(){if(!navigator.requestMIDIAccess){toast('This browser ha
     const hook=()=>{let n=0;acc.inputs.forEach(i=>{i.onmidimessage=onMidi;n++});MIDI.ok=n>0;paintConn();if(!MIDI.ok)toast('No keyboard found. Check the USB cable, then tap Connect again.')};
     acc.onstatechange=hook;hook();if(MIDI.ok){toast('Keyboard connected.');if(!localStorage.getItem('pb-cal'))setTimeout(calStart,600)}}catch(e){toast('Couldn\'t open MIDI. Tap Connect again.')}}
 const CAL=store.get('pb-cal',{});let calStep=0,calSeen={};
-function onMidi(e){const d0=e.data;if(d0.length<3)return;const t=d0[0]&0xf0,ch=d0[0]&0x0f;
+function onMidi(e){const d0=e.data;if(d0[0]>=0xF8){clockMsg(d0[0]);return}if(d0.length<3)return;const t=d0[0]&0xf0,ch=d0[0]&0x0f;
   if(calStep&&t===0x90&&d0[2]>0){calNote(ch,d0[1]);return}if(calStep)return;
   const d=[d0[0],d0[1]-(CAL[ch]||0),d0[2]];
   if(t===0x90&&d[2]>0){MIDI.held.add(d[1]);MIDI.ev={on:true,n:d[1]}}else if(t===0x80||t===0x90){MIDI.held.delete(d[1]);MIDI.ev={on:false,n:d[1]}}else return;
@@ -425,7 +425,8 @@ function trDone(){const L=TR.log;const first=L.filter(x=>!x.miss).length;const a
   TR.summary={first,avg,slow};const sgEl=document.getElementById('trSong');if(sgEl)sgEl.innerHTML=songHTML(TR.set);
   sendReport(`CHORD TRAINER · ${SETS[TR.set].name} · ${TR.hand==='l'?'left hand':TR.hand==='r'?'right hand':'both hands'} · ${TR.mode==='learn'?'with keys shown':'from memory'} · ${first} of ${L.length} right first time · avg ${(avg/1000).toFixed(1)} s · per chord: ${slow.map(([c,t,m])=>`${c} ${(t/1000).toFixed(1)}s${m?' (missed)':''}`).join(', ')}`);
   trPaint()}
-function trainerHTML(){if(!TR.queue.length)trBuild();
+function trainerHTML(){if(!TR.queue.length)trBuild();const view=store.get('tr-view','cards');
+  const viewRow=`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Practice:</span><button class="btn small" data-trview="cards" aria-pressed="${view==='cards'}">Chord cards</button><button class="btn small" data-trview="songs" aria-pressed="${view==='songs'}">Song rounds</button></div>`;
   const sets=Object.entries(SETS).map(([k,s])=>`<button class="btn small" data-set="${k}" aria-pressed="${TR.set===k}">${s.name}</button>`).join('');
   const hands=[['l','Left hand'],['r','Right hand'],['both','Both hands']].map(([k,t])=>`<button class="btn small" data-hand="${k}" aria-pressed="${TR.hand===k}">${t}</button>`).join('');
   const modes=[['learn','Keys shown'],['recall','From memory']].map(([k,t])=>`<button class="btn small" data-mode="${k}" aria-pressed="${TR.mode===k}">${t}</button>`).join('');
@@ -436,12 +437,12 @@ function trainerHTML(){if(!TR.queue.length)trBuild();
    <li><b>Right hand:</b> from middle C up. Fingers <b>1-3-5</b> (thumb on the name note).</li>
    <li>Every chord is the <b>same shape</b>. Only the starting key changes, so there's one shape to learn, not a new one for each chord.</li></ul>
    <p class="say">Tyros: <b>[ACMP] off</b>, <b>[LEFT] off</b>, piano voice on <b>[RIGHT 1]</b>. The app counts everything below middle C as your left hand.</p></article>
-  <div class="card" style="gap:8px"><div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Chords:</span>${sets}</div>
+  <div class="card" style="gap:8px">${viewRow}${view==='cards'?`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Chords:</span>${sets}</div>`:''}
   <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Hand:</span>${hands}</div>
   <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Mode:</span>${modes}</div></div>
-  <article class="card" id="trCard"></article>
-  <div id="trSong">${songHTML(TR.set)}</div>
-  <article class="card"><h3>Your chords so far <span style="font-weight:400;font-size:14px;color:var(--muted)">(${TR.mode==='recall'?'from memory':'keys shown'})</span></h3><div id="trStats"></div><p style="font-size:13px;color:var(--muted)">Slow or missed chords come up more often in the next round. Inversions (the same chord stacked other ways) come later, once these are automatic.</p></article>`}
+  ${view==='songs'?srHTML():`<article class="card" id="trCard"></article>
+  <div id="trSong">${songHTML(TR.set)}</div>`}
+  ${view==='songs'?'':`<article class="card"><h3>Your chords so far <span style="font-weight:400;font-size:14px;color:var(--muted)">(${TR.mode==='recall'?'from memory':'keys shown'})</span></h3><div id="trStats"></div><p style="font-size:13px;color:var(--muted)">Slow or missed chords come up more often in the next round. Inversions (the same chord stacked other ways) come later, once these are automatic.</p></article>`}`}
 function trPaint(){const el=document.getElementById('trCard');if(!el){MIDI.subs.delete(trPaint);return}
   if(TR.i>=TR.queue.length&&TR.summary){const s=TR.summary;
     el.innerHTML=`<h3>Round done: ${s.first} of 12 right first time</h3><p>Average: <b>${(s.avg/1000).toFixed(1)} seconds</b> per chord. The goal is under 2 seconds for every chord, from memory.</p>
@@ -469,6 +470,94 @@ function trMidi(){if(!document.getElementById('trCard'))return;clearTimeout(trWa
     kb.innerHTML=keyboardSVG(36,96,show?hands.flatMap(h=>voicing(name,h)):[],new Set(),MIDI.held)}}
 MIDI.subs.add(trMidi);
 
+/* ---------- Song rounds: a song's chords in order, with the Tyros drums. Level 1 = the chord on each change, both hands together.
+   Timing follows the Tyros MIDI clock (24 ticks per quarter) when it sends one; otherwise the app keeps its own beat and clicks. ---------- */
+const SR_SONGS={
+ ono:{title:'Ono Hashem',by:'Shlomo Carlebach',src:'C Book 2015, p. 54',set:'am',ts:'6/8',bpm:50,
+  style:'a slow <b>6/8 ballad</b> style from your sets',simple:'D7 → D, E7 → E',
+  parts:[['A',[['Am','Dm'],['F','G'],['Em','Am'],['Dm','Am'],['Am','Dm'],['D','G'],['Dm','E'],['Am']]],['A again',[['Am','Dm'],['F','G'],['Em','Am'],['Dm','Am'],['Am','Dm'],['D','G'],['Dm','E'],['Am']]],
+         ['B',[['Am'],['F','G'],['G'],['E','Am'],['Am','F'],['D','G'],['Dm','E'],['Am']]],['B again',[['Am'],['F','G'],['G'],['E','Am'],['Am','F'],['D','G'],['Dm','E'],['Am']]]]},
+ she:{title:'Shehechiyonu',by:'Moshe Laufer · Yaakov Shwekey',src:'C Book 2018, p. 103',set:'am',ts:'4/4',bpm:80,
+  style:'an <b>8-beat / rock</b> style (the sheet says rock, 170). Start slow',simple:'E7 → E',
+  parts:[['A',[['Am'],['Dm'],['Am'],['Dm','Am'],['Am'],['Dm'],['F','E'],['Am']]],['A again',[['Am'],['Dm'],['Am'],['Dm','Am'],['Am'],['Dm'],['F','E'],['Am']]],
+         ['B',[['Dm'],['G','Am'],['Dm'],['Dm','Am'],['F','C'],['F','C'],['Dm'],['Am','Dm','Am']]],['B again',[['Dm'],['G','Am'],['Dm'],['Dm','Am'],['F','C'],['F','C'],['Dm'],['Am','E','Am']]]]},
+ bh:{title:'Boruch Hagever',by:'',src:'C Book 2018, p. 408',set:'c',ts:'4/4',bpm:80,
+  style:'an <b>8-beat / rock</b> style (the sheet says rock, 170). Start slow',simple:'G7 → G, D7/F♯ → F',
+  parts:[['A',[['C'],['C'],['Am'],['Am'],['F'],['G'],['C'],['G']]],['A again',[['C'],['C'],['Am'],['Am'],['F'],['G'],['C'],['F','G']]],
+         ['B',[['C'],['C'],['Am'],['Am'],['F'],['F'],['G'],['G']]]]}};
+const SR={song:store.get('sr-song','ono'),mode:store.get('sr-mode','wait'),bpm:store.get('sr-bpm',{}),run:null,clock:{last:-1e9,ticks:[],ext:false}};
+function srOpen(id){const sg=SR_SONGS[id];return trGreens(sg.set).l||trGreens(sg.set).r||trGreens(sg.set).both}
+function srEvents(sg){const bar=sg.ts==='6/8'?72:96;const ev=[];let t=0;
+  sg.parts.forEach(([pn,bars],pi)=>bars.forEach((b,bi)=>{const d=sg.ts==='6/8'?(b.length===1?[72]:[36,36]):(b.length===1?[96]:b.length===2?[48,48]:[48,24,24]);
+    b.forEach((c,ci)=>{ev.push({c,t,d:d[ci],part:pi,bar:bi,ci});t+=d[ci]})}));return {ev,len:t,bar}}
+function srHands(){return TR.hand==='both'?['l','r']:[TR.hand]}
+function srChordOk(name){const c=chordInfo(name);const held=[...MIDI.held].sort((a,b)=>a-b);
+  return srHands().every(h=>{const ns=held.filter(k=>trZone(k)===h);if(ns.length<3)return false;const pcs=new Set(ns.map(k=>k%12));
+    return c.pcs.every(p=>pcs.has(p))&&[...pcs].every(p=>c.pcs.includes(p))&&ns[0]%12===c.root})}
+/* clock: external (Tyros) ticks, or our own timer at the chosen tempo */
+function clockMsg(b){const R=SR.run;if(b===0xFA){SR.clock.ext=true;SR.clock.last=performance.now();
+    if(R&&R.waitStart){R.waitStart=false;R.tick=-R.countIn;R.t0=performance.now();srPaint()}
+    else if(!R&&SR.mode==='beat'&&document.getElementById('srCard')&&MIDI.ok&&store.get('tr-view','cards')==='songs'){srStart(true)}return}
+  if(b===0xFC){if(R&&R.mode==='beat')srStop('Tyros stopped.');return}
+  if(b===0xF8){SR.clock.ext=true;SR.clock.last=performance.now();if(R&&R.mode==='beat'&&R.ext&&!R.waitStart){R.tick++;srTick()}}}
+function srTempo(){return SR.bpm[SR.song]||SR_SONGS[SR.song].bpm}
+function srStart(force){const sg=SR_SONGS[SR.song];const E=srEvents(sg);
+  const ext=force||(SR.mode==='beat'&&performance.now()-SR.clock.last<1500);
+  SR.run={mode:SR.mode,E,i:0,hit:{},late:{},miss:{},tick:-E.bar,countIn:E.bar,ext,waitStart:false,t0:performance.now(),shownAt:performance.now(),log:[],fb:''};
+  if(SR.mode==='beat'&&!ext){const big=sg.ts==='6/8'?36:24;const msPerTick=60000/(srTempo()*(sg.ts==='6/8'?3:1))/24*(sg.ts==='6/8'?1:1);
+    /* 6/8: tempo is in big beats (dotted quarters) = 36 ticks; 4/4: quarters = 24 ticks */
+    const tickMs=sg.ts==='6/8'?60000/srTempo()/36:60000/srTempo()/24;
+    SR.run.iv=setInterval(()=>{const R=SR.run;if(!R)return;R.tick++;if(R.tick%big===0)srClick(R.tick<0||((R.tick%E.bar)+E.bar)%E.bar===0);srTick()},tickMs)}
+  srPaint()}
+function srClick(acc){const a=ac();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.frequency.value=acc?1500:1000;o.connect(g);g.connect(a.destination);const t=a.currentTime;g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.001,t+.05);o.start(t);o.stop(t+.06)}
+function srStop(msg){const R=SR.run;if(!R)return;clearInterval(R.iv);if(msg)R.fb=msg;R.stopped=true;srPaint()}
+function srTick(){const R=SR.run;if(!R||R.stopped)return;const E=R.E,ev=E.ev;
+  if(R.tick>=E.len){srFinish();return}
+  while(R.i<ev.length&&R.tick>=ev[R.i].t+ev[R.i].d-6){if(!R.hit[R.i])R.miss[R.i]=true;R.i++}
+  /* a chord already held when its turn comes counts as on time (holding through a repeat) */
+  const cur=ev[R.i];if(cur&&!R.hit[R.i]&&R.tick>=cur.t-6&&srChordOk(cur.c)){R.hit[R.i]=true;R.late[R.i]=R.tick-cur.t>12}
+  if(R.tick%6===0)srPaint()}
+function srMidi(){const R=SR.run;if(!R||R.stopped||!document.getElementById('srCard'))return;const ev=R.E.ev;
+  if(R.mode==='wait'){const cur=ev[R.i];if(cur&&srChordOk(cur.c)){R.log.push({c:cur.c,t:performance.now()-R.shownAt});R.hit[R.i]=true;R.i++;R.shownAt=performance.now();
+      while(R.i<ev.length&&ev[R.i].c===ev[R.i-1].c){R.hit[R.i]=true;R.i++}if(R.i>=ev.length){srFinish();return}}srPaint();return}
+  const i=R.i;const cur=ev[i];if(cur&&!R.hit[i]&&R.tick>=cur.t-12&&srChordOk(cur.c)){R.hit[i]=true;R.late[i]=R.tick-cur.t>12}
+  else{const nx=ev[i+1];if(nx&&!R.hit[i+1]&&R.tick>=nx.t-12&&srChordOk(nx.c)){R.hit[i+1]=true;R.late[i+1]=false}}srPaint()}
+MIDI.subs.add(srMidi);
+function srFinish(){const R=SR.run;clearInterval(R.iv);R.stopped=true;R.done=true;const n=R.E.ev.length;const sg=SR_SONGS[SR.song];
+  const hits=Object.keys(R.hit).length,late=Object.values(R.late).filter(Boolean).length;
+  if(R.mode==='wait'){const avg=R.log.reduce((a,x)=>a+x.t,0)/Math.max(1,R.log.length);R.sum=`All ${n} chord changes · average ${(avg/1000).toFixed(1)} s per change`;
+    sendReport(`SONG ROUND · ${sg.title} · ${TR.hand==='l'?'left hand':TR.hand==='r'?'right hand':'both hands'} · ${TR.mode==='learn'?'keys shown':'from memory'} · wait for me · avg ${(avg/1000).toFixed(1)} s per change · slowest: ${R.log.slice().sort((a,b)=>b.t-a.t).slice(0,3).map(x=>x.c+' '+(x.t/1000).toFixed(1)+'s').join(', ')}`)}
+  else{const ontime=hits-late;R.sum=`${ontime} of ${n} on time · ${late} late · ${n-hits} missed`;
+    const missed=R.E.ev.filter((e,i)=>!R.hit[i]).map(e=>e.c);const cnt={};missed.forEach(c=>cnt[c]=(cnt[c]||0)+1);
+    sendReport(`SONG ROUND · ${sg.title} · ${TR.hand==='l'?'left hand':TR.hand==='r'?'right hand':'both hands'} · ${TR.mode==='learn'?'keys shown':'from memory'} · with the beat (${R.ext?'Tyros clock':'app click '+srTempo()}) · ${ontime}/${n} on time, ${late} late, ${n-hits} missed${missed.length?' · missed: '+Object.entries(cnt).map(([c,k])=>c+'×'+k).join(', '):''}`)}
+  srPaint()}
+function srHTML(){const ids=Object.keys(SR_SONGS);const sg=SR_SONGS[SR.song];const open=srOpen(SR.song);
+  const picks=ids.map(id=>`<button class="btn small" data-srsong="${id}" aria-pressed="${SR.song===id}">${srOpen(id)?'':'🔒 '}${SR_SONGS[id].title}</button>`).join('');
+  return `<article class="card"><div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Song:</span>${picks}</div>
+   <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Play:</span><button class="btn small" data-srmode="wait" aria-pressed="${SR.mode==='wait'}">Wait for me</button><button class="btn small" data-srmode="beat" aria-pressed="${SR.mode==='beat'}">With the beat</button></div>
+   <p style="margin:0;font-size:14px"><b>Level 1:</b> play each chord when it comes, ${TR.hand==='both'?'<b>both hands together</b>':TR.hand==='l'?'left hand':'right hand'}, and hold it until the next one. ${SR.mode==='wait'?'The song waits for you at every change. Learn the order first.':'The song keeps moving with the beat. Land each change on time.'}</p></article>
+  ${!open?`<article class="card"><h3>🔒 ${sg.title}</h3><p>Opens when the chords in <b>${SETS[sg.set].name}</b> are green from memory in at least one hand.</p></article>`:`
+  ${SR.mode==='beat'?`<article class="card"><h3>Tyros setup</h3><ul><li>Pick ${sg.style}.</li><li><b>[ACMP] off</b>, so only the drums play and your hands stay piano.</li><li>Press <b>[START]</b> (no intro). The app follows your Tyros beat; the first bar is a count-in.</li></ul><p style="font-size:13px;color:var(--muted);margin:0">No Tyros beat coming in? Tap Start here and the app clicks the beat itself at <b>${srTempo()}</b> <button class="btn small" data-srb="-5">−</button> <button class="btn small" data-srb="5">+</button></p></article>`:''}
+  <article class="card" id="srCard"></article>
+  <article class="card"><h3>${sg.title}</h3><p style="color:var(--muted);margin:0">${sg.by?sg.by+' · ':''}${sg.src} · ${sg.ts} · simplified: ${sg.simple}</p><div id="srGrid"></div></article>`}`}
+function srPaint(){const el=document.getElementById('srCard');if(!el)return;const sg=SR_SONGS[SR.song];const R=SR.run;
+  const E=R?R.E:srEvents(sg);const ev=E.ev;
+  const grid=document.getElementById('srGrid');if(grid){let k=0;grid.innerHTML=sg.parts.map(([pn,bars])=>`<div style="font-weight:700;margin-top:8px">Part ${pn}</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">${bars.map(b=>`<div style="border:1px solid var(--rule);border-left:3px solid var(--ink);border-radius:4px;padding:8px 4px;display:flex;justify-content:center;gap:8px;font-weight:700">${b.map(c=>{const i=k++;const st=!R?'':R.hit[i]?(R.late[i]?'color:var(--gold)':'color:var(--ok)'):R.miss[i]?'color:#c0392b':i===R.i&&!R.done?'background:var(--accent);color:#fff;border-radius:4px;padding:0 4px':'';return `<span style="${st}">${c}</span>`}).join('')}</div>`).join('')}</div>`).join('')}
+  if(!R){el.innerHTML=`<p>Ready. ${SR.mode==='beat'?'Press <b>[START]</b> on the Tyros, or tap Start here for the app\'s click.':'Tap Start, then play the first chord.'}</p><div class="row"><button class="btn primary" id="srGo">Start</button></div>`;
+    document.getElementById('srGo').onclick=()=>{if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}if(SR.mode==='beat'&&performance.now()-SR.clock.last<1500){SR.run=null;srStart();SR.run.waitStart=true;srPaint()}else srStart()};
+    return}
+  if(R.done){el.innerHTML=`<h3>Round done</h3><p style="font-size:18px">${R.sum}</p><p style="font-size:14px;color:var(--muted)">Green = on time, gold = late, red = missed. Sent to Claude.</p><div class="row"><button class="btn primary" id="srGo">Again</button></div>`;
+    document.getElementById('srGo').onclick=()=>{SR.run=null;srPaint()};return}
+  const cur=ev[Math.min(R.i,ev.length-1)],nx=ev[R.i+1];const show=TR.mode==='learn';
+  const marks=show&&cur?srHands().flatMap(h=>voicing(cur.c,h)):[];
+  const big=sg.ts==='6/8'?36:24;const beatsPerBar=E.bar/big;const inBar=R.mode==='beat'?Math.floor((((R.tick%E.bar)+E.bar)%E.bar)/big):-1;
+  el.innerHTML=`${R.waitStart?'<p><b>Waiting for the Tyros:</b> press [START].</p>':''}${R.mode==='beat'&&R.tick<0&&!R.waitStart?'<p><b>Count-in…</b></p>':''}
+   <div style="display:flex;align-items:baseline;justify-content:center;gap:24px"><div style="font-family:var(--f-d);font-size:64px;font-weight:700;line-height:1">${cur?cur.c:''}</div><div style="font-size:20px;color:var(--muted)">next: <b>${nx?nx.c:'end'}</b></div></div>
+   ${R.mode==='beat'?`<div style="display:flex;justify-content:center;gap:8px">${Array.from({length:beatsPerBar},(_,j)=>`<span style="width:14px;height:14px;border-radius:50%;background:${j===inBar?'var(--accent)':'var(--rule)'}"></span>`).join('')}</div>`:''}
+   <div class="kb">${keyboardSVG(36,96,marks,new Set(),MIDI.held)}</div>
+   <p class="now">${R.fb||(show?'Keys shown. Switch Mode to <b>From memory</b> when it feels easy.':'From memory.')}</p>
+   <div class="row"><button class="btn small" id="srStop">Stop</button></div>`;
+  document.getElementById('srStop').onclick=()=>{clearInterval(R.iv);SR.run=null;srPaint()}}
 /* ---------- Chord Trainer songs: unlocked per chord set when every chord is green, from memory, in all three hand modes ---------- */
 /* Bars transcribed from Bernard's books and checked by eye. Chords outside the set are swapped (noted in "simple"). 7th chords are played as plain chords. */
 const TSONGS={
@@ -606,18 +695,23 @@ let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','p1');
 const P=id=>prog[id]||(prog[id]={step:0,done:[]});const save=()=>{store.set('pb-prog',prog);store.set('pb-cur',cur)};
 function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
   if(cur==='keys'){const app=document.getElementById('app');
-    app.innerHTML=`<div class="lessons">${LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="false">Lesson ${j+1}</button>`).join('')}<button class="lchip" data-l="trainer" aria-pressed="false">Chord Trainer</button><button class="lchip" data-l="keys" aria-pressed="true">Key Drill</button></div>`+keyDrillHTML();
+    app.innerHTML=`<div class="lessons">${LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="false">Lesson ${j+1}</button>`).join('')}<button class="lchip" data-l="trainer" aria-pressed="false">Chord Trainer</button></div>`+keyDrillHTML();
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
     app.querySelectorAll('[data-kd]').forEach(b=>b.onclick=()=>{KD.key=b.dataset.kd;store.set('kd-key',KD.key);render()});
     app.querySelectorAll('[data-kdmem]').forEach(b=>b.onclick=()=>{KD.mem=b.dataset.kdmem==='1';store.set('kd-mem',KD.mem);render()});return}
   if(cur==='trainer'){const app=document.getElementById('app');
-    app.innerHTML=`<div class="lessons">${LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="false">Lesson ${j+1}</button>`).join('')}<button class="lchip" data-l="trainer" aria-pressed="true">Chord Trainer</button><button class="lchip" data-l="keys" aria-pressed="false">Key Drill</button></div>`+trainerHTML();
+    app.innerHTML=`<div class="lessons">${LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="false">Lesson ${j+1}</button>`).join('')}<button class="lchip" data-l="trainer" aria-pressed="true">Chord Trainer</button></div>`+trainerHTML();
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
     const pick=(attr,key)=>app.querySelectorAll(`[data-${attr}]`).forEach(b=>b.onclick=()=>{TR[key]=b.dataset[attr];store.set('tr-'+key,TR[key]);TR.summary=null;trBuild();render()});
-    pick('set','set');pick('hand','hand');pick('mode','mode');trPaint();return}
+    pick('set','set');pick('hand','hand');pick('mode','mode');
+    app.querySelectorAll('[data-trview]').forEach(b=>b.onclick=()=>{store.set('tr-view',b.dataset.trview);SR.run=null;render()});
+    app.querySelectorAll('[data-srsong]').forEach(b=>b.onclick=()=>{SR.song=b.dataset.srsong;store.set('sr-song',SR.song);SR.run=null;render()});
+    app.querySelectorAll('[data-srmode]').forEach(b=>b.onclick=()=>{SR.mode=b.dataset.srmode;store.set('sr-mode',SR.mode);SR.run=null;render()});
+    app.querySelectorAll('[data-srb]').forEach(b=>b.onclick=()=>{SR.bpm[SR.song]=Math.max(30,Math.min(200,srTempo()+(+b.dataset.srb)));store.set('sr-bpm',SR.bpm);render()});
+    trPaint();srPaint();return}
   const L=LESSONS.find(l=>l.id===cur)||LESSONS[0];const p=P(L.id);const i=Math.min(p.step,L.steps.length-1);const S=L.steps[i];const n=LESSONS.indexOf(L)+1;
   const app=document.getElementById('app');
-  const chips=LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="${l.id===L.id}">Lesson ${j+1}</button>`).join('')+`<button class="lchip" data-l="trainer" aria-pressed="false">Chord Trainer</button><button class="lchip" data-l="keys" aria-pressed="false">Key Drill</button>`+ROADMAP.map((r,j)=>`<button class="lchip locked" disabled>🔒 Lesson ${LESSONS.length+j+1}</button>`).join('');
+  const chips=LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="${l.id===L.id}">Lesson ${j+1}</button>`).join('')+`<button class="lchip" data-l="trainer" aria-pressed="false">Chord Trainer</button>`+ROADMAP.map((r,j)=>`<button class="lchip locked" disabled>🔒 Lesson ${LESSONS.length+j+1}</button>`).join('');
   const xs=S.x?(Array.isArray(S.x)?S.x:[S.x]):[];const locked=()=>!!L.gate&&xs.some(k=>!isPassed(k));
   let extra='';
   if(S.x)extra+=(Array.isArray(S.x)?S.x:[S.x]).map(k=>exercise(EX[k])).join('<hr style="border:none;border-top:1px solid var(--rule);margin:4px 0">');
