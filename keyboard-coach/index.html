@@ -262,6 +262,15 @@ const EX={
    seq:[S(['G3','C4']),S(['F3','D4']),S(['E3','E4']),S(['D3','F4']),S(['C3','G4']),S(['D3','F4']),S(['E3','E4']),S(['F3','D4']),S(['G3','C4'],2)]},
  para:{key:'para',lo:m('C3'),hi:m('B4'),bpm:52,marks:[L('C3',5),L('D3',4),L('E3',3),L('F3',2),L('G3',1),R('C4',1),R('D4',2),R('E4',3),R('F4',4),R('G4',5)],
    seq:[S(['C3','C4']),S(['D3','D4']),S(['E3','E4']),S(['F3','F4']),S(['G3','G4']),S(['F3','F4']),S(['E3','E4']),S(['D3','D4']),S(['C3','C4'],2)]},
+ /* Lesson 5: the left hand gets a rhythm. Only chords from Lessons 2 and 4. */
+ ...(()=>{const lm=c=>CFG[c].l.map((k,i)=>({k,f:[5,3,1][i],h:'l'})),rm=c=>CFG[c].r.map((k,i)=>({k,f:[1,3,5][i],h:'r'}));
+   const bar=(c,kind,rh)=>{const [r,m,t]=CFG[c].l;const B=kind==='steady'?[[r,m,t],[r,m,t],[r,m,t],[r,m,t]]:kind==='bass'?[[r]]:[[r],[m,t],[r],[m,t]];
+     const lab=kind==='steady'?['chord','chord','chord','chord']:kind==='bass'?['bass, hold 4 beats']:['bass','chord','bass','chord'];
+     return B.map((k,i)=>({k,beats:kind==='bass'?4:1,marks:i===0?[...lm(c),...(rh?rm(c):[])]:null,hold:i===0&&rh?{k:CFG[c].r,beats:4}:null,
+       say:`<b>${c}</b> · beat ${kind==='bass'?'1':i+1}: left hand <b>${lab[i]}</b>${i===0&&rh?' · right hand presses and holds':''}`}))};
+   const mk=(key,cs,kind,rh)=>({key,lo:36,hi:96,bpm:60,marks:[...lm(cs[0]),...(rh?rm(cs[0]):[])],seq:cs.flatMap(c=>bar(c,kind,rh))});
+   return {l5a:mk('l5a',['C','C','Am','Am'],'steady'),l5b:mk('l5b',['C','F','G','C'],'bass'),l5c:mk('l5c',['C','C'],'bc'),l5d:mk('l5d',['C','F','G','C'],'bc'),
+     l5e:mk('l5e',['Am','Dm','E','Am'],'bc'),l5f:mk('l5f',['C','F','G','C'],'bc',true)}})(),
  /* Lesson 5 (new): the chords of Ono Hashem. Em and D, then the song's changes with held chords (both hands, Chord Trainer spots). */
  chEm:chEx('chEm','Em',43,77),
  chD:chEx('chD','D',43,77),
@@ -370,13 +379,14 @@ const LESSONS_ALL=[
   {t:'Tune on top: which chord?',b:`<p>The idea you figured out on Nov 8, in action. Right hand: thumb on the A above middle C, A B C D under fingers 1-2-3-4. Left hand holds the chord for each bar.</p><p><b>Am</b>: A B C A · <b>Dm</b>: D C D · <b>E</b>: B C B · <b>Am</b>: A</p><p>The notes on beat 1 and the long notes are <b>in</b> the chord: A and C in Am, D in Dm, B in E. The others (B in bar 1, C in bars 2 and 3) are just passing. The screen tells you which is which as it plays.</p>`,x:'tuneAm',metro:true},
   {t:'How did it go?',report:true,b:`<p>Practise this lesson a few days, about 10 minutes a day. Then tick what's true and send it. If you can't tell about your wrist and fingers, leave them unticked and send a short side video of your right hand instead.</p>`}
  ]},
- {id:'p5b',gate:true,title:'The chords of Ono Hashem',goal:'Ono Hashem uses the A minor chords you know, plus two new ones: Em and D. Learn those two, then put the song\'s chords together in order, both hands, held. No patterns yet: just the right chord at the right moment.',
-  check:['I can play Em and D in each hand without the screen','D (with F♯) and Dm (with F) feel different under my fingers','Bars 1–4 flowed without stopping to think','Bars 5–8 (the D G and Dm E bars) flowed without stopping to think','I played all of Part A with the tune on top, by ear','My fingers stayed curved and my wrist level'],steps:[
-  {t:'Em',b:`<p>Same shape as always, starting on <b>E</b>: <b>E G B</b>, all white keys.</p><ul><li>Right hand: thumb on the <b>E above middle C</b>.</li><li>Left hand: pinky on the <b>second E</b> from the left end.</li></ul><p>Em is the E chord you know with <b>G instead of G♯</b>. One key apart, and the sound goes from "pulling home" to soft and sad.</p>`,x:'chEm'},
-  {t:'D: the F♯ chord',b:`<p>Start on <b>D</b>: <b>D F♯ A</b>. The middle note is the <b>black key</b> just right of F.</p><ul><li>Right hand: thumb on the <b>D just above middle C</b>.</li><li>Left hand: pinky on the <b>second D</b> from the left end.</li></ul><p>It's <b>Dm with the middle finger moved up one key</b> (F → F♯). That's the whole difference between D and Dm, and it's exactly the spot that got mixed up in your recording.</p><p style="font-size:13px;color:var(--muted)">The sheet writes D7 and E7. The 7 adds a fourth note on top; for now play the 3-note chord. It sounds right with the tune.</p>`,x:'chD'},
-  {t:'Bars 1–4',b:`<p>Both hands, held chords, two per bar (count <b>1 2 3</b>, <b>4 5 6</b>): <b>Am Dm · F G · Em Am · Dm Am</b>.</p><p>Land each chord and hold it until the next. Slow is fine; no stopping to think is the goal.</p>`,x:'onoA1',metro:true},
-  {t:'Bars 5–8: the tricky bars',b:`<p><b>Am Dm · D G · Dm E · Am</b>.</p><p>Watch the middle finger: <b>Dm</b> (F) in bar 5, then <b>D</b> (F♯, black key) in bar 6, then <b>Dm</b> (F) again in bar 7. Same hand spot each time; only the middle finger moves between F and F♯.</p>`,x:'onoA2',metro:true},
-  {t:'All of Part A, then the tune',b:`<p>All 8 bars with held chords. When they flow, play the tune by ear on top with your right hand, and let the left hand hold the chords.</p><p>Then go to Chord Trainer → Song rounds → Ono Hashem and tap <b>Listen</b> while you play it, so I can hear how it's going.</p>`,x:'onoA',metro:true},
+ {id:'p5c',gate:true,title:'The left hand gets a rhythm',goal:'So far the left hand pressed a chord and held it. Now it starts keeping time: first the whole chord on every beat, then the chord split into a low <b>bass</b> note and the rest. Same chords you know (C F G, Am Dm E), same hand spots. One new thing per step.',
+  check:['Step 1: four even chords per bar felt steady','Step 2: the pinky bass felt clear and on beat 1','Step 3: bass, chord, bass, chord felt even on one chord','Steps 4–5: I kept the pattern going through the chord changes','Step 6: my right hand held still while the left hand kept going','My fingers stayed curved and my wrist level'],steps:[
+  {t:'Steady chord',b:`<p>Left hand only. Press the whole chord on <b>every beat</b>: 1, 2, 3, 4. Let go a little between presses, but keep the hand in place.</p><p><b>C C · Am Am</b>, one bar each. Count out loud. The goal is <b>even</b>: every press the same distance apart, like the metronome.</p>`,x:'l5a',metro:true},
+  {t:'The bass note',b:`<p>The <b>bottom</b> note of the chord (your pinky, the chord's name note) is the <b>bass</b>: the low note that says which chord you're on.</p><p>Left hand, pinky only: press it on beat 1 and hold for 4 beats. <b>C F G C</b>. Keep the hand in the chord shape the whole time; the other fingers just rest on their keys.</p>`,x:'l5b',metro:true},
+  {t:'Bass, chord on one chord',b:`<p>Now split the chord: pinky alone (<b>bass</b>), then fingers 3 and 1 together (<b>chord</b>). <b>Bass, chord, bass, chord</b>, one per beat.</p><p>Just C, two bars. The hand never moves; the fingers take turns. Slow and even.</p>`,x:'l5c',metro:true},
+  {t:'Bass, chord through C F G C',b:`<p>The same pattern, moving the hand to the next chord at the start of each bar: <b>C F G C</b>.</p><p>Move the whole hand in the chord shape, land the pinky first (that's the bass), then carry on.</p>`,x:'l5d',metro:true},
+  {t:'Bass, chord in A minor',b:`<p>Same pattern on <b>Am Dm E Am</b>. Remember the G♯ in E.</p>`,x:'l5e',metro:true},
+  {t:'The right hand joins',b:`<p>Your first two-hand job, as small as possible: the <b>right hand</b> presses the chord on beat 1 and <b>holds it still</b> for the bar. The left hand plays bass, chord, bass, chord underneath. <b>C F G C</b>.</p><p>Only the left hand moves during the bar. If it falls apart, go back to step 4 a few times, then try again.</p>`,x:'l5f',metro:true},
   {t:'How did it go?',report:true,b:`<p>Practise this lesson a few days, about 10 minutes a day, next to the Pattern Trainer. Then tick what's true and send it.</p>`}
  ]},
  {id:'p5',gate:true,title:'Left-hand patterns',goal:'Up to now the left hand pressed a chord and held it. Real piano playing splits the chord up in a rhythm: the bottom note gives the bass, the other notes fill in. Your hand stays in the same chord shape the whole time; only the order of the fingers changes. Two patterns, slowly, on chords you already know.',
@@ -389,12 +399,12 @@ const LESSONS_ALL=[
   {t:'How did it go?',report:true,b:`<p>Practise this lesson a few days, about 10 minutes a day. Then tick what's true and send it.</p>`}
  ]}
 ];
-const LESSONS=LESSONS_ALL.filter(l=>l.id!=='p5'); /* Lesson 5 replaced by the Pattern Trainer (10 Nov) */
+const LESSONS=LESSONS_ALL.filter(l=>l.id!=='p5'&&l.id!=='p5b'); /* Lesson 5 replaced by the Pattern Trainer (10 Nov) */
 const ROADMAP=[
  ['Right hand: melody + one chord note','A tune you know in the right hand, with one chord note added under the melody.'],
  ['First song, both hands','A song you know, putting it all together.']
 ];
-const OPEN=['p1','p2','p3','p4','p5','p5b'];
+const OPEN=['p1','p2','p3','p4','p5','p5c'];
 if(store.get('pb-p2v',1)!==2){const pr=store.get('pb-prog',{});delete pr.p2;store.set('pb-prog',pr);store.set('pb-p2v',2)}
 
 /* ---------- Chord Trainer: flashcards that check the chord on the keyboard ---------- */
@@ -403,7 +413,6 @@ if(store.get('pb-p2v',1)!==2){const pr=store.get('pb-prog',{});delete pr.p2;stor
 const Q={'':[0,4,7],m:[0,3,7]};
 const ROOTS={C:0,'C♯':1,D:2,'E♭':3,E:4,F:5,'F♯':6,G:7,'A♭':8,A:9,'B♭':10,B:11};
 const SETS={
- ono:{name:'Ono Hashem chords',chords:['Am','Dm','F','G','Em','D','E']},
  am:{name:'A minor songs',chords:['Am','Dm','E','C','F','G']},
  gm:{name:'G minor songs',chords:['Gm','Cm','D','B♭','E♭','F']},
  dm:{name:'D minor songs',chords:['Dm','Gm','A','F','B♭','C']},
@@ -491,7 +500,7 @@ MIDI.subs.add(trMidi);
 /* ---------- Song rounds: a song's chords in order, with the Tyros drums. Level 1 = the chord on each change, both hands together.
    Timing follows the Tyros MIDI clock (24 ticks per quarter) when it sends one; otherwise the app keeps its own beat and clicks. ---------- */
 const SR_SONGS={
- ono:{title:'Ono Hashem',by:'Shlomo Carlebach',src:'C Book 2015, p. 54',set:'am',ts:'6/8',bpm:50,
+  _ono:{hidden:true,title:'Ono Hashem',by:'Shlomo Carlebach',src:'C Book 2015, p. 54',set:'am',ts:'6/8',bpm:50,
   style:'a slow <b>6/8 ballad</b> style from your sets',simple:'D7 → D, E7 → E',
   parts:[['A',[['Am','Dm'],['F','G'],['Em','Am'],['Dm','Am'],['Am','Dm'],['D','G'],['Dm','E'],['Am']]],['A again',[['Am','Dm'],['F','G'],['Em','Am'],['Dm','Am'],['Am','Dm'],['D','G'],['Dm','E'],['Am']]],
          ['B',[['Am'],['F','G'],['G'],['E','Am'],['Am','F'],['D','G'],['Dm','E'],['Am']]],['B again',[['Am'],['F','G'],['G'],['E','Am'],['Am','F'],['D','G'],['Dm','E'],['Am']]]]},
@@ -563,7 +572,7 @@ function listenToggle(){const btn=document.getElementById('lsBtn');
   const id=Date.now().toString(36);const data=LISTEN.ev.join(' ');const chunks=[];for(let i=0;i<data.length;i+=6000)chunks.push(data.slice(i,i+6000));
   chunks.forEach((c,i)=>setTimeout(()=>sendReport(`SONG LISTEN · ${sg.title} · id ${id} · part ${i+1}/${chunks.length} · ${secs} s · ${notes} notes · format: centiseconds since last event (base36), + on / - off, MIDI note (base36) · ${c}`),i*700));
   document.getElementById('lsStat').textContent=`Sent: ${secs} s, ${notes} notes. Tell Claude in the chat and it gets reviewed.`}
-function srHTML(){const ids=Object.keys(SR_SONGS);const sg=SR_SONGS[SR.song];
+function srHTML(){const ids=Object.keys(SR_SONGS).filter(id=>!SR_SONGS[id].hidden);if(!SR_SONGS[SR.song]||SR_SONGS[SR.song].hidden)SR.song=ids[0];const sg=SR_SONGS[SR.song];
   const picks=ids.map(id=>`<button class="btn small" data-srsong="${id}" aria-pressed="${SR.song===id}">${SR_SONGS[id].title}</button>`).join('');
   let grid='';sg.parts.forEach(([pn,bars])=>{grid+=`<div style="font-weight:700;margin-top:10px">Part ${pn}</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">${bars.map(b=>`<div style="border:1px solid var(--rule);border-left:3px solid var(--ink);border-radius:4px;padding:12px 4px;display:flex;justify-content:center;gap:10px;font-weight:700;font-size:20px">${b.map(c=>`<span>${c}</span>`).join('')}</div>`).join('')}</div>`});
   return `<article class="card"><div class="row" style="gap:6px">${picks}</div></article>
@@ -727,12 +736,12 @@ const PT_LEVELS=[
   bar:c=>{const L=CFG[c].l;return [L,L,L,L].map((k,i)=>({k,lab:'chord'}))}},
  {id:'bc',name:'2 · Bass, chord',ts:'4/4',desc:'Pinky alone (the <b>bass</b>), then fingers 3 and 1 together (the <b>chord</b>). <b>Bass, chord, bass, chord.</b> The hand never moves; the fingers take turns.',
   bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[m,t],[r],[m,t]].map((k,i)=>({k,lab:i%2?'chord':'bass'}))}},
- {id:'b3',name:'3 · Broken chord in 3s (6/8)',ts:'6/8',desc:'One note at a time: <b>bottom, top, middle</b>, fingers <b>5, 1, 3</b>. Twice per chord, like one bar of Ono Hashem.',
+ {id:'b3',name:'3 · Broken chord in 3s (6/8)',ts:'6/8',desc:'One note at a time: <b>bottom, top, middle</b>, fingers <b>5, 1, 3</b>. Twice per chord. This one is for slow songs in 6/8.',
   bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[m],[r],[t],[m]].map((k,i)=>({k,lab:['bottom','top','middle'][i%3]}))}},
  {id:'b4',name:'4 · Broken chord in 4s',ts:'4/4',desc:'<b>Bottom, top, middle, top</b>, fingers <b>5, 1, 3, 1</b>. Flowing, for slow songs in 4.',
   bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[m],[t]].map((k,i)=>({k,lab:['bottom','top','middle','top'][i]}))}}];
-const PT_PAIRS=[['Am'],['Am','Dm'],['F','G'],['Em','Am'],['Dm','Am'],['D','G'],['Dm','E'],['E','Am']];
-const ptTaught=c=>!['Em','D'].includes(c)||['chEm','chD'].every(isPassed);
+const PT_PAIRS=[['C'],['Am'],['C','F'],['F','G'],['G','C'],['Am','Dm'],['Dm','E'],['E','Am']];
+const ptTaught=c=>true;
 const ptPairs=()=>PT_PAIRS.filter(pr=>pr.every(ptTaught));
 const PT={lv:store.get('pt-lv','block'),mem:store.get('pt-mem',false),stats:store.get('pt-stats',{}),queue:[],qi:0,res:[]};
 const ptKey=(lv,pr)=>lv+'|'+pr.join('-');
@@ -763,7 +772,7 @@ function ptHTML(){const levels=PT_LEVELS.map(L=>`<button class="btn small" data-
    <div class="row" style="gap:6px"><button class="btn small" data-ptmem="0" aria-pressed="${!PT.mem}">Keys shown</button><button class="btn small" data-ptmem="1" aria-pressed="${PT.mem}">From memory</button></div>
    <p style="margin:0">${L.desc}</p>
    <div class="row" style="gap:6px;font-size:14px">${ptPairs().map(pr=>`<span style="padding:2px 8px;border-radius:12px;background:${ptGreen(PT.lv,pr)?'var(--ok)':'var(--rule)'};color:${ptGreen(PT.lv,pr)?'#fff':'inherit'}">${pr.join(' → ')}</span>`).join('')}</div>
-   <p style="font-size:13px;color:var(--muted);margin:0">The next level opens when every chip is green. Only chords your lessons have taught. Em and D join once you pass them in Lesson 5.</p></div>
+   <p style="font-size:13px;color:var(--muted);margin:0">The next level opens when every chip is green. Only chords your lessons have taught: C F G (Lesson 2) and Am Dm E (Lesson 4).</p></div>
   <article class="card" id="ptCard"></article>`}
 function ptPaint(msg){const el=document.getElementById('ptCard');if(!el)return;
   if(PT.done){const ok=PT.res.filter(x=>x.ok).length;el.innerHTML=`<h3>Round done</h3><p>${ok} of ${PT.res.length} clean and even. Sent to Claude.</p><div class="row"><button class="btn primary" id="ptAgain">Next round</button></div>`;
