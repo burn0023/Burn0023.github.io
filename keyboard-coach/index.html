@@ -262,6 +262,12 @@ const EX={
    seq:[S(['G3','C4']),S(['F3','D4']),S(['E3','E4']),S(['D3','F4']),S(['C3','G4']),S(['D3','F4']),S(['E3','E4']),S(['F3','D4']),S(['G3','C4'],2)]},
  para:{key:'para',lo:m('C3'),hi:m('B4'),bpm:52,marks:[L('C3',5),L('D3',4),L('E3',3),L('F3',2),L('G3',1),R('C4',1),R('D4',2),R('E4',3),R('F4',4),R('G4',5)],
    seq:[S(['C3','C4']),S(['D3','D4']),S(['E3','E4']),S(['F3','F4']),S(['G3','G4']),S(['F3','F4']),S(['E3','E4']),S(['D3','D4']),S(['C3','C4'],2)]},
+ /* Lesson 5 (new): the chords of Ono Hashem. Em and D, then the song's changes with held chords (both hands, Chord Trainer spots). */
+ chEm:chEx('chEm','Em',43,77),
+ chD:chEx('chD','D',43,77),
+ ...(()=>{const mk=(key,bars)=>({key,lo:36,hi:96,bpm:60,marks:cfgStep(bars[0][0]).marks,seq:bars.flatMap((b,bi)=>b.map((c,hi)=>({...cfgStep(c,`Bar ${bi+1} · <b>${c}</b> · count ${b.length>1?(hi?'4 5 6':'1 2 3'):'1 2 3 4 5 6'}`),beats:b.length>1?1.5:3})))});
+   return {onoA1:mk('onoA1',[['Am','Dm'],['F','G'],['Em','Am'],['Dm','Am']]),onoA2:mk('onoA2',[['Am','Dm'],['D','G'],['Dm','E'],['Am']]),
+     onoA:mk('onoA',[['Am','Dm'],['F','G'],['Em','Am'],['Dm','Am'],['Am','Dm'],['D','G'],['Dm','E'],['Am']])}})(),
  /* Lesson 5: left-hand patterns. LH chord shape stays put (pinky = name note, 3 = middle, 1 = top); the hand plays its notes in a rhythm. */
  ...(()=>{const lm=c=>CFG[c].l.map((k,i)=>({k,f:[5,3,1][i],h:'l'})),rm=c=>CFG[c].r.map((k,i)=>({k,f:[1,3,5][i],h:'r'}));
    const bar=(c,pat,rh)=>{const [r,m,t]=CFG[c].l;const beats=pat==='A'?[[r],[m,t],[r],[m,t]]:[[r],[t],[m],[t]];
@@ -364,6 +370,15 @@ const LESSONS_ALL=[
   {t:'Tune on top: which chord?',b:`<p>The idea you figured out on Nov 8, in action. Right hand: thumb on the A above middle C, A B C D under fingers 1-2-3-4. Left hand holds the chord for each bar.</p><p><b>Am</b>: A B C A · <b>Dm</b>: D C D · <b>E</b>: B C B · <b>Am</b>: A</p><p>The notes on beat 1 and the long notes are <b>in</b> the chord: A and C in Am, D in Dm, B in E. The others (B in bar 1, C in bars 2 and 3) are just passing. The screen tells you which is which as it plays.</p>`,x:'tuneAm',metro:true},
   {t:'How did it go?',report:true,b:`<p>Practise this lesson a few days, about 10 minutes a day. Then tick what's true and send it. If you can't tell about your wrist and fingers, leave them unticked and send a short side video of your right hand instead.</p>`}
  ]},
+ {id:'p5b',gate:true,title:'The chords of Ono Hashem',goal:'Ono Hashem uses the A minor chords you know, plus two new ones: Em and D. Learn those two, then put the song\'s chords together in order, both hands, held. No patterns yet: just the right chord at the right moment.',
+  check:['I can play Em and D in each hand without the screen','D (with F♯) and Dm (with F) feel different under my fingers','Bars 1–4 flowed without stopping to think','Bars 5–8 (the D G and Dm E bars) flowed without stopping to think','I played all of Part A with the tune on top, by ear','My fingers stayed curved and my wrist level'],steps:[
+  {t:'Em',b:`<p>Same shape as always, starting on <b>E</b>: <b>E G B</b>, all white keys.</p><ul><li>Right hand: thumb on the <b>E above middle C</b>.</li><li>Left hand: pinky on the <b>second E</b> from the left end.</li></ul><p>Em is the E chord you know with <b>G instead of G♯</b>. One key apart, and the sound goes from "pulling home" to soft and sad.</p>`,x:'chEm'},
+  {t:'D: the F♯ chord',b:`<p>Start on <b>D</b>: <b>D F♯ A</b>. The middle note is the <b>black key</b> just right of F.</p><ul><li>Right hand: thumb on the <b>D just above middle C</b>.</li><li>Left hand: pinky on the <b>second D</b> from the left end.</li></ul><p>It's <b>Dm with the middle finger moved up one key</b> (F → F♯). That's the whole difference between D and Dm, and it's exactly the spot that got mixed up in your recording.</p><p style="font-size:13px;color:var(--muted)">The sheet writes D7 and E7. The 7 adds a fourth note on top; for now play the 3-note chord. It sounds right with the tune.</p>`,x:'chD'},
+  {t:'Bars 1–4',b:`<p>Both hands, held chords, two per bar (count <b>1 2 3</b>, <b>4 5 6</b>): <b>Am Dm · F G · Em Am · Dm Am</b>.</p><p>Land each chord and hold it until the next. Slow is fine; no stopping to think is the goal.</p>`,x:'onoA1',metro:true},
+  {t:'Bars 5–8: the tricky bars',b:`<p><b>Am Dm · D G · Dm E · Am</b>.</p><p>Watch the middle finger: <b>Dm</b> (F) in bar 5, then <b>D</b> (F♯, black key) in bar 6, then <b>Dm</b> (F) again in bar 7. Same hand spot each time; only the middle finger moves between F and F♯.</p>`,x:'onoA2',metro:true},
+  {t:'All of Part A, then the tune',b:`<p>All 8 bars with held chords. When they flow, play the tune by ear on top with your right hand, and let the left hand hold the chords.</p><p>Then go to Chord Trainer → Song rounds → Ono Hashem and tap <b>Listen</b> while you play it, so I can hear how it's going.</p>`,x:'onoA',metro:true},
+  {t:'How did it go?',report:true,b:`<p>Practise this lesson a few days, about 10 minutes a day, next to the Pattern Trainer. Then tick what's true and send it.</p>`}
+ ]},
  {id:'p5',gate:true,title:'Left-hand patterns',goal:'Up to now the left hand pressed a chord and held it. Real piano playing splits the chord up in a rhythm: the bottom note gives the bass, the other notes fill in. Your hand stays in the same chord shape the whole time; only the order of the fingers changes. Two patterns, slowly, on chords you already know.',
   check:['Pattern 1 (bass, chord) felt steady with the metronome','Pattern 2 (bottom, top, middle, top) felt steady with the metronome','My left hand stayed in the chord shape and just moved to the next chord','I could hold the right-hand chord while the left hand kept going','The tune with the broken chords sounded like music, not just chords','My fingers stayed curved and my wrist level'],steps:[
   {t:'Why split the chord?',b:`<p>A held chord sounds flat because all three notes start and stop together. Split them up and the left hand does two jobs at once:</p><ul><li>The <b>bottom note</b> (your pinky, the chord's name note) is the <b>bass</b>. It's the low "boom" that says which chord you're on.</li><li>The <b>other two notes</b> (fingers 3 and 1) <b>fill in</b> the harmony and keep the rhythm moving.</li></ul><p>Nothing new to find on the keyboard: put your hand on the chord exactly as before. Only the order changes.</p><p><b>Pattern 1, bass and chord:</b> beat 1 pinky alone · beat 2 fingers 3 and 1 together · beat 3 pinky · beat 4 fingers 3 and 1. Left hand only, Am Dm E Am.</p>`,x:'pA1',metro:true},
@@ -379,7 +394,7 @@ const ROADMAP=[
  ['Right hand: melody + one chord note','A tune you know in the right hand, with one chord note added under the melody.'],
  ['First song, both hands','A song you know, putting it all together.']
 ];
-const OPEN=['p1','p2','p3','p4','p5'];
+const OPEN=['p1','p2','p3','p4','p5','p5b'];
 if(store.get('pb-p2v',1)!==2){const pr=store.get('pb-prog',{});delete pr.p2;store.set('pb-prog',pr);store.set('pb-p2v',2)}
 
 /* ---------- Chord Trainer: flashcards that check the chord on the keyboard ---------- */
@@ -717,13 +732,15 @@ const PT_LEVELS=[
  {id:'b4',name:'4 · Broken chord in 4s',ts:'4/4',desc:'<b>Bottom, top, middle, top</b>, fingers <b>5, 1, 3, 1</b>. Flowing, for slow songs in 4.',
   bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[m],[t]].map((k,i)=>({k,lab:['bottom','top','middle','top'][i]}))}}];
 const PT_PAIRS=[['Am'],['Am','Dm'],['F','G'],['Em','Am'],['Dm','Am'],['D','G'],['Dm','E'],['E','Am']];
+const ptTaught=c=>!['Em','D'].includes(c)||['chEm','chD'].every(isPassed);
+const ptPairs=()=>PT_PAIRS.filter(pr=>pr.every(ptTaught));
 const PT={lv:store.get('pt-lv','block'),mem:store.get('pt-mem',false),stats:store.get('pt-stats',{}),queue:[],qi:0,res:[]};
 const ptKey=(lv,pr)=>lv+'|'+pr.join('-');
 const ptGreen=(lv,pr)=>!!(PT.stats[ptKey(lv,pr)]||{}).green;
-const ptOpen=lv=>{const i=PT_LEVELS.findIndex(x=>x.id===lv);return i===0||PT_PAIRS.every(pr=>ptGreen(PT_LEVELS[i-1].id,pr))};
-function ptBuild(){const notG=PT_PAIRS.filter(pr=>!ptGreen(PT.lv,pr)),G=PT_PAIRS.filter(pr=>ptGreen(PT.lv,pr));
+const ptOpen=lv=>{const i=PT_LEVELS.findIndex(x=>x.id===lv);return i===0||ptPairs().every(pr=>ptGreen(PT_LEVELS[i-1].id,pr))};
+function ptBuild(){const notG=ptPairs().filter(pr=>!ptGreen(PT.lv,pr)),G=ptPairs().filter(pr=>ptGreen(PT.lv,pr));
   /* start simple: the single chord first while it isn't green, then the weakest pairs */
-  PT.queue=[...notG.slice(0,5),...G.sort(()=>Math.random()-.5).slice(0,Math.max(0,5-notG.length))].slice(0,5);if(!PT.queue.length)PT.queue=PT_PAIRS.slice(0,5);PT.qi=0;PT.res=[]}
+  PT.queue=[...notG.slice(0,5),...G.sort(()=>Math.random()-.5).slice(0,Math.max(0,5-notG.length))].slice(0,5);if(!PT.queue.length)PT.queue=ptPairs().slice(0,5);PT.qi=0;PT.res=[]}
 function ptExercise(pr){const L=PT_LEVELS.find(x=>x.id===PT.lv);const lm=c=>CFG[c].l.map((k,i)=>({k,f:[5,3,1][i],h:'l'}));
   const reps=pr.length===1?2:1;const chords=[];for(let r=0;r<reps;r++)pr.forEach(c=>chords.push(c));if(pr.length>1)pr.forEach(c=>chords.push(c));
   const seq=[];chords.forEach(c=>L.bar(c).forEach((x,i)=>seq.push({k:x.k,beats:L.ts==='6/8'?.5:1,marks:i===0?lm(c):null,say:`<b>${c}</b> · ${x.lab}`})));
@@ -736,8 +753,8 @@ function ptDone(pr,r){const {cv,avg}=ptEven(r.times);const even=cv<.3;const ok=r
   const msg=r.miss?`${r.miss} wrong note${r.miss>1?'s':''}. Again, slower.`:!even?`Right notes, but uneven: some notes waited longer than others (${Math.round(cv*100)}% wobble). Go slower and keep it steady.`:`<b style="color:var(--ok)">✓ Clean and even.</b> ${pr.join(' → ')} is green.`;
   setTimeout(()=>{if(ok||PT.res.filter(x=>x.pr===pr).length>=3){PT.qi++;if(PT.qi>=PT.queue.length)ptFinish();else ptPaint()}else ptPaint(msg)},ok?900:2200);
   return msg}
-function ptFinish(){const L=PT_LEVELS.find(x=>x.id===PT.lv);const g=PT_PAIRS.filter(pr=>ptGreen(PT.lv,pr)).length;
-  sendReport(`PATTERN TRAINER · ${L.name} · ${PT.mem?'from memory':'keys shown'} · ${PT.res.map(x=>`${x.pr.join('-')}: ${x.miss?x.miss+' wrong':'ok'}, wobble ${Math.round(x.cv*100)}%, ${(x.avg/1000).toFixed(2)} s/note`).join(' · ')} · level green ${g}/${PT_PAIRS.length}`);
+function ptFinish(){const L=PT_LEVELS.find(x=>x.id===PT.lv);const g=ptPairs().filter(pr=>ptGreen(PT.lv,pr)).length;
+  sendReport(`PATTERN TRAINER · ${L.name} · ${PT.mem?'from memory':'keys shown'} · ${PT.res.map(x=>`${x.pr.join('-')}: ${x.miss?x.miss+' wrong':'ok'}, wobble ${Math.round(x.cv*100)}%, ${(x.avg/1000).toFixed(2)} s/note`).join(' · ')} · level green ${g}/${ptPairs().length}`);
   PT.done=true;ptPaint()}
 function ptHTML(){const levels=PT_LEVELS.map(L=>`<button class="btn small" data-ptlv="${L.id}" aria-pressed="${PT.lv===L.id}" ${ptOpen(L.id)?'':'disabled'}>${ptOpen(L.id)?'':'🔒 '}${L.name}</button>`).join('');
   const L=PT_LEVELS.find(x=>x.id===PT.lv);
@@ -745,8 +762,8 @@ function ptHTML(){const levels=PT_LEVELS.map(L=>`<button class="btn small" data-
   <div class="card" style="gap:8px"><div class="row" style="gap:6px">${levels}</div>
    <div class="row" style="gap:6px"><button class="btn small" data-ptmem="0" aria-pressed="${!PT.mem}">Keys shown</button><button class="btn small" data-ptmem="1" aria-pressed="${PT.mem}">From memory</button></div>
    <p style="margin:0">${L.desc}</p>
-   <div class="row" style="gap:6px;font-size:14px">${PT_PAIRS.map(pr=>`<span style="padding:2px 8px;border-radius:12px;background:${ptGreen(PT.lv,pr)?'var(--ok)':'var(--rule)'};color:${ptGreen(PT.lv,pr)?'#fff':'inherit'}">${pr.join(' → ')}</span>`).join('')}</div>
-   <p style="font-size:13px;color:var(--muted);margin:0">The next level opens when every chip is green. Chords from Ono Hashem and your A minor songs.</p></div>
+   <div class="row" style="gap:6px;font-size:14px">${ptPairs().map(pr=>`<span style="padding:2px 8px;border-radius:12px;background:${ptGreen(PT.lv,pr)?'var(--ok)':'var(--rule)'};color:${ptGreen(PT.lv,pr)?'#fff':'inherit'}">${pr.join(' → ')}</span>`).join('')}</div>
+   <p style="font-size:13px;color:var(--muted);margin:0">The next level opens when every chip is green. Only chords your lessons have taught. Em and D join once you pass them in Lesson 5.</p></div>
   <article class="card" id="ptCard"></article>`}
 function ptPaint(msg){const el=document.getElementById('ptCard');if(!el)return;
   if(PT.done){const ok=PT.res.filter(x=>x.ok).length;el.innerHTML=`<h3>Round done</h3><p>${ok} of ${PT.res.length} clean and even. Sent to Claude.</p><div class="row"><button class="btn primary" id="ptAgain">Next round</button></div>`;
