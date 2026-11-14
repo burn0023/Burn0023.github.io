@@ -84,7 +84,7 @@ function paintConn(){document.getElementById('dot').classList.toggle('on',MIDI.o
 async function connect(){if(!navigator.requestMIDIAccess){toast('This browser has no MIDI. Open the page in the Web MIDI Browser app.');return}
   try{const acc=await navigator.requestMIDIAccess();MIDI.acc=acc;
     const hook=()=>{let n=0;acc.inputs.forEach(i=>{i.onmidimessage=onMidi;n++});MIDI.ok=n>0;paintConn();if(!MIDI.ok)toast('No keyboard found. Check the USB cable, then tap Connect again.')};
-    acc.onstatechange=hook;hook();if(MIDI.ok){toast('Keyboard connected.');if(cur==='pt'||cur==='th')render();if(!localStorage.getItem('pb-cal'))setTimeout(calStart,600)}}catch(e){toast('Couldn\'t open MIDI. Tap Connect again.')}}
+    acc.onstatechange=hook;hook();if(MIDI.ok){toast('Keyboard connected.');if(['pt','th','sc','ear'].includes(cur))render();if(!localStorage.getItem('pb-cal'))setTimeout(calStart,600)}}catch(e){toast('Couldn\'t open MIDI. Tap Connect again.')}}
 const CAL=store.get('pb-cal',{});let calStep=0,calSeen={};
 function onMidi(e){const d0=e.data;if(d0[0]>=0xF8){clockMsg(d0[0]);return}if(d0.length<3)return;const t=d0[0]&0xf0,ch=d0[0]&0x0f;
   if(calStep&&t===0x90&&d0[2]>0){calNote(ch,d0[1]);return}if(calStep)return;
@@ -747,7 +747,7 @@ const DRILLS={
     bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[m],[r],[t],[m]].map((k,i)=>({k,lab:['bottom','top','middle'][i%3]}))}},
    {id:'b4',why:'The same idea in 4 beats: bottom, top, middle, top fills every beat so the sound never stops, which is what makes slow songs in 4 feel connected. The top note repeats on beats 2 and 4, giving the hand a rocking motion that becomes automatic.',name:'4 · Broken chord in 4s',ts:'4/4',desc:'<b>Bottom, top, middle, top</b>, fingers <b>5, 1, 3, 1</b>. Flowing, for slow songs in 4.',
     bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[m],[t]].map((k,i)=>({k,lab:['bottom','top','middle','top'][i]}))}}]},
- th:{title:'Two-Hand Trainer',tab:'Two-Hand Trainer',store:'th',needs:{drill:'pt',level:'bc'},needsMsg:'Opens when Pattern Trainer level 2 (Bass, chord) is all green.',
+ th:{title:'Two-Hand Trainer',tab:'Two-Hand Trainer',store:'th',needs:{drill:'pt',level:'bc'},needsMsg:'Pattern Trainer level 2 (Bass, chord) is all green',
   intro:'Both hands, one small job each. Make one hand automatic, then the other hand gets your attention. Same chords and checking as the Pattern Trainer.',
   levels:[
    {id:'tog',why:'Before the hands do different things, they have to start together. Landing both hands at the same instant trains your brain to treat them as one unit and shows you any hand that lags. Almost every song starts its chords with both hands landing together.',name:'1 · Together',ts:'4/4',desc:'Both hands press the chord <b>at the same moment</b>, on every beat. Land them together, like one hand.',
@@ -758,16 +758,37 @@ const DRILLS={
     bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[m,t],[r],[m,t]].map((k,i)=>({k:i===0?[...k,...CFG[c].r]:k,hold:i===0?{k:CFG[c].r,beats:4}:null,lab:i===0?'bass + right chord (hold)':i%2?'left chord':'bass'}))}},
    {id:'sw',why:'Switching which hand moves stops one hand from becoming the only one that can keep rhythm. Many styles (and the tune later) need the right hand to move while the left holds a bass. Training both directions is what real independence is.',name:'4 · Swap: left holds, right moves',ts:'4/4',desc:'Now the other way: left pinky plays the <b>bass</b> on beat 1 and holds. Right hand plays the chord on <b>2, 3 and 4</b>.',
     bar:c=>{const [r]=CFG[c].l;const R=CFG[c].r;return [{k:[r],hold:{k:[r],beats:4},lab:'bass (hold)'},{k:R,lab:'right chord'},{k:R,lab:'right chord'},{k:R,lab:'right chord'}]}}]}};
+/* Scale Trainer: levels are keys, cards are right hand / left hand / both. Fingering per standard scale fingering. */
+const SCALES={
+ C:{name:'C major',r:[[60,1],[62,2],[64,3],[65,1],[67,2],[69,3],[71,4],[72,5]],l:[[48,5],[50,4],[52,3],[53,2],[55,1],[57,3],[59,2],[60,1]],tip:'All white keys. Right thumb on C and F.'},
+ G:{name:'G major',r:[[67,1],[69,2],[71,3],[72,1],[74,2],[76,3],[78,4],[79,5]],l:[[43,5],[45,4],[47,3],[48,2],[50,1],[52,3],[54,2],[55,1]],tip:'One black key: <b>F♯</b>. Same fingering as C.'},
+ F:{name:'F major',r:[[65,1],[67,2],[69,3],[70,4],[72,1],[74,2],[76,3],[77,4]],l:[[41,5],[43,4],[45,3],[46,2],[48,1],[50,3],[52,2],[53,1]],tip:'One black key: <b>B♭</b>. Right hand is different: <b>1 2 3 4</b>, thumb under to C, <b>1 2 3 4</b>. (The thumb never lands on the black key.)'},
+ Am:{name:'A minor',r:[[69,1],[71,2],[72,3],[74,1],[76,2],[77,3],[80,4],[81,5]],l:[[45,5],[47,4],[48,3],[50,2],[52,1],[53,3],[56,2],[57,1]],tip:'The niggun version (harmonic minor): G is raised to <b>G♯</b>, the note that pulls home to A.'},
+ Dm:{name:'D minor',r:[[62,1],[64,2],[65,3],[67,1],[69,2],[70,3],[73,4],[74,5]],l:[[50,5],[52,4],[53,3],[55,2],[57,1],[58,3],[61,2],[62,1]],tip:'Harmonic minor: <b>B♭</b> from the key, and C raised to <b>C♯</b> to pull home to D.'}};
+DRILLS.sc={title:'Scale Trainer',tab:'Scale Trainer',store:'sc',intro:'Scales as quick repeated cards: up and back down, then hands together. Same checking: right notes, even notes. Pick any key.',
+ cards:[['Right hand'],['Left hand'],['Both hands']],
+ cardHint:(lv,pr)=>`${SCALES[lv].name}, up and back down.`,
+ levels:Object.entries(SCALES).map(([k,S])=>({id:k,name:S.name,ts:'4/4',desc:S.tip,
+   why:k==='C'?'Scales are the shapes melodies are made of. Running them makes the thumb-under and cross-over automatic, so when a tune needs more than five notes your hand already knows how to get there. Hands together trains both hands to move at once, the same skill the Two-Hand Trainer builds with chords.':
+     k==='F'?'In F the right hand uses 1 2 3 4 (not 1 2 3) before the thumb goes under. That keeps the thumb off the black key B♭; thumbs on black keys pull the hand out of shape.':
+     k==='Am'||k==='Dm'?'Most of your songs are in minor keys, and their tunes use the raised note (G♯ in A minor, C♯ in D minor). Practising the scale with it puts that sound and that finger move into your hands before you meet it in a song.':
+     'Every major scale uses the same step pattern; only the starting note and the black keys change. Same fingering as C, so the new thing is just the black key.'})),
+ make:(lv,pr)=>{const S=SCALES[lv];const R=S.r,L=S.l;const up=i=>i,seqIdx=[0,1,2,3,4,5,6,7,6,5,4,3,2,1,0];const h=pr[0];
+   const marks=[...(h!=='Left hand'?R.map(([k,f])=>({k,f,h:'r'})):[]),...(h!=='Right hand'?L.map(([k,f])=>({k,f,h:'l'})):[])];
+   const seq=seqIdx.map(i=>({k:h==='Right hand'?[R[i][0]]:h==='Left hand'?[L[i][0]]:[R[i][0],L[i][0]],beats:1}));
+   return {marks,seq}}};
 const DS={};Object.entries(DRILLS).forEach(([id,D])=>{DS[id]={lv:store.get(D.store+'-lv',D.levels[0].id),mem:store.get(D.store+'-mem',false),stats:store.get(D.store+'-stats',{}),queue:[],qi:0,res:[],done:false}});
 const PT=DS.pt; /* kept for older code paths */
 const dKey=(lv,pr)=>lv+'|'+pr.join('-');
 const dGreen=(id,lv,pr)=>!!(DS[id].stats[dKey(lv,pr)]||{}).green;
-const dLevelGreen=(id,lv)=>DRILL_PAIRS.every(pr=>dGreen(id,lv,pr));
-const dOpenDrill=id=>{const n=DRILLS[id].needs;return !n||dLevelGreen(n.drill,n.level)};
-const dOpen=(id,lv)=>{const L=DRILLS[id].levels;const i=L.findIndex(x=>x.id===lv);return dOpenDrill(id)&&(i===0||dLevelGreen(id,L[i-1].id))};
-function dBuild(id){const S=DS[id];const notG=DRILL_PAIRS.filter(pr=>!dGreen(id,S.lv,pr)),G=DRILL_PAIRS.filter(pr=>dGreen(id,S.lv,pr));
+const dCards=id=>DRILLS[id].cards||DRILL_PAIRS;
+const dLevelGreen=(id,lv)=>dCards(id).every(pr=>dGreen(id,lv,pr));
+const dOpenDrill=id=>true;const dReady=id=>{const n=DRILLS[id].needs;return !n||dLevelGreen(n.drill,n.level)};
+const dOpen=(id,lv)=>true;const dSuggested=id=>{const L=DRILLS[id].levels.find(x=>!dLevelGreen(id,x.id));return L?L.id:null};
+function dBuild(id){const S=DS[id];const notG=dCards(id).filter(pr=>!dGreen(id,S.lv,pr)),G=dCards(id).filter(pr=>dGreen(id,S.lv,pr));
   S.queue=[...notG.slice(0,5),...G.sort(()=>Math.random()-.5).slice(0,Math.max(0,5-notG.length))].slice(0,5);S.qi=0;S.res=[];S.done=false}
 function dExercise(id,pr){const S=DS[id];const L=DRILLS[id].levels.find(x=>x.id===S.lv);
+  if(DRILLS[id].make){const m=DRILLS[id].make(S.lv,pr);return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,...m,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r)})}
   const chords=pr.length===1?[pr[0],pr[0]]:[...pr,...pr];const seq=[];
   chords.forEach(c=>L.bar(c).forEach((x,i)=>seq.push({k:x.k,hold:x.hold||null,beats:L.ts==='6/8'?.5:1,marks:i===0?[...LM(c),...(id==='th'?RM(c):[])]:null,say:`<b>${c}</b> · ${x.lab}`})));
   const both=id==='th';return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,marks:[...LM(pr[0]),...(both?RM(pr[0]):[])],seq,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r)})}
@@ -779,46 +800,99 @@ function dDone(id,pr,r){const S=DS[id];const {cv,avg}=ptEven(r.times);const even
   return msg}
 function ptEven(times){const iv=[];for(let i=2;i<times.length;i++)iv.push(times[i]-times[i-1]);if(iv.length<3)return {cv:0,avg:0};
   const avg=iv.reduce((a,b)=>a+b,0)/iv.length;const sd=Math.sqrt(iv.reduce((a,b)=>a+(b-avg)**2,0)/iv.length);return {cv:sd/avg,avg}}
-function dFinish(id){const S=DS[id],D=DRILLS[id];const L=D.levels.find(x=>x.id===S.lv);const g=DRILL_PAIRS.filter(pr=>dGreen(id,S.lv,pr)).length;
-  sendReport(`${D.title.toUpperCase()} · ${L.name} · ${S.mem?'from memory':'keys shown'} · ${S.res.map(x=>`${x.pr.join('-')}: ${x.miss?x.miss+' wrong':'ok'}, wobble ${Math.round(x.cv*100)}%, ${(x.avg/1000).toFixed(2)} s/note`).join(' · ')} · level green ${g}/${DRILL_PAIRS.length}`);
+function dFinish(id){const S=DS[id],D=DRILLS[id];const L=D.levels.find(x=>x.id===S.lv);const g=dCards(id).filter(pr=>dGreen(id,S.lv,pr)).length;
+  sendReport(`${D.title.toUpperCase()} · ${L.name} · ${S.mem?'from memory':'keys shown'} · ${S.res.map(x=>`${x.pr.join('-')}: ${x.miss?x.miss+' wrong':'ok'}, wobble ${Math.round(x.cv*100)}%, ${(x.avg/1000).toFixed(2)} s/note`).join(' · ')} · level green ${g}/${dCards(id).length}`);
   S.done=true;dPaint(id)}
 function dHTML(id){const D=DRILLS[id],S=DS[id];
-  if(!dOpenDrill(id))return `<div class="head"><div class="eyebrow">Trainer</div><h2>${D.title}</h2><p>${D.intro}</p></div><article class="card"><h3>🔒 Locked</h3><p>${D.needsMsg}</p></article>`;
-  const levels=D.levels.map(L=>`<button class="btn small" data-dlv="${L.id}" aria-pressed="${S.lv===L.id}" ${dOpen(id,L.id)?'':'disabled'}>${dOpen(id,L.id)?'':'🔒 '}${L.name}</button>`).join('');
+  const sug=dSuggested(id);
+  const levels=D.levels.map(L=>`<button class="btn small" data-dlv="${L.id}" aria-pressed="${S.lv===L.id}">${dLevelGreen(id,L.id)?'✓ ':''}${L.name}${L.id===sug?' <span style="font-size:11px;background:var(--gold);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">suggested</span>':''}</button>`).join('');
   const L=D.levels.find(x=>x.id===S.lv);
-  return `<div class="head"><div class="eyebrow">Trainer</div><h2>${D.title}</h2><p>${D.intro}</p></div>
+  return `<div class="head"><div class="eyebrow">Trainer</div><h2>${D.title}</h2><p>${D.intro}</p>${!dReady(id)?`<p style="font-size:14px;color:var(--muted);margin:0">Suggested after ${D.needsMsg}. Jump in anytime.</p>`:''}</div>
   <div class="card" style="gap:8px"><div class="row" style="gap:6px">${levels}</div>
    <div class="row" style="gap:6px"><button class="btn small" data-dmem="0" aria-pressed="${!S.mem}">Keys shown</button><button class="btn small" data-dmem="1" aria-pressed="${S.mem}">From memory</button></div>
    <p style="margin:0">${L.desc}</p>
    ${L.why?`<details style="border:1px solid var(--rule);border-radius:8px;padding:8px 12px;background:var(--paper,transparent)"><summary style="cursor:pointer;font-weight:600">Why it's done this way</summary><p style="margin:8px 0 0">${L.why}</p></details>`:''}
-   <div class="row" style="gap:6px;font-size:14px">${DRILL_PAIRS.map(pr=>`<span style="padding:2px 8px;border-radius:12px;background:${dGreen(id,S.lv,pr)?'var(--ok)':'var(--rule)'};color:${dGreen(id,S.lv,pr)?'#fff':'inherit'}">${pr.join(' → ')}</span>`).join('')}</div>
-   <p style="font-size:13px;color:var(--muted);margin:0">The next level opens when every chip is green.</p></div>
+   <div class="row" style="gap:6px;font-size:14px">${dCards(id).map(pr=>`<span style="padding:2px 8px;border-radius:12px;background:${dGreen(id,S.lv,pr)?'var(--ok)':'var(--rule)'};color:${dGreen(id,S.lv,pr)?'#fff':'inherit'}">${pr.join(' → ')}</span>`).join('')}</div>
+   <p style="font-size:13px;color:var(--muted);margin:0">All levels are open. <b>Suggested</b> marks the first one that isn't all green yet.</p></div>
   <article class="card" id="dCard"></article>`}
 function dPaint(id,msg){const el=document.getElementById('dCard');if(!el)return;const S=DS[id];
+  if(DRILLS[id].oneLine&&false){}
   if(S.done){const ok=S.res.filter(x=>x.ok).length;el.innerHTML=`<h3>Round done</h3><p>${ok} of ${S.res.length} clean and even. Sent to Claude.</p><p class="now">Next round starts by itself in a few seconds. Just keep playing.</p><div class="row"><button class="btn small" id="dPause">Pause</button></div>`;
     const t=setTimeout(()=>{if(document.getElementById('dCard')&&cur===id){dBuild(id);render()}},5000);
     document.getElementById('dPause').onclick=()=>{clearTimeout(t);el.querySelector('.now').textContent='Paused.';const b=document.getElementById('dPause');b.textContent='Next round';b.classList.add('primary');b.onclick=()=>{dBuild(id);render()}};return}
   if(!S.queue.length)dBuild(id);const pr=S.queue[S.qi];
   el.innerHTML=`<div class="step">Card ${S.qi+1} of ${S.queue.length}</div><h3 style="font-size:28px;margin:0">${pr.join(' → ')}</h3>
-   <p style="margin:0">${pr.length===1?'One chord, the pattern twice.':'The pattern on each chord, then again.'} The app is already listening: just play. <b>Hear it</b> if you want a demo.</p>
+   <p style="margin:0">${DRILLS[id].cardHint?DRILLS[id].cardHint(S.lv,pr):pr.length===1?'One chord, the pattern twice.':'The pattern on each chord, then again.'} The app is already listening: just play. <b>Hear it</b> if you want a demo.</p>
    ${msg?`<p class="now">${msg}</p>`:''}${dExercise(id,pr)}`}
 /* Pattern Trainer greens earned before the rename keep counting */
 (()=>{const old=store.get('pt-stats',null);if(old)DS.pt.stats=old})();
+/* ---------- Ear Trainer: the keyboard plays a chord, you play it back (any hand, any octave). Hands-free: it listens and moves on by itself. ---------- */
+const EAR_LEVELS=[
+ {id:'mm',name:'1 · Major or minor',desc:'You\'re told the starting note. Listen: <b>bright (major)</b> or <b>dark (minor)</b>? Play the one you hear, starting on that note.',
+  why:'Major and minor differ by one note (the middle one, 4 keys or 3 keys up). Hearing that difference is the first step of playing by ear: once you can tell bright from dark, you only have two choices for any chord whose bottom note you know.',
+  pick:()=>{const roots=['C','D','E','F','G','A'];const r=roots[Math.floor(Math.random()*roots.length)];return {c:r+(Math.random()<.5?'m':''),hint:`Starts on <b>${r}</b>. Major or minor?`,choices:[r,r+'m']}}},
+ {id:'c145',name:'2 · C, F or G',desc:'First you hear <b>C</b> (home). Then a chord: is it <b>C, F or G</b>? Play it.',
+  why:'In any major key, chords 1, 4 and 5 carry most songs. Each has its own feeling against home: 4 (F) floats away, 5 (G) leans and wants to come back. Learning those feelings in C means you can hear them in every key later.',
+  home:'C',pick:()=>({c:['C','F','G'][Math.floor(Math.random()*3)],hint:'After home (C): which chord?',choices:['C','F','G']})},
+ {id:'a145',name:'3 · Am, Dm or E',desc:'First you hear <b>Am</b> (home). Then: <b>Am, Dm or E</b>? Play it.',
+  why:'The same idea in minor, the sound of most niggunim: Am is home, Dm is the sad step away, E (with G♯) is the pull back home. Recognising E\'s pull is what lets you hear when a song is about to land.',
+  home:'Am',pick:()=>({c:['Am','Dm','E'][Math.floor(Math.random()*3)],hint:'After home (Am): which chord?',choices:['Am','Dm','E']})},
+ {id:'six',name:'4 · Any chord in C',desc:'Home is <b>C</b>. Then one of <b>C Dm Em F G Am</b>. Play it.',
+  why:'These six chords come straight out of the C scale. Telling them apart by ear is most of what "playing by ear" means for chords. Hint: listen for bright or dark first, then for how far it feels from home.',
+  home:'C',pick:()=>({c:['C','Dm','Em','F','G','Am'][Math.floor(Math.random()*6)],hint:'After home (C): which chord?',choices:['C','Dm','Em','F','G','Am']})}];
+const EAR={lv:store.get('ear-lv','mm'),stats:store.get('ear-stats',{}),round:[],i:0,card:null,tries:0,timers:[],busy:false,msg:'',
+ voice(c){const ci=chordInfo(c);let r=55;while(r%12!==ci.root)r++;return ci.pcs.map(p=>{let k=r;while(k%12!==p)k++;return k})},
+ play(c,at){const ns=EAR.voice(c);if(outOK()){EAR.timers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x90,n,80]))),at));EAR.timers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x80,n,0]))),at+1300))}
+   else{const a=ac();if(a)ns.forEach(k=>tone(k,a.currentTime+at/1000,1.3))}},
+ stop(){EAR.timers.forEach(clearTimeout);EAR.timers=[];EAR.busy=false;if(outOK())MIDI.acc.outputs.forEach(o=>{for(let n=48;n<84;n++)o.send([0x80,n,0])})},
+ ask(){EAR.stop();const L=EAR_LEVELS.find(x=>x.id===EAR.lv);EAR.busy=true;let t=200;if(L.home){EAR.play(L.home,t);t+=1700}EAR.play(EAR.card.c,t);EAR.timers.push(setTimeout(()=>{EAR.busy=false;EAR.paint()},t+400));EAR.paint()},
+ newRound(){const L=EAR_LEVELS.find(x=>x.id===EAR.lv);EAR.round=Array.from({length:10},()=>L.pick());EAR.i=0;EAR.res=[];EAR.next(true)},
+ next(first){EAR.card=EAR.round[EAR.i];EAR.tries=0;EAR.msg='';if(!first||MIDI.ok)EAR.ask()},
+ heard(){if(!EAR.card||EAR.busy||cur!=='ear')return;const held=[...MIDI.held];if(held.length<3)return;const pcs=[...new Set(held.map(k=>k%12))].sort((a,b)=>a-b);if(pcs.length!==3)return;
+   const name=['C','C♯','D','E♭','E','F','F♯','G','G♯','A','B♭','B'];let got=null;for(let r=0;r<12;r++)for(const q of ['','m']){const s=Q[q].map(i=>(r+i)%12).sort((a,b)=>a-b);if(s.join()===pcs.join())got=name[r]+q}
+   if(!got)return;const want=EAR.card.c;const ok=chordInfo(want).pcs.slice().sort((a,b)=>a-b).join()===pcs.join();
+   if(ok){EAR.res.push({c:want,first:EAR.tries===0});EAR.msg=`<b style="color:var(--ok)">✓ ${want}</b>${EAR.tries?'':' first try!'}`;EAR.busy=true;EAR.paint();
+     EAR.timers.push(setTimeout(()=>{EAR.busy=false;EAR.i++;if(EAR.i>=EAR.round.length)EAR.finish();else EAR.next()},1300))}
+   else{EAR.tries++;EAR.msg=`That's <b>${got}</b>. Listen again…`;EAR.paint();EAR.timers.push(setTimeout(()=>EAR.ask(),1200))}},
+ finish(){const L=EAR_LEVELS.find(x=>x.id===EAR.lv);const first=EAR.res.filter(x=>x.first).length;const miss={};EAR.res.filter(x=>!x.first).forEach(x=>miss[x.c]=(miss[x.c]||0)+1);
+   const st=EAR.stats[EAR.lv]||{best:0,rounds:0};st.rounds++;st.best=Math.max(st.best,first);if(first>=9)st.green=true;EAR.stats[EAR.lv]=st;store.set('ear-stats',EAR.stats);
+   sendReport(`EAR TRAINER · ${L.name} · first try ${first}/10${Object.keys(miss).length?' · needed a second listen: '+Object.entries(miss).map(([c,n])=>c+'×'+n).join(', '):''}`);
+   EAR.card=null;EAR.done={first};EAR.paint();EAR.timers.push(setTimeout(()=>{if(cur==='ear'){EAR.done=null;EAR.newRound()}},6000))},
+ paint(){const el=document.getElementById('earCard');if(!el)return;
+   if(EAR.done){el.innerHTML=`<h3>Round done</h3><p style="font-size:18px">${EAR.done.first} of 10 on the first listen. Sent to Claude.</p><p class="now">Next round starts by itself.</p>`;return}
+   if(!EAR.card){el.innerHTML=`<p>${MIDI.ok?'Starting…':'Tap <b>Connect keyboard</b> at the top. The chords play through your Tyros.'}</p>`;return}
+   el.innerHTML=`<div class="step">Chord ${EAR.i+1} of ${EAR.round.length}</div><h3 style="margin:0">${EAR.card.hint}</h3>
+    <p style="margin:0;color:var(--muted)">Choices: ${EAR.card.choices.map(c=>`<b>${c}</b>`).join(' · ')}</p>
+    <p class="now">${EAR.busy&&!EAR.msg?'Listen…':EAR.msg||'Play the chord you heard, either hand, any octave.'}</p>
+    <div class="row"><button class="btn" id="earAgain">▶ Hear again</button></div>`;
+   document.getElementById('earAgain').onclick=()=>EAR.ask()}};
+MIDI.subs.add(()=>EAR.heard());
+function earHTML(){const levels=EAR_LEVELS.map(L=>`<button class="btn small" data-earlv="${L.id}" aria-pressed="${EAR.lv===L.id}">${(EAR.stats[L.id]||{}).green?'✓ ':''}${L.name}</button>`).join('');const L=EAR_LEVELS.find(x=>x.id===EAR.lv);
+  if(!EAR.card&&!EAR.done)setTimeout(()=>{if(cur==='ear'&&!EAR.card&&MIDI.ok)EAR.newRound();else EAR.paint()},50);
+  return `<div class="head"><div class="eyebrow">Trainer</div><h2>Ear Trainer</h2><p>The keyboard plays a chord; you play it back. Any hand, any octave, any order of notes. Rounds of 10, hands-free.</p></div>
+  <div class="card" style="gap:8px"><div class="row" style="gap:6px">${levels}</div><p style="margin:0">${L.desc}</p>
+   <details style="border:1px solid var(--rule);border-radius:8px;padding:8px 12px"><summary style="cursor:pointer;font-weight:600">Why it's done this way</summary><p style="margin:8px 0 0">${L.why}</p></details>
+   <p style="font-size:13px;color:var(--muted);margin:0">A level gets a ✓ when a round has 9 or more right on the first listen.</p></div>
+  <article class="card" id="earCard"></article>`}
 /* ---------- render ---------- */
 let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','trainer');
 const P=id=>prog[id]||(prog[id]={step:0,done:[]});const save=()=>{store.set('pb-prog',prog);store.set('pb-cur',cur)};
-const TRAINER_TABS=[['trainer','Chord Trainer'],['pt','Pattern Trainer'],['th','Two-Hand Trainer'],['songs','Song Trainer']];
-const songsOpen=()=>dLevelGreen('th','hb');
-const tabsHTML=sel=>`<div class="lessons">${TRAINER_TABS.map(([id,n])=>`<button class="lchip" data-l="${id}" aria-pressed="${sel===id}">${(id==='pt'||id==='th')&&!dOpenDrill(id)||id==='songs'&&!songsOpen()?'🔒 ':''}${n}</button>`).join('')}</div>`;
+const TRAINER_TABS=[['trainer','Chord Trainer'],['pt','Pattern Trainer'],['th','Two-Hand Trainer'],['sc','Scale Trainer'],['ear','Ear Trainer'],['songs','Song Trainer']];
+const songsOpen=()=>true;const songsReady=()=>dLevelGreen('th','hb');
+const tabsHTML=sel=>`<div class="lessons">${TRAINER_TABS.map(([id,n])=>`<button class="lchip" data-l="${id}" aria-pressed="${sel===id}">${n}</button>`).join('')}</div>`;
 function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
-  if(cur==='patterns')cur='pt';if(!['trainer','pt','th','songs'].includes(cur))cur='trainer';
+  if(cur==='patterns')cur='pt';if(!['trainer','pt','th','sc','ear','songs'].includes(cur))cur='trainer';
+  if(cur==='ear'){const app=document.getElementById('app');app.innerHTML=tabsHTML('ear')+earHTML();
+    app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{EAR.stop();cur=b.dataset.l;save();render();scrollTo(0,0)});
+    app.querySelectorAll('[data-earlv]').forEach(b=>b.onclick=()=>{EAR.lv=b.dataset.earlv;store.set('ear-lv',EAR.lv);EAR.stop();EAR.newRound();render()});
+    EAR.paint();return}
   if(cur==='songs'){const app=document.getElementById('app');
-    app.innerHTML=tabsHTML('songs')+(songsOpen()?`<div class="head"><div class="eyebrow">Trainer</div><h2>Song Trainer</h2><p>Your songs, as chord charts. Play them your way and tap Listen so Claude can hear how it's going.</p></div>`+srHTML():
+    app.innerHTML=tabsHTML('songs')+(songsOpen()?`<div class="head"><div class="eyebrow">Trainer</div><h2>Song Trainer</h2><p>Your songs, as chord charts. Play them your way and tap Listen so Claude can hear how it's going.${songsReady()?'':' <span style="color:var(--muted)">Suggested after Two-Hand Trainer level 3, but jump in anytime.</span>'}</p></div>`+srHTML():
       `<div class="head"><div class="eyebrow">Trainer</div><h2>Song Trainer</h2><p>Whole songs from your sheet music, using the chords and hand skills from the other trainers.</p></div><article class="card"><h3>🔒 Locked</h3><p>Opens when <b>Two-Hand Trainer level 3</b> (right hand holds, left hand bass-chord) is all green. By then your hands can carry a song without stopping to think.</p></article>`);
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
     app.querySelectorAll('[data-srsong]').forEach(b=>b.onclick=()=>{SR.song=b.dataset.srsong;store.set('sr-song',SR.song);render()});
     srPaint();return}
-  if(cur==='pt'||cur==='th'){const id=cur;const app=document.getElementById('app');
+  if(cur==='pt'||cur==='th'||cur==='sc'){const id=cur;const app=document.getElementById('app');
     app.innerHTML=tabsHTML(id)+dHTML(id);
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
     app.querySelectorAll('[data-dlv]').forEach(b=>b.onclick=()=>{DS[id].lv=b.dataset.dlv;store.set(DRILLS[id].store+'-lv',DS[id].lv);dBuild(id);render()});
