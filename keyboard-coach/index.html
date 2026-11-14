@@ -737,6 +737,7 @@ function keyDrillHTML(){const K=KEYS[KD.key];const open=K.unlock();
    A level opens when every card in the level before it is green. ---------- */
 const LM=c=>CFG[c].l.map((k,i)=>({k,f:[5,3,1][i],h:'l'})),RM=c=>CFG[c].r.map((k,i)=>({k,f:[1,3,5][i],h:'r'}));
 const O5M=c=>{const [r,,t]=CFG[c].l;return [{k:r,f:5,h:'l'},{k:t,f:1,h:'l'}]},O58M=c=>{const [r,,t]=CFG[c].l;return [{k:r,f:5,h:'l'},{k:t,f:2,h:'l'},{k:r+12,f:1,h:'l'}]};
+const O585M=c=>{const [r,,t]=CFG[c].l;return [{k:r,f:5,h:'l'},{k:t,f:2,h:'l'},{k:r+12,f:1,h:'l'}]},ROLLM=c=>{const [r,m,t]=CFG[c].l;return [{k:r,f:5,h:'l'},{k:t,f:2,h:'l'},{k:r+12,f:1,h:'l'},{k:m+12,f:3,h:'l'}]};
 const DRILL_KEYS={
  am:{name:'A minor (+ C)',pairs:[['C'],['Am'],['C','F'],['F','G'],['G','C'],['Am','Dm'],['Dm','E'],['E','Am']]},
  gm:{name:'G minor',pairs:[['Gm'],['Gm','Cm'],['Cm','D'],['D','Gm'],['Gm','E♭'],['E♭','F'],['F','B♭'],['B♭','D']]},
@@ -760,7 +761,13 @@ const DRILLS={
     bar:c=>{const [r,,t]=CFG[c].l;return [0,1,2,3].map(()=>({k:[r,t],lab:'bottom + 5th'}))}},
    {id:'o58',name:'6 · Bass, 5th, octave (6/8)',ts:'6/8',lm:O58M,desc:'One note at a time: <b>pinky</b> on the bottom, <b>finger 2</b> on the 5th, <b>thumb</b> on the bottom note an octave up. Twice per chord. A wide, open kumzitz left hand.',
     why:'Bottom, 5th, octave spreads the bass out wide, so it sounds big and open, like a cello, without any muddiness. It leaves the middle note to the right hand. The stretch (pinky to thumb an octave apart) is a hand position worth building slowly.',
-    bar:c=>{const [r,,t]=CFG[c].l;return [[r],[t],[r+12],[r],[t],[r+12]].map((k,i)=>({k,lab:['bass','5th','octave'][i%3]}))}}]},
+    bar:c=>{const [r,,t]=CFG[c].l;return [[r],[t],[r+12],[r],[t],[r+12]].map((k,i)=>({k,lab:['bass','5th','octave'][i%3]}))}},
+   {id:'r1585',name:'7 · Rocking 1-5-8-5 (eighths)',ts:'6/8',lm:O585M,desc:'Bass, 5th, octave, 5th, over and over in even eighth notes: <b>pinky, 2, thumb, 2</b>. The steady rolling kumzitz left hand that keeps going under long melody notes.',
+    why:'In the kumzitz piano videos you had Gemini study (Mendy Portnoy, Pianohands, Gershon Wachtel), the left hand keeps a steady eighth-note roll going, especially while the melody holds a long note, so the music never stops moving. Rocking 1-5-8-5 is the simplest form of that roll.',
+    bar:c=>{const [r,,t]=CFG[c].l;return [[r],[t],[r+12],[t],[r],[t],[r+12],[t]].map((k,i)=>({k,lab:['bass','5th','octave','5th'][i%4]}))}},
+   {id:'roll',name:'8 · Carlebach roll 1-5-8-10',ts:'6/8',lm:ROLLM,desc:'Bass, 5th, octave, then <b>finger 3 crosses over the thumb</b> to the 10th (the chord\'s middle note, an octave up), and back down: <b>1-5-8-10-8-5</b>. For Am: A, E, A, C, A, E.',
+    why:'Gemini described this as the textbook Carlebach kumzitz left hand (root, 5th, octave, then up to the 10th). The 10th is the chord\'s major/minor note placed high enough to sound sweet instead of muddy, so the left hand alone sounds like a full, warm chord. Finger 3 crossing over the thumb is the same cross-over move as in your scales.',
+    bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[r+12],[m+12],[r+12],[t]].map((k,i)=>({k,lab:['bass','5th','octave','10th (3 over)','octave','5th'][i]}))}}]},
  th:{title:'Two-Hand Trainer',tab:'Two-Hand Trainer',store:'th',needs:{drill:'pt',level:'bc'},needsMsg:'Pattern Trainer level 2 (Bass, chord) is all green',
   intro:'Both hands, one small job each, building to kumzitz-style piano: left hand flowing, right hand singing. Make one hand automatic, then the other hand gets your attention. Same chords and checking as the Pattern Trainer.',
   levels:[
