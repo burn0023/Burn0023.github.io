@@ -453,7 +453,7 @@ function trDone(){const L=TR.log;const first=L.filter(x=>!x.miss).length;const a
   TR.summary={first,avg,slow};const sgEl=document.getElementById('trSong');if(sgEl)sgEl.innerHTML=songHTML(TR.set);
   sendReport(`CHORD TRAINER · ${SETS[TR.set].name} · ${TR.hand==='l'?'left hand':TR.hand==='r'?'right hand':'both hands'} · ${TR.mode==='learn'?'with keys shown':'from memory'} · ${first} of ${L.length} right first time · avg ${(avg/1000).toFixed(1)} s · per chord: ${slow.map(([c,t,m])=>`${c} ${(t/1000).toFixed(1)}s${m?' (missed)':''}`).join(', ')}`);
   trPaint()}
-function trainerHTML(){if(!TR.queue.length)trBuild();const view=store.get('tr-view','cards');
+function trainerHTML(){if(!TR.queue.length)trBuild();const view='cards';
   const viewRow=`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Practice:</span><button class="btn small" data-trview="cards" aria-pressed="${view==='cards'}">Chord cards</button><button class="btn small" data-trview="songs" aria-pressed="${view==='songs'}">Song rounds</button></div>`;
   const sets=Object.entries(SETS).map(([k,s])=>`<button class="btn small" data-set="${k}" aria-pressed="${TR.set===k}">${s.name}</button>`).join('');
   const hands=[['l','Left hand'],['r','Right hand'],['both','Both hands']].map(([k,t])=>`<button class="btn small" data-hand="${k}" aria-pressed="${TR.hand===k}">${t}</button>`).join('');
@@ -466,11 +466,11 @@ function trainerHTML(){if(!TR.queue.length)trBuild();const view=store.get('tr-vi
    <li>Every chord is the <b>same shape</b>. Only the starting key changes, so there's one shape to learn, not a new one for each chord.</li></ul>
    <p class="say">Tyros: <b>[ACMP] off</b>, <b>[LEFT] off</b>, piano voice on <b>[RIGHT 1]</b>. The app counts everything below middle C as your left hand.</p>
    <details style="border:1px solid var(--rule);border-radius:8px;padding:8px 12px"><summary style="cursor:pointer;font-weight:600">Why it's done this way</summary><ul style="margin:8px 0 0"><li><b>Root position first:</b> with the name note at the bottom, every chord is one shape. Learn the shape once and you can find any chord by its first note. Other stackings (inversions) come later, once this is automatic.</li><li><b>Left hand below middle C, right hand above:</b> each hand gets its own area, so the left hand sounds low and full (bass) and the right hand clear, and they never crash into each other.</li><li><b>Timed, and from memory:</b> in a song there's no time to search. Under 2 seconds from memory means the chord is in your hands, not in your head; that's when it's ready for songs.</li><li><b>Weighted rounds:</b> the slow and missed chords come up more often, so practice time goes where it's needed.</li></ul></details></article>
-  <div class="card" style="gap:8px">${viewRow}${view==='cards'?`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Chords:</span>${sets}</div>`:''}
+  <div class="card" style="gap:8px">${view==='cards'?`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Chords:</span>${sets}</div>`:''}
   ${view==='cards'?`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Hand:</span>${hands}</div>
   <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Mode:</span>${modes}</div>`:''}</div>
   ${view==='songs'?srHTML():`<article class="card" id="trCard"></article>
-  <div id="trSong">${songHTML(TR.set)}</div>`}
+`}
   ${view==='songs'?'':`<article class="card"><h3>Your chords so far <span style="font-weight:400;font-size:14px;color:var(--muted)">(${TR.mode==='recall'?'from memory':'keys shown'})</span></h3><div id="trStats"></div><p style="font-size:13px;color:var(--muted)">Slow or missed chords come up more often in the next round. Inversions (the same chord stacked other ways) come later, once these are automatic.</p></article>`}`}
 function trPaint(){const el=document.getElementById('trCard');if(!el){MIDI.subs.delete(trPaint);return}
   if(TR.i>=TR.queue.length&&TR.summary){const s=TR.summary;
@@ -806,10 +806,17 @@ function dPaint(id,msg){const el=document.getElementById('dCard');if(!el)return;
 /* ---------- render ---------- */
 let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','trainer');
 const P=id=>prog[id]||(prog[id]={step:0,done:[]});const save=()=>{store.set('pb-prog',prog);store.set('pb-cur',cur)};
-const TRAINER_TABS=[['trainer','Chord Trainer'],['pt','Pattern Trainer'],['th','Two-Hand Trainer']];
-const tabsHTML=sel=>`<div class="lessons">${TRAINER_TABS.map(([id,n])=>`<button class="lchip" data-l="${id}" aria-pressed="${sel===id}">${id!=='trainer'&&!dOpenDrill(id)?'🔒 ':''}${n}</button>`).join('')}</div>`;
+const TRAINER_TABS=[['trainer','Chord Trainer'],['pt','Pattern Trainer'],['th','Two-Hand Trainer'],['songs','Song Trainer']];
+const songsOpen=()=>dLevelGreen('th','hb');
+const tabsHTML=sel=>`<div class="lessons">${TRAINER_TABS.map(([id,n])=>`<button class="lchip" data-l="${id}" aria-pressed="${sel===id}">${(id==='pt'||id==='th')&&!dOpenDrill(id)||id==='songs'&&!songsOpen()?'🔒 ':''}${n}</button>`).join('')}</div>`;
 function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
-  if(cur==='patterns')cur='pt';if(!['trainer','pt','th'].includes(cur))cur='trainer';
+  if(cur==='patterns')cur='pt';if(!['trainer','pt','th','songs'].includes(cur))cur='trainer';
+  if(cur==='songs'){const app=document.getElementById('app');
+    app.innerHTML=tabsHTML('songs')+(songsOpen()?`<div class="head"><div class="eyebrow">Trainer</div><h2>Song Trainer</h2><p>Your songs, as chord charts. Play them your way and tap Listen so Claude can hear how it's going.</p></div>`+srHTML():
+      `<div class="head"><div class="eyebrow">Trainer</div><h2>Song Trainer</h2><p>Whole songs from your sheet music, using the chords and hand skills from the other trainers.</p></div><article class="card"><h3>🔒 Locked</h3><p>Opens when <b>Two-Hand Trainer level 3</b> (right hand holds, left hand bass-chord) is all green. By then your hands can carry a song without stopping to think.</p></article>`);
+    app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
+    app.querySelectorAll('[data-srsong]').forEach(b=>b.onclick=()=>{SR.song=b.dataset.srsong;store.set('sr-song',SR.song);render()});
+    srPaint();return}
   if(cur==='pt'||cur==='th'){const id=cur;const app=document.getElementById('app');
     app.innerHTML=tabsHTML(id)+dHTML(id);
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
