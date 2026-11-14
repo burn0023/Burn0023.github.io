@@ -110,7 +110,7 @@ function sendOut(notes,atMs,durMs,vel=80){MIDI.acc.outputs.forEach(o=>{setTimeou
 /* ---------- audio fallback (iPad speaker) ---------- */
 let ctx=null;function ac(){if(!ctx){try{ctx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(ctx&&ctx.state==='suspended')ctx.resume();return ctx}
 function tone(k,at,dur,vol=.14){const a=ac();if(!a)return;const f=440*Math.pow(2,(k-69)/12);const o=a.createOscillator(),g=a.createGain();o.type='triangle';o.frequency.value=f;o.connect(g);g.connect(a.destination);
-  g.gain.setValueAtTime(0,at);g.gain.linearRampToValueAtTime(vol,at+.01);g.gain.exponentialRampToValueAtTime(.0008,at+dur);o.start(at);o.stop(at+dur+.05)}
+  g.gain.setValueAtTime(0,at);g.gain.linearRampToValueAtTime(vol,at+.01);g.gain.exponentialRampToValueAtTime(.0008,at+dur);o.start(at);o.stop(at+dur+.05);return o}
 function click(at,acc){const a=ac();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.frequency.value=acc?1500:1000;o.connect(g);g.connect(a.destination);g.gain.setValueAtTime(acc?.3:.18,at);g.gain.exponentialRampToValueAtTime(.001,at+.05);o.start(at);o.stop(at+.06)}
 
 /* ---------- keyboard picture ---------- */
@@ -203,7 +203,8 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
     const hl=el.querySelector('[data-handsvg]');if(T.on&&!mem())hf=handFrame([...steps[T.idx].exp],allMarks,hf);paintHands(hl,hf,(playing||T.on)&&!(T.on&&mem()));
     el.querySelector('[data-now]').innerHTML=nowTxt||(isPassed(ex.key)?'<b style="color:var(--ok)">✓ Passed.</b> Practise it any time.':MIDI.ok?`Tap <b>Hear it</b> to watch, then <b>Your turn</b>. Pass = ${need} run${need>1?'s':''} with no wrong notes.`:'Tap <b>Connect keyboard</b> at the top, then <b>Hear it</b>.');
     el.querySelector('[data-a=hear]').textContent=playing?'■ Stop':'▶ Hear it';const fb=el.querySelector('[data-a=fast]');if(fb)fb.textContent=playing?'■ Stop':`▶ Song speed`;el.querySelector('[data-bpm]').textContent=bpm()+' bpm'};
-  const stop=()=>{timers.forEach(clearTimeout);timers=[];playing=false;hf=null;lit=new Set();held=new Set();cm=ex.marks;nowTxt='';if(outOK())MIDI.acc.outputs.forEach(o=>{for(let n=24;n<100;n++)o.send([0x80,n,0])});draw()};
+  let voices=[];const outN=(ns,at,d,v)=>{timers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x90,n,v||80]))),at));timers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x80,n,0]))),at+d))};
+  const stop=()=>{timers.forEach(clearTimeout);timers=[];voices.forEach(o=>{try{o.stop()}catch(e){}});voices=[];playing=false;hf=null;lit=new Set();held=new Set();cm=ex.marks;nowTxt='';if(outOK())MIDI.acc.outputs.forEach(o=>{for(let n=24;n<100;n++)o.send([0x80,n,0])});draw()};
   const hear=(fast)=>{if(playing){stop();return}if(T.on)endTurn();playing=true;const spb=60000/(fast||bpm());let t=300;const a=ac();const viaOut=outOK();
     let pf=null,prevSingle=null,prevDur=0;
     ex.seq.forEach(st=>{const dur=st.beats*spb;const at=t;
@@ -218,8 +219,8 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
       timers.push(setTimeout(()=>{if(st.marks)cm=st.marks;lit=new Set(st.k);const mk=st.k.map(k=>cm.find(x=>x.k===k)).filter(Boolean);
         nowTxt=st.say!=null?st.say:mk.length?mk.map(x=>`<b>${x.h==='l'?'Left':'Right'} hand, finger ${x.f}</b> on ${nm(x.k)}`).join(' · '):'';draw()},at));
       if(st.hold){const hd=st.hold.beats*spb;timers.push(setTimeout(()=>{st.hold.k.forEach(k=>held.add(k));draw()},at));timers.push(setTimeout(()=>{st.hold.k.forEach(k=>held.delete(k));draw()},at+hd*.95));
-        if(viaOut)sendOut(st.hold.k,at,hd*.95,90);else if(a)st.hold.k.forEach(k=>tone(k,a.currentTime+at/1000,hd/1000*.95))}
-      const sd=dur*(st.short||.9);if(viaOut)sendOut(st.k,at,sd,st.vel||80);else if(a)st.k.forEach(k=>tone(k,a.currentTime+at/1000,sd/1000));t+=dur});
+        if(viaOut)outN(st.hold.k,at,hd*.95,90);else if(a)st.hold.k.forEach(k=>voices.push(tone(k,a.currentTime+at/1000,hd/1000*.95)))}
+      const sd=dur*(st.short||.9);if(viaOut)outN(st.k,at,sd,st.vel||80);else if(a)st.k.forEach(k=>voices.push(tone(k,a.currentTime+at/1000,sd/1000)));t+=dur});
     timers.push(setTimeout(()=>{stop();nowTxt='Your turn: same notes, same fingers, same speed.';draw()},t+200));draw()};
   setTimeout(()=>{const el=document.getElementById(id);if(!el)return;MIDI.subs.add(judge);MIDI.subs.add(draw);el.querySelector('[data-a=turn]').onclick=()=>T.on?endTurn():startTurn();
     el.querySelector('[data-a=hear]').onclick=()=>hear();const fb=el.querySelector('[data-a=fast]');if(fb)fb.onclick=()=>hear(ex.fast);
@@ -457,13 +458,14 @@ function trainerHTML(){if(!TR.queue.length)trBuild();const view=store.get('tr-vi
   const sets=Object.entries(SETS).map(([k,s])=>`<button class="btn small" data-set="${k}" aria-pressed="${TR.set===k}">${s.name}</button>`).join('');
   const hands=[['l','Left hand'],['r','Right hand'],['both','Both hands']].map(([k,t])=>`<button class="btn small" data-hand="${k}" aria-pressed="${TR.hand===k}">${t}</button>`).join('');
   const modes=[['learn','Keys shown'],['recall','From memory']].map(([k,t])=>`<button class="btn small" data-mode="${k}" aria-pressed="${TR.mode===k}">${t}</button>`).join('');
-  return `<div class="head"><div class="eyebrow">Practice tool</div><h2>Chord Trainer</h2><p>A chord name appears. Play it in the right place, and the next one comes up. Do a round of 12 a few times a day until every chord comes up instantly, without thinking.</p></div>
+  return `<div class="head"><div class="eyebrow">Trainer</div><h2>Chord Trainer</h2><p>A chord name appears. Play it in the right place, and the next one comes up. Do a round of 12 a few times a day until every chord comes up instantly, without thinking.</p></div>
   <article class="card"><h3>Where chords go</h3>
    <ul><li><b>Root position:</b> the chord's <b>name note at the bottom</b>, then skip a key, play, skip a key, play. Am = <b>A</b> C E. Gm = <b>G</b> B♭ D.</li>
    <li><b>Left hand:</b> just below middle C. Fingers <b>5-3-1</b> (pinky on the name note).</li>
    <li><b>Right hand:</b> from middle C up. Fingers <b>1-3-5</b> (thumb on the name note).</li>
    <li>Every chord is the <b>same shape</b>. Only the starting key changes, so there's one shape to learn, not a new one for each chord.</li></ul>
-   <p class="say">Tyros: <b>[ACMP] off</b>, <b>[LEFT] off</b>, piano voice on <b>[RIGHT 1]</b>. The app counts everything below middle C as your left hand.</p></article>
+   <p class="say">Tyros: <b>[ACMP] off</b>, <b>[LEFT] off</b>, piano voice on <b>[RIGHT 1]</b>. The app counts everything below middle C as your left hand.</p>
+   <details style="border:1px solid var(--rule);border-radius:8px;padding:8px 12px"><summary style="cursor:pointer;font-weight:600">Why it's done this way</summary><ul style="margin:8px 0 0"><li><b>Root position first:</b> with the name note at the bottom, every chord is one shape. Learn the shape once and you can find any chord by its first note. Other stackings (inversions) come later, once this is automatic.</li><li><b>Left hand below middle C, right hand above:</b> each hand gets its own area, so the left hand sounds low and full (bass) and the right hand clear, and they never crash into each other.</li><li><b>Timed, and from memory:</b> in a song there's no time to search. Under 2 seconds from memory means the chord is in your hands, not in your head; that's when it's ready for songs.</li><li><b>Weighted rounds:</b> the slow and missed chords come up more often, so practice time goes where it's needed.</li></ul></details></article>
   <div class="card" style="gap:8px">${viewRow}${view==='cards'?`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Chords:</span>${sets}</div>`:''}
   ${view==='cards'?`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Hand:</span>${hands}</div>
   <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Mode:</span>${modes}</div>`:''}</div>
@@ -729,75 +731,98 @@ function keyDrillHTML(){const K=KEYS[KD.key];const open=K.unlock();
   <article class="card"><div class="step">Part 1</div><h3>The ${K.name} scale, left hand</h3><p>Going up, finger 3 crosses over the thumb${KD.key==='C'?' to A':' to F'}. Coming down, the thumb tucks under.</p>${kdEx(KD.key,'sl')}</article>
   <article class="card"><div class="step">Part 2</div><h3>A chord on every scale note</h3><p>Right hand, fingers 1-3-5 the whole way. Walk up the scale and build the chord on each note. Watch the screen say <b>major</b> or <b>minor</b>: the scale decides, you don't. ${K.why} ${K.skip}</p>${kdEx(KD.key,'ch')}</article>
   <article class="card"><div class="step">Part 3</div><h3>The main moves: ${K.prog.slice(0,4).join(' · ')}</h3><p>Chords <b>1, 4, 5, 1</b>, both hands, 4 beats each. These three chords carry most songs in ${K.name}.</p>${kdEx(KD.key,'145')}</article>`}`}
-/* ---------- Pattern Trainer: left-hand patterns as short repeated drills. One pattern, one hand, a chord or a pair of chords, over and over.
-   Each card waits for your notes (no rushing) and measures how EVEN your notes are. Green = no wrong notes and even. Green stays green. ---------- */
-const PT_LEVELS=[
- {id:'block',name:'1 · Steady chord',ts:'4/4',desc:'The whole chord on every beat: <b>1 2 3 4</b>. Same shape, pressed four times, evenly. This is the rhythm; everything else builds on it.',
-  bar:c=>{const L=CFG[c].l;return [L,L,L,L].map((k,i)=>({k,lab:'chord'}))}},
- {id:'bc',name:'2 · Bass, chord',ts:'4/4',desc:'Pinky alone (the <b>bass</b>), then fingers 3 and 1 together (the <b>chord</b>). <b>Bass, chord, bass, chord.</b> The hand never moves; the fingers take turns.',
-  bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[m,t],[r],[m,t]].map((k,i)=>({k,lab:i%2?'chord':'bass'}))}},
- {id:'b3',name:'3 · Broken chord in 3s (6/8)',ts:'6/8',desc:'One note at a time: <b>bottom, top, middle</b>, fingers <b>5, 1, 3</b>. Twice per chord. This one is for slow songs in 6/8.',
-  bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[m],[r],[t],[m]].map((k,i)=>({k,lab:['bottom','top','middle'][i%3]}))}},
- {id:'b4',name:'4 · Broken chord in 4s',ts:'4/4',desc:'<b>Bottom, top, middle, top</b>, fingers <b>5, 1, 3, 1</b>. Flowing, for slow songs in 4.',
-  bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[m],[t]].map((k,i)=>({k,lab:['bottom','top','middle','top'][i]}))}}];
-const PT_PAIRS=[['C'],['Am'],['C','F'],['F','G'],['G','C'],['Am','Dm'],['Dm','E'],['E','Am']];
-const ptTaught=c=>true;
-const ptPairs=()=>PT_PAIRS.filter(pr=>pr.every(ptTaught));
-const PT={lv:store.get('pt-lv','block'),mem:store.get('pt-mem',false),stats:store.get('pt-stats',{}),queue:[],qi:0,res:[]};
-const ptKey=(lv,pr)=>lv+'|'+pr.join('-');
-const ptGreen=(lv,pr)=>!!(PT.stats[ptKey(lv,pr)]||{}).green;
-const ptOpen=lv=>{const i=PT_LEVELS.findIndex(x=>x.id===lv);return i===0||ptPairs().every(pr=>ptGreen(PT_LEVELS[i-1].id,pr))};
-function ptBuild(){const notG=ptPairs().filter(pr=>!ptGreen(PT.lv,pr)),G=ptPairs().filter(pr=>ptGreen(PT.lv,pr));
-  /* start simple: the single chord first while it isn't green, then the weakest pairs */
-  PT.queue=[...notG.slice(0,5),...G.sort(()=>Math.random()-.5).slice(0,Math.max(0,5-notG.length))].slice(0,5);if(!PT.queue.length)PT.queue=ptPairs().slice(0,5);PT.qi=0;PT.res=[]}
-function ptExercise(pr){const L=PT_LEVELS.find(x=>x.id===PT.lv);const lm=c=>CFG[c].l.map((k,i)=>({k,f:[5,3,1][i],h:'l'}));
-  const reps=pr.length===1?2:1;const chords=[];for(let r=0;r<reps;r++)pr.forEach(c=>chords.push(c));if(pr.length>1)pr.forEach(c=>chords.push(c));
-  const seq=[];chords.forEach(c=>L.bar(c).forEach((x,i)=>seq.push({k:x.k,beats:L.ts==='6/8'?.5:1,marks:i===0?lm(c):null,say:`<b>${c}</b> · ${x.lab}`})));
-  return exercise({key:'pt-'+ptKey(PT.lv,pr),lo:36,hi:96,bpm:60,marks:lm(pr[0]),seq,need:1,memory:()=>PT.mem,onDone:r=>ptDone(pr,r)})}
+/* ---------- Drill trainers (Pattern Trainer, Two-Hand Trainer): short cards, repeated. A card is one pattern on a chord or a pair of chords.
+   The app waits for each note and measures evenness. Green = no wrong notes and even (wobble under 30%). Green stays green.
+   A level opens when every card in the level before it is green. ---------- */
+const LM=c=>CFG[c].l.map((k,i)=>({k,f:[5,3,1][i],h:'l'})),RM=c=>CFG[c].r.map((k,i)=>({k,f:[1,3,5][i],h:'r'}));
+const DRILL_PAIRS=[['C'],['Am'],['C','F'],['F','G'],['G','C'],['Am','Dm'],['Dm','E'],['E','Am']];
+const DRILLS={
+ pt:{title:'Pattern Trainer',tab:'Pattern Trainer',store:'pt',intro:'Left-hand patterns. The app waits for each note, so there\'s no rush; it checks the <b>right notes</b> and how <b>even</b> they are. Start slow: even beats fast.',
+  levels:[
+   {id:'block',why:'Every pattern later is built on a steady pulse. Pressing the whole chord in time trains the hand to land the shape without looking, and trains your sense of the beat, before the fingers have to do different jobs. It\'s the same reason drummers practise plain quarter notes.',name:'1 · Steady chord',ts:'4/4',desc:'The whole chord on every beat: <b>1 2 3 4</b>. Same shape, pressed four times, evenly.',
+    bar:c=>{const L=CFG[c].l;return [0,1,2,3].map(()=>({k:L,lab:'chord'}))}},
+   {id:'bc',why:'Real accompaniment splits the chord into two jobs: the <b>bass</b> (lowest note) tells the ear which chord it is, and the rest fills in the harmony. Alternating them makes the left hand sound like a bass player plus a rhythm player. The hand stays in one shape, so only the fingers have to learn the new move, not the hand.',name:'2 · Bass, chord',ts:'4/4',desc:'Pinky alone (the <b>bass</b>), then fingers 3 and 1 together (the <b>chord</b>). <b>Bass, chord, bass, chord.</b>',
+    bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[m,t],[r],[m,t]].map((k,i)=>({k,lab:i%2?'chord':'bass'}))}},
+   {id:'b3',why:'Playing the chord one note at a time (an arpeggio) gives a flowing, singing sound instead of a thump: right for slow 6/8 songs. Bottom, top, middle spreads the notes so the low bass rings first and the middle note fills in last. Fingers 5-1-3 match the chord shape you already know, so nothing moves except the fingers.',name:'3 · Broken chord in 3s (6/8)',ts:'6/8',desc:'One note at a time: <b>bottom, top, middle</b>, fingers <b>5, 1, 3</b>. Twice per chord. This one is for slow songs in 6/8.',
+    bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[m],[r],[t],[m]].map((k,i)=>({k,lab:['bottom','top','middle'][i%3]}))}},
+   {id:'b4',why:'The same idea in 4 beats: bottom, top, middle, top fills every beat so the sound never stops, which is what makes slow songs in 4 feel connected. The top note repeats on beats 2 and 4, giving the hand a rocking motion that becomes automatic.',name:'4 · Broken chord in 4s',ts:'4/4',desc:'<b>Bottom, top, middle, top</b>, fingers <b>5, 1, 3, 1</b>. Flowing, for slow songs in 4.',
+    bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[m],[t]].map((k,i)=>({k,lab:['bottom','top','middle','top'][i]}))}}]},
+ th:{title:'Two-Hand Trainer',tab:'Two-Hand Trainer',store:'th',needs:{drill:'pt',level:'bc'},needsMsg:'Opens when Pattern Trainer level 2 (Bass, chord) is all green.',
+  intro:'Both hands, one small job each. Make one hand automatic, then the other hand gets your attention. Same chords and checking as the Pattern Trainer.',
+  levels:[
+   {id:'tog',why:'Before the hands do different things, they have to start together. Landing both hands at the same instant trains your brain to treat them as one unit and shows you any hand that lags. Almost every song starts its chords with both hands landing together.',name:'1 · Together',ts:'4/4',desc:'Both hands press the chord <b>at the same moment</b>, on every beat. Land them together, like one hand.',
+    bar:c=>[0,1,2,3].map(()=>({k:[...CFG[c].l,...CFG[c].r],lab:'both hands'}))},
+   {id:'hs',why:'This is the smallest possible split: one hand does nothing (holds), the other keeps time. Holding still is a skill too: the right hand must not twitch when the left hand presses. Once this is automatic, the right hand is free to do something else later, like the tune.',name:'2 · Right holds, left steady',ts:'4/4',desc:'Right hand presses the chord on beat 1 and <b>holds still</b>. Left hand presses the chord on every beat.',
+    bar:c=>[0,1,2,3].map(i=>({k:i===0?[...CFG[c].l,...CFG[c].r]:CFG[c].l,hold:i===0?{k:CFG[c].r,beats:4}:null,lab:i===0?'both (right hand holds)':'left chord'}))},
+   {id:'hb',why:'This is real piano accompaniment: the right hand holds the harmony while the left hand plays bass and chord. It\'s the Pattern Trainer\'s level 2 with the right hand added, so only one thing is new. When this runs by itself, the right hand can start playing the tune instead of holding.',name:'3 · Right holds, left bass-chord',ts:'4/4',desc:'Right hand holds the chord. Left hand plays <b>bass, chord, bass, chord</b> underneath.',
+    bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[m,t],[r],[m,t]].map((k,i)=>({k:i===0?[...k,...CFG[c].r]:k,hold:i===0?{k:CFG[c].r,beats:4}:null,lab:i===0?'bass + right chord (hold)':i%2?'left chord':'bass'}))}},
+   {id:'sw',why:'Switching which hand moves stops one hand from becoming the only one that can keep rhythm. Many styles (and the tune later) need the right hand to move while the left holds a bass. Training both directions is what real independence is.',name:'4 · Swap: left holds, right moves',ts:'4/4',desc:'Now the other way: left pinky plays the <b>bass</b> on beat 1 and holds. Right hand plays the chord on <b>2, 3 and 4</b>.',
+    bar:c=>{const [r]=CFG[c].l;const R=CFG[c].r;return [{k:[r],hold:{k:[r],beats:4},lab:'bass (hold)'},{k:R,lab:'right chord'},{k:R,lab:'right chord'},{k:R,lab:'right chord'}]}}]}};
+const DS={};Object.entries(DRILLS).forEach(([id,D])=>{DS[id]={lv:store.get(D.store+'-lv',D.levels[0].id),mem:store.get(D.store+'-mem',false),stats:store.get(D.store+'-stats',{}),queue:[],qi:0,res:[],done:false}});
+const PT=DS.pt; /* kept for older code paths */
+const dKey=(lv,pr)=>lv+'|'+pr.join('-');
+const dGreen=(id,lv,pr)=>!!(DS[id].stats[dKey(lv,pr)]||{}).green;
+const dLevelGreen=(id,lv)=>DRILL_PAIRS.every(pr=>dGreen(id,lv,pr));
+const dOpenDrill=id=>{const n=DRILLS[id].needs;return !n||dLevelGreen(n.drill,n.level)};
+const dOpen=(id,lv)=>{const L=DRILLS[id].levels;const i=L.findIndex(x=>x.id===lv);return dOpenDrill(id)&&(i===0||dLevelGreen(id,L[i-1].id))};
+function dBuild(id){const S=DS[id];const notG=DRILL_PAIRS.filter(pr=>!dGreen(id,S.lv,pr)),G=DRILL_PAIRS.filter(pr=>dGreen(id,S.lv,pr));
+  S.queue=[...notG.slice(0,5),...G.sort(()=>Math.random()-.5).slice(0,Math.max(0,5-notG.length))].slice(0,5);S.qi=0;S.res=[];S.done=false}
+function dExercise(id,pr){const S=DS[id];const L=DRILLS[id].levels.find(x=>x.id===S.lv);
+  const chords=pr.length===1?[pr[0],pr[0]]:[...pr,...pr];const seq=[];
+  chords.forEach(c=>L.bar(c).forEach((x,i)=>seq.push({k:x.k,hold:x.hold||null,beats:L.ts==='6/8'?.5:1,marks:i===0?[...LM(c),...(id==='th'?RM(c):[])]:null,say:`<b>${c}</b> · ${x.lab}`})));
+  const both=id==='th';return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,marks:[...LM(pr[0]),...(both?RM(pr[0]):[])],seq,need:1,memory:()=>S.mem,onDone:r=>dDone(id,pr,r)})}
+function dDone(id,pr,r){const S=DS[id];const {cv,avg}=ptEven(r.times);const even=cv<.3;const ok=r.miss===0&&even;const k=dKey(S.lv,pr);
+  const st=S.stats[k]||{n:0,green:false};st.n++;st.cv=cv;st.avg=avg;st.miss=r.miss;if(ok)st.green=true;S.stats[k]=st;store.set(DRILLS[id].store+'-stats',S.stats);
+  S.res.push({pr,miss:r.miss,cv,avg,ok});
+  const msg=r.miss?`${r.miss} wrong note${r.miss>1?'s':''}. Again, slower.`:!even?`Right notes, but uneven: some notes waited longer than others (${Math.round(cv*100)}% wobble). Go slower and keep it steady.`:`<b style="color:var(--ok)">✓ Clean and even.</b> ${pr.join(' → ')} is green.`;
+  setTimeout(()=>{if(ok||S.res.filter(x=>x.pr===pr).length>=3){S.qi++;if(S.qi>=S.queue.length)dFinish(id);else dPaint(id)}else dPaint(id,msg)},ok?900:2200);
+  return msg}
 function ptEven(times){const iv=[];for(let i=2;i<times.length;i++)iv.push(times[i]-times[i-1]);if(iv.length<3)return {cv:0,avg:0};
   const avg=iv.reduce((a,b)=>a+b,0)/iv.length;const sd=Math.sqrt(iv.reduce((a,b)=>a+(b-avg)**2,0)/iv.length);return {cv:sd/avg,avg}}
-function ptDone(pr,r){const {cv,avg}=ptEven(r.times);const even=cv<.3;const ok=r.miss===0&&even;const k=ptKey(PT.lv,pr);
-  const st=PT.stats[k]||{n:0,green:false};st.n++;st.cv=cv;st.avg=avg;st.miss=r.miss;if(ok)st.green=true;PT.stats[k]=st;store.set('pt-stats',PT.stats);
-  PT.res.push({pr,miss:r.miss,cv,avg,ok});
-  const msg=r.miss?`${r.miss} wrong note${r.miss>1?'s':''}. Again, slower.`:!even?`Right notes, but uneven: some notes waited longer than others (${Math.round(cv*100)}% wobble). Go slower and keep it steady.`:`<b style="color:var(--ok)">✓ Clean and even.</b> ${pr.join(' → ')} is green.`;
-  setTimeout(()=>{if(ok||PT.res.filter(x=>x.pr===pr).length>=3){PT.qi++;if(PT.qi>=PT.queue.length)ptFinish();else ptPaint()}else ptPaint(msg)},ok?900:2200);
-  return msg}
-function ptFinish(){const L=PT_LEVELS.find(x=>x.id===PT.lv);const g=ptPairs().filter(pr=>ptGreen(PT.lv,pr)).length;
-  sendReport(`PATTERN TRAINER · ${L.name} · ${PT.mem?'from memory':'keys shown'} · ${PT.res.map(x=>`${x.pr.join('-')}: ${x.miss?x.miss+' wrong':'ok'}, wobble ${Math.round(x.cv*100)}%, ${(x.avg/1000).toFixed(2)} s/note`).join(' · ')} · level green ${g}/${ptPairs().length}`);
-  PT.done=true;ptPaint()}
-function ptHTML(){const levels=PT_LEVELS.map(L=>`<button class="btn small" data-ptlv="${L.id}" aria-pressed="${PT.lv===L.id}" ${ptOpen(L.id)?'':'disabled'}>${ptOpen(L.id)?'':'🔒 '}${L.name}</button>`).join('');
-  const L=PT_LEVELS.find(x=>x.id===PT.lv);
-  return `<div class="head"><div class="eyebrow">Practice tool</div><h2>Pattern Trainer</h2><p>Left-hand patterns as short drills, the same way the Chord Trainer drills chords. Left hand only. The app waits for each note, so there's no rush; it checks the <b>right notes</b> and how <b>even</b> they are. Start slow: even beats fast.</p></div>
+function dFinish(id){const S=DS[id],D=DRILLS[id];const L=D.levels.find(x=>x.id===S.lv);const g=DRILL_PAIRS.filter(pr=>dGreen(id,S.lv,pr)).length;
+  sendReport(`${D.title.toUpperCase()} · ${L.name} · ${S.mem?'from memory':'keys shown'} · ${S.res.map(x=>`${x.pr.join('-')}: ${x.miss?x.miss+' wrong':'ok'}, wobble ${Math.round(x.cv*100)}%, ${(x.avg/1000).toFixed(2)} s/note`).join(' · ')} · level green ${g}/${DRILL_PAIRS.length}`);
+  S.done=true;dPaint(id)}
+function dHTML(id){const D=DRILLS[id],S=DS[id];
+  if(!dOpenDrill(id))return `<div class="head"><div class="eyebrow">Trainer</div><h2>${D.title}</h2><p>${D.intro}</p></div><article class="card"><h3>🔒 Locked</h3><p>${D.needsMsg}</p></article>`;
+  const levels=D.levels.map(L=>`<button class="btn small" data-dlv="${L.id}" aria-pressed="${S.lv===L.id}" ${dOpen(id,L.id)?'':'disabled'}>${dOpen(id,L.id)?'':'🔒 '}${L.name}</button>`).join('');
+  const L=D.levels.find(x=>x.id===S.lv);
+  return `<div class="head"><div class="eyebrow">Trainer</div><h2>${D.title}</h2><p>${D.intro}</p></div>
   <div class="card" style="gap:8px"><div class="row" style="gap:6px">${levels}</div>
-   <div class="row" style="gap:6px"><button class="btn small" data-ptmem="0" aria-pressed="${!PT.mem}">Keys shown</button><button class="btn small" data-ptmem="1" aria-pressed="${PT.mem}">From memory</button></div>
+   <div class="row" style="gap:6px"><button class="btn small" data-dmem="0" aria-pressed="${!S.mem}">Keys shown</button><button class="btn small" data-dmem="1" aria-pressed="${S.mem}">From memory</button></div>
    <p style="margin:0">${L.desc}</p>
-   <div class="row" style="gap:6px;font-size:14px">${ptPairs().map(pr=>`<span style="padding:2px 8px;border-radius:12px;background:${ptGreen(PT.lv,pr)?'var(--ok)':'var(--rule)'};color:${ptGreen(PT.lv,pr)?'#fff':'inherit'}">${pr.join(' → ')}</span>`).join('')}</div>
-   <p style="font-size:13px;color:var(--muted);margin:0">The next level opens when every chip is green. Only chords your lessons have taught: C F G (Lesson 2) and Am Dm E (Lesson 4).</p></div>
-  <article class="card" id="ptCard"></article>`}
-function ptPaint(msg){const el=document.getElementById('ptCard');if(!el)return;
-  if(PT.done){const ok=PT.res.filter(x=>x.ok).length;el.innerHTML=`<h3>Round done</h3><p>${ok} of ${PT.res.length} clean and even. Sent to Claude.</p><div class="row"><button class="btn primary" id="ptAgain">Next round</button></div>`;
-    document.getElementById('ptAgain').onclick=()=>{PT.done=false;ptBuild();render()};return}
-  if(!PT.queue.length)ptBuild();const pr=PT.queue[PT.qi];
-  el.innerHTML=`<div class="step">Card ${PT.qi+1} of ${PT.queue.length}</div><h3 style="font-size:28px;margin:0">${pr.join(' → ')}</h3>
-   <p style="margin:0">${pr.length===1?'One chord, the pattern twice.':'The pattern on each chord, then again.'} Tap <b>Hear it</b> once, then <b>Your turn</b>.</p>
-   ${msg?`<p class="now">${msg}</p>`:''}${ptExercise(pr)}`}
+   ${L.why?`<details style="border:1px solid var(--rule);border-radius:8px;padding:8px 12px;background:var(--paper,transparent)"><summary style="cursor:pointer;font-weight:600">Why it's done this way</summary><p style="margin:8px 0 0">${L.why}</p></details>`:''}
+   <div class="row" style="gap:6px;font-size:14px">${DRILL_PAIRS.map(pr=>`<span style="padding:2px 8px;border-radius:12px;background:${dGreen(id,S.lv,pr)?'var(--ok)':'var(--rule)'};color:${dGreen(id,S.lv,pr)?'#fff':'inherit'}">${pr.join(' → ')}</span>`).join('')}</div>
+   <p style="font-size:13px;color:var(--muted);margin:0">The next level opens when every chip is green.</p></div>
+  <article class="card" id="dCard"></article>`}
+function dPaint(id,msg){const el=document.getElementById('dCard');if(!el)return;const S=DS[id];
+  if(S.done){const ok=S.res.filter(x=>x.ok).length;el.innerHTML=`<h3>Round done</h3><p>${ok} of ${S.res.length} clean and even. Sent to Claude.</p><div class="row"><button class="btn primary" id="dAgain">Next round</button></div>`;
+    document.getElementById('dAgain').onclick=()=>{dBuild(id);render()};return}
+  if(!S.queue.length)dBuild(id);const pr=S.queue[S.qi];
+  el.innerHTML=`<div class="step">Card ${S.qi+1} of ${S.queue.length}</div><h3 style="font-size:28px;margin:0">${pr.join(' → ')}</h3>
+   <p style="margin:0">${pr.length===1?'One chord, the pattern twice.':'The pattern on each chord, then again.'} <b>Hear it</b> if you want, then <b>Your turn</b>.</p>
+   ${msg?`<p class="now">${msg}</p>`:''}${dExercise(id,pr)}`}
+/* Pattern Trainer greens earned before the rename keep counting */
+(()=>{const old=store.get('pt-stats',null);if(old)DS.pt.stats=old})();
 /* ---------- render ---------- */
-let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','p1');
+let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','trainer');
 const P=id=>prog[id]||(prog[id]={step:0,done:[]});const save=()=>{store.set('pb-prog',prog);store.set('pb-cur',cur)};
+const TRAINER_TABS=[['trainer','Chord Trainer'],['pt','Pattern Trainer'],['th','Two-Hand Trainer']];
+const tabsHTML=sel=>`<div class="lessons">${TRAINER_TABS.map(([id,n])=>`<button class="lchip" data-l="${id}" aria-pressed="${sel===id}">${id!=='trainer'&&!dOpenDrill(id)?'🔒 ':''}${n}</button>`).join('')}</div>`;
 function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
-  if(cur==='patterns'){const app=document.getElementById('app');
-    app.innerHTML=`<div class="lessons">${LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="false">Lesson ${j+1}</button>`).join('')}<button class="lchip" data-l="trainer" aria-pressed="false">Chord Trainer</button><button class="lchip" data-l="patterns" aria-pressed="true">Pattern Trainer</button></div>`+ptHTML();
+  if(cur==='patterns')cur='pt';if(!['trainer','pt','th'].includes(cur))cur='trainer';
+  if(cur==='pt'||cur==='th'){const id=cur;const app=document.getElementById('app');
+    app.innerHTML=tabsHTML(id)+dHTML(id);
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
-    app.querySelectorAll('[data-ptlv]').forEach(b=>b.onclick=()=>{PT.lv=b.dataset.ptlv;store.set('pt-lv',PT.lv);PT.done=false;ptBuild();render()});
-    app.querySelectorAll('[data-ptmem]').forEach(b=>b.onclick=()=>{PT.mem=b.dataset.ptmem==='1';store.set('pt-mem',PT.mem);render()});
-    ptPaint();return}
+    app.querySelectorAll('[data-dlv]').forEach(b=>b.onclick=()=>{DS[id].lv=b.dataset.dlv;store.set(DRILLS[id].store+'-lv',DS[id].lv);dBuild(id);render()});
+    app.querySelectorAll('[data-dmem]').forEach(b=>b.onclick=()=>{DS[id].mem=b.dataset.dmem==='1';store.set(DRILLS[id].store+'-mem',DS[id].mem);render()});
+    dPaint(id);return}
   if(cur==='keys'){const app=document.getElementById('app');
     app.innerHTML=`<div class="lessons">${LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="false">Lesson ${j+1}</button>`).join('')}<button class="lchip" data-l="trainer" aria-pressed="false">Chord Trainer</button></div>`+keyDrillHTML();
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
     app.querySelectorAll('[data-kd]').forEach(b=>b.onclick=()=>{KD.key=b.dataset.kd;store.set('kd-key',KD.key);render()});
     app.querySelectorAll('[data-kdmem]').forEach(b=>b.onclick=()=>{KD.mem=b.dataset.kdmem==='1';store.set('kd-mem',KD.mem);render()});return}
   if(cur==='trainer'){const app=document.getElementById('app');
-    app.innerHTML=`<div class="lessons">${LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="false">Lesson ${j+1}</button>`).join('')}<button class="lchip" data-l="trainer" aria-pressed="true">Chord Trainer</button><button class="lchip" data-l="patterns" aria-pressed="false">Pattern Trainer</button></div>`+trainerHTML();
+    app.innerHTML=tabsHTML('trainer')+trainerHTML();
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
     const pick=(attr,key)=>app.querySelectorAll(`[data-${attr}]`).forEach(b=>b.onclick=()=>{TR[key]=b.dataset[attr];store.set('tr-'+key,TR[key]);TR.summary=null;trBuild();render()});
     pick('set','set');pick('hand','hand');pick('mode','mode');
