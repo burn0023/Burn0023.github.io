@@ -185,7 +185,7 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
   const startTurn=()=>{if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}if(playing)stop();hf=null;T.on=true;T.times=[];T.idx=0;T.fresh=new Set();T.miss=0;T.msg='';cm=expMarks(steps[0].exp,steps[0].mk);nowTxt=turnTxt();draw()};
   const endTurn=()=>{T.on=false;cm=ex.marks;nowTxt='';draw()};
   const allowed=()=>{const a=new Set();for(let j=T.idx;j>=0;j--){if(steps[j].hold){steps[j].hold.forEach(k=>a.add(k));break}}if(T.idx>0)steps[T.idx-1].exp.forEach(k=>a.add(k));return a};
-  const judge=()=>{if(!T.on||playing||!MIDI.ev)return;const ev=MIDI.ev;MIDI.ev=null;const st=steps[T.idx];if(ex.only==='l'&&ev.n>=60)return;
+  let lastEv=null;const judge=()=>{if(!document.getElementById(id)){MIDI.subs.delete(judge);MIDI.subs.delete(draw);return}if(!T.on||playing||!MIDI.ev||MIDI.ev===lastEv)return;const ev=MIDI.ev;lastEv=ev;const st=steps[T.idx];if(ex.only==='l'&&ev.n>=60)return;
     if(ev.on){if(st.exp.has(ev.n))T.fresh.add(ev.n);else if(!allowed().has(ev.n)){T.miss++;
       T.msg=st.exp.has(ev.n-12)?`✗ ${nm(ev.n)} is one octave too <b>high</b>. Move the hand down.`:st.exp.has(ev.n+12)?`✗ ${nm(ev.n)} is one octave too <b>low</b>. Move the hand up.`:`✗ That was <b>${nm(ev.n)}</b>. Wanted <b>${nameList(st.exp)}</b>.`}}
     if([...st.exp].every(k=>T.fresh.has(k)&&MIDI.held.has(k))){T.idx++;T.fresh=new Set();(T.times=T.times||[]).push(performance.now());if(!ev.on||st.exp.has(ev.n))T.msg='';
@@ -250,7 +250,8 @@ function sendReport(txt){try{const body=new URLSearchParams();body.append('entry
 const R=(n,f)=>({k:m(n),f,h:'r'}),L=(n,f)=>({k:m(n),f,h:'l'});
 const S=(notes,beats=1)=>({k:notes.map(m),beats});
 /* C, F, G in the Chord Trainer spots (same as voicing()), written out so they exist before the chord code loads */
-const CFG={C:{l:[48,52,55],r:[60,64,67]},F:{l:[41,45,48],r:[65,69,72]},G:{l:[43,47,50],r:[67,71,74]},Am:{l:[45,48,52],r:[69,72,76]},Dm:{l:[50,53,57],r:[62,65,69]},E:{l:[52,56,59],r:[64,68,71]},Em:{l:[52,55,59],r:[64,67,71]},D:{l:[50,54,57],r:[62,66,69]}};
+const CFG0={C:{l:[48,52,55],r:[60,64,67]},F:{l:[41,45,48],r:[65,69,72]},G:{l:[43,47,50],r:[67,71,74]},Am:{l:[45,48,52],r:[69,72,76]},Dm:{l:[50,53,57],r:[62,65,69]},E:{l:[52,56,59],r:[64,68,71]},Em:{l:[52,55,59],r:[64,67,71]},D:{l:[50,54,57],r:[62,66,69]}};
+const CFG=new Proxy(CFG0,{get:(t,c)=>t[c]||(t[c]={l:voicing(c,'l').map(x=>x.k),r:voicing(c,'r').map(x=>x.k)})});
 const chEx=(key,c,lo,hi)=>{const L3=CFG[c].l,R3=CFG[c].r;const mk=[...L3.map((k,j)=>({k,f:[5,3,1][j],h:'l'})),...R3.map((k,j)=>({k,f:[1,3,5][j],h:'r'}))];
   return {key,lo,hi,bpm:60,marks:mk,seq:[...R3.map(k=>({k:[k],beats:1})),{k:R3,beats:2},...L3.map(k=>({k:[k],beats:1})),{k:L3,beats:2},{k:[...L3,...R3],beats:3}]}};
 const cfgStep=(c,say)=>({k:[...CFG[c].l,...CFG[c].r],beats:4,marks:[...CFG[c].l.map((k,j)=>({k,f:[5,3,1][j],h:'l'})),...CFG[c].r.map((k,j)=>({k,f:[1,3,5][j],h:'r'}))],say});
@@ -735,20 +736,33 @@ function keyDrillHTML(){const K=KEYS[KD.key];const open=K.unlock();
    The app waits for each note and measures evenness. Green = no wrong notes and even (wobble under 30%). Green stays green.
    A level opens when every card in the level before it is green. ---------- */
 const LM=c=>CFG[c].l.map((k,i)=>({k,f:[5,3,1][i],h:'l'})),RM=c=>CFG[c].r.map((k,i)=>({k,f:[1,3,5][i],h:'r'}));
-const DRILL_PAIRS=[['C'],['Am'],['C','F'],['F','G'],['G','C'],['Am','Dm'],['Dm','E'],['E','Am']];
+const O5M=c=>{const [r,,t]=CFG[c].l;return [{k:r,f:5,h:'l'},{k:t,f:1,h:'l'}]},O58M=c=>{const [r,,t]=CFG[c].l;return [{k:r,f:5,h:'l'},{k:t,f:2,h:'l'},{k:r+12,f:1,h:'l'}]};
+const DRILL_KEYS={
+ am:{name:'A minor (+ C)',pairs:[['C'],['Am'],['C','F'],['F','G'],['G','C'],['Am','Dm'],['Dm','E'],['E','Am']]},
+ gm:{name:'G minor',pairs:[['Gm'],['Gm','Cm'],['Cm','D'],['D','Gm'],['Gm','E♭'],['E♭','F'],['F','B♭'],['B♭','D']]},
+ dm:{name:'D minor',pairs:[['Dm'],['Dm','Gm'],['Gm','A'],['A','Dm'],['Dm','B♭'],['B♭','C'],['C','F'],['F','A']]},
+ em:{name:'E minor',pairs:[['Em'],['Em','Am'],['Am','B'],['B','Em'],['Em','C'],['C','D'],['D','G'],['G','B']]},
+ fr:{name:'Freygish (E)',pairs:[['E'],['E','F'],['F','E'],['E','Dm'],['Dm','E'],['E','Am'],['Am','Dm'],['G','F']]}};
+const DRILL_PAIRS=DRILL_KEYS.am.pairs;
 const DRILLS={
- pt:{title:'Pattern Trainer',tab:'Pattern Trainer',store:'pt',intro:'Left-hand patterns. The app waits for each note, so there\'s no rush; it checks the <b>right notes</b> and how <b>even</b> they are. Start slow: even beats fast.',
+ pt:{title:'Pattern Trainer',tab:'Pattern Trainer',store:'pt',intro:'Left-hand patterns, the accompaniment of kumzitz, Carlebach and simcha playing. Pick the key your songs are in (most niggunim are in A, D, E or G minor, or freygish). The app waits for each note, so there\'s no rush; it checks the <b>right notes</b> and how <b>even</b> they are. Start slow: even beats fast.',
   levels:[
    {id:'block',why:'Every pattern later is built on a steady pulse. Pressing the whole chord in time trains the hand to land the shape without looking, and trains your sense of the beat, before the fingers have to do different jobs. It\'s the same reason drummers practise plain quarter notes.',name:'1 · Steady chord',ts:'4/4',desc:'The whole chord on every beat: <b>1 2 3 4</b>. Same shape, pressed four times, evenly.',
     bar:c=>{const L=CFG[c].l;return [0,1,2,3].map(()=>({k:L,lab:'chord'}))}},
    {id:'bc',why:'Real accompaniment splits the chord into two jobs: the <b>bass</b> (lowest note) tells the ear which chord it is, and the rest fills in the harmony. Alternating them makes the left hand sound like a bass player plus a rhythm player. The hand stays in one shape, so only the fingers have to learn the new move, not the hand.',name:'2 · Bass, chord',ts:'4/4',desc:'Pinky alone (the <b>bass</b>), then fingers 3 and 1 together (the <b>chord</b>). <b>Bass, chord, bass, chord.</b>',
     bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[m,t],[r],[m,t]].map((k,i)=>({k,lab:i%2?'chord':'bass'}))}},
-   {id:'b3',why:'Playing the chord one note at a time (an arpeggio) gives a flowing, singing sound instead of a thump: right for slow 6/8 songs. Bottom, top, middle spreads the notes so the low bass rings first and the middle note fills in last. Fingers 5-1-3 match the chord shape you already know, so nothing moves except the fingers.',name:'3 · Broken chord in 3s (6/8)',ts:'6/8',desc:'One note at a time: <b>bottom, top, middle</b>, fingers <b>5, 1, 3</b>. Twice per chord. This one is for slow songs in 6/8.',
+   {id:'b3',why:'Playing the chord one note at a time (an arpeggio) gives a flowing, singing sound instead of a thump: right for slow 6/8 songs. Bottom, top, middle spreads the notes so the low bass rings first and the middle note fills in last. Fingers 5-1-3 match the chord shape you already know, so nothing moves except the fingers.',name:'3 · Broken chord in 3s (6/8)',ts:'6/8',desc:'One note at a time: <b>bottom, top, middle</b>, fingers <b>5, 1, 3</b>. Twice per chord. The classic <b>kumzitz</b> left hand for slow songs in 6/8.',
     bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[m],[r],[t],[m]].map((k,i)=>({k,lab:['bottom','top','middle'][i%3]}))}},
    {id:'b4',why:'The same idea in 4 beats: bottom, top, middle, top fills every beat so the sound never stops, which is what makes slow songs in 4 feel connected. The top note repeats on beats 2 and 4, giving the hand a rocking motion that becomes automatic.',name:'4 · Broken chord in 4s',ts:'4/4',desc:'<b>Bottom, top, middle, top</b>, fingers <b>5, 1, 3, 1</b>. Flowing, for slow songs in 4.',
-    bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[m],[t]].map((k,i)=>({k,lab:['bottom','top','middle','top'][i]}))}}]},
+    bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[m],[t]].map((k,i)=>({k,lab:['bottom','top','middle','top'][i]}))}},
+   {id:'o5',name:'5 · Open 5th (thumb + pinky)',ts:'4/4',lm:O5M,desc:'Leave out the middle note: <b>pinky on the bottom, thumb on the top</b> (the 5th). Press them together on every beat.',
+    why:'Low on the keyboard, the middle note (3rd) is only 3–4 keys above the bass, and notes that close blur into a growl. The 5th is 7 keys away, so it stays clear, and it\'s the purest interval after the octave, already hidden in the bass note\'s own sound. The 3rd, which makes the chord major or minor, sounds clean in the right hand instead.',
+    bar:c=>{const [r,,t]=CFG[c].l;return [0,1,2,3].map(()=>({k:[r,t],lab:'bottom + 5th'}))}},
+   {id:'o58',name:'6 · Bass, 5th, octave (6/8)',ts:'6/8',lm:O58M,desc:'One note at a time: <b>pinky</b> on the bottom, <b>finger 2</b> on the 5th, <b>thumb</b> on the bottom note an octave up. Twice per chord. A wide, open kumzitz left hand.',
+    why:'Bottom, 5th, octave spreads the bass out wide, so it sounds big and open, like a cello, without any muddiness. It leaves the middle note to the right hand. The stretch (pinky to thumb an octave apart) is a hand position worth building slowly.',
+    bar:c=>{const [r,,t]=CFG[c].l;return [[r],[t],[r+12],[r],[t],[r+12]].map((k,i)=>({k,lab:['bass','5th','octave'][i%3]}))}}]},
  th:{title:'Two-Hand Trainer',tab:'Two-Hand Trainer',store:'th',needs:{drill:'pt',level:'bc'},needsMsg:'Pattern Trainer level 2 (Bass, chord) is all green',
-  intro:'Both hands, one small job each. Make one hand automatic, then the other hand gets your attention. Same chords and checking as the Pattern Trainer.',
+  intro:'Both hands, one small job each, building to kumzitz-style piano: left hand flowing, right hand singing. Make one hand automatic, then the other hand gets your attention. Same chords and checking as the Pattern Trainer.',
   levels:[
    {id:'tog',why:'Before the hands do different things, they have to start together. Landing both hands at the same instant trains your brain to treat them as one unit and shows you any hand that lags. Almost every song starts its chords with both hands landing together.',name:'1 · Together',ts:'4/4',desc:'Both hands press the chord <b>at the same moment</b>, on every beat. Land them together, like one hand.',
     bar:c=>[0,1,2,3].map(()=>({k:[...CFG[c].l,...CFG[c].r],lab:'both hands'}))},
@@ -757,31 +771,40 @@ const DRILLS={
    {id:'hb',why:'This is real piano accompaniment: the right hand holds the harmony while the left hand plays bass and chord. It\'s the Pattern Trainer\'s level 2 with the right hand added, so only one thing is new. When this runs by itself, the right hand can start playing the tune instead of holding.',name:'3 · Right holds, left bass-chord',ts:'4/4',desc:'Right hand holds the chord. Left hand plays <b>bass, chord, bass, chord</b> underneath.',
     bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[m,t],[r],[m,t]].map((k,i)=>({k:i===0?[...k,...CFG[c].r]:k,hold:i===0?{k:CFG[c].r,beats:4}:null,lab:i===0?'bass + right chord (hold)':i%2?'left chord':'bass'}))}},
    {id:'sw',why:'Switching which hand moves stops one hand from becoming the only one that can keep rhythm. Many styles (and the tune later) need the right hand to move while the left holds a bass. Training both directions is what real independence is.',name:'4 · Swap: left holds, right moves',ts:'4/4',desc:'Now the other way: left pinky plays the <b>bass</b> on beat 1 and holds. Right hand plays the chord on <b>2, 3 and 4</b>.',
-    bar:c=>{const [r]=CFG[c].l;const R=CFG[c].r;return [{k:[r],hold:{k:[r],beats:4},lab:'bass (hold)'},{k:R,lab:'right chord'},{k:R,lab:'right chord'},{k:R,lab:'right chord'}]}}]}};
+    bar:c=>{const [r]=CFG[c].l;const R=CFG[c].r;return [{k:[r],hold:{k:[r],beats:4},lab:'bass (hold)'},{k:R,lab:'right chord'},{k:R,lab:'right chord'},{k:R,lab:'right chord'}]}},
+   {id:'kz',name:'5 · Kumzitz: left flows, right holds (6/8)',ts:'6/8',desc:'The kumzitz sound. Right hand presses the chord and <b>holds</b>; left hand plays the broken chord <b>bottom, top, middle</b> twice under it.',
+    why:'This is how a kumzitz is played on piano: the left hand keeps the music moving with a gentle broken chord while the right hand sustains the harmony. Next step after this (in the Song Trainer) is the right hand singing the niggun on top instead of holding.',
+    bar:c=>{const [r,m,t]=CFG[c].l;const R=CFG[c].r;return [[r],[t],[m],[r],[t],[m]].map((k,i)=>({k:i===0?[...k,...R]:k,hold:i===0?{k:R,beats:3}:null,lab:i===0?'bottom + right chord (hold)':['bottom','top','middle'][i%3]}))}},
+   {id:'kz5',name:'6 · Kumzitz open: bass, 5th, octave + right holds',ts:'6/8',lm:O58M,desc:'Right hand holds the full chord (it has the middle note). Left hand plays <b>bass, 5th, octave</b> twice under it.',
+    why:'The open left hand from Pattern Trainer level 6 under a held right-hand chord: the full, clear kumzitz sound, with the major/minor note up in the right hand where it sounds sweet.',
+    bar:c=>{const [r,,t]=CFG[c].l;const R=CFG[c].r;return [[r],[t],[r+12],[r],[t],[r+12]].map((k,i)=>({k:i===0?[...k,...R]:k,hold:i===0?{k:R,beats:3}:null,lab:i===0?'bass + right chord (hold)':['bass','5th','octave'][i%3]}))}}]}};
 /* Scale Trainer: levels are keys, cards are right hand / left hand / both. Fingering per standard scale fingering. */
 const SCALES={
  C:{name:'C major',r:[[60,1],[62,2],[64,3],[65,1],[67,2],[69,3],[71,4],[72,5]],l:[[48,5],[50,4],[52,3],[53,2],[55,1],[57,3],[59,2],[60,1]],tip:'All white keys. Right thumb on C and F.'},
  G:{name:'G major',r:[[67,1],[69,2],[71,3],[72,1],[74,2],[76,3],[78,4],[79,5]],l:[[43,5],[45,4],[47,3],[48,2],[50,1],[52,3],[54,2],[55,1]],tip:'One black key: <b>F♯</b>. Same fingering as C.'},
  F:{name:'F major',r:[[65,1],[67,2],[69,3],[70,4],[72,1],[74,2],[76,3],[77,4]],l:[[41,5],[43,4],[45,3],[46,2],[48,1],[50,3],[52,2],[53,1]],tip:'One black key: <b>B♭</b>. Right hand is different: <b>1 2 3 4</b>, thumb under to C, <b>1 2 3 4</b>. (The thumb never lands on the black key.)'},
  Am:{name:'A minor',r:[[69,1],[71,2],[72,3],[74,1],[76,2],[77,3],[80,4],[81,5]],l:[[45,5],[47,4],[48,3],[50,2],[52,1],[53,3],[56,2],[57,1]],tip:'The niggun version (harmonic minor): G is raised to <b>G♯</b>, the note that pulls home to A.'},
- Dm:{name:'D minor',r:[[62,1],[64,2],[65,3],[67,1],[69,2],[70,3],[73,4],[74,5]],l:[[50,5],[52,4],[53,3],[55,2],[57,1],[58,3],[61,2],[62,1]],tip:'Harmonic minor: <b>B♭</b> from the key, and C raised to <b>C♯</b> to pull home to D.'}};
+ Dm:{name:'D minor',r:[[62,1],[64,2],[65,3],[67,1],[69,2],[70,3],[73,4],[74,5]],l:[[50,5],[52,4],[53,3],[55,2],[57,1],[58,3],[61,2],[62,1]],tip:'Harmonic minor: <b>B♭</b> from the key, and C raised to <b>C♯</b> to pull home to D.'},
+ Gm:{name:'G minor',r:[[67,1],[69,2],[70,3],[72,1],[74,2],[75,3],[78,4],[79,5]],l:[[43,5],[45,4],[46,3],[48,2],[50,1],[51,3],[54,2],[55,1]],tip:'Harmonic minor, the key of many freilachs: <b>B♭ and E♭</b>, with F raised to <b>F♯</b> to pull home to G.'},
+ Efr:{name:'E freygish',r:[[64,1],[65,2],[68,3],[69,1],[71,2],[72,3],[74,4],[76,5]],l:[[52,5],[53,4],[56,3],[57,2],[59,1],[60,3],[62,2],[64,1]],tip:'The most Jewish-sounding scale (Ahava Rabba): <b>E F G♯ A B C D E</b>. The step and a half from F up to G♯ is the sound of a chazzan and of countless niggunim.'}};
 DRILLS.sc={title:'Scale Trainer',tab:'Scale Trainer',store:'sc',intro:'Scales as quick repeated cards: up and back down, then hands together. Same checking: right notes, even notes. Pick any key.',
  cards:[['Right hand'],['Left hand'],['Both hands']],
  cardHint:(lv,pr)=>`${SCALES[lv].name}, up and back down.`,
  levels:Object.entries(SCALES).map(([k,S])=>({id:k,name:S.name,ts:'4/4',desc:S.tip,
    why:k==='C'?'Scales are the shapes melodies are made of. Running them makes the thumb-under and cross-over automatic, so when a tune needs more than five notes your hand already knows how to get there. Hands together trains both hands to move at once, the same skill the Two-Hand Trainer builds with chords.':
      k==='F'?'In F the right hand uses 1 2 3 4 (not 1 2 3) before the thumb goes under. That keeps the thumb off the black key B♭; thumbs on black keys pull the hand out of shape.':
-     k==='Am'||k==='Dm'?'Most of your songs are in minor keys, and their tunes use the raised note (G♯ in A minor, C♯ in D minor). Practising the scale with it puts that sound and that finger move into your hands before you meet it in a song.':
+     k==='Efr'?'Freygish (Ahava Rabba) is the mode behind many niggunim, chazzanus and freilachs. Its home chord is <b>E major</b> and its neighbour is <b>F</b> (or Dm): that half step down from F to E is the sound. Knowing the scale under your fingers lets you play those melodies and hear where the chords go.':
+     k==='Am'||k==='Dm'||k==='Gm'?'Most of your songs are in minor keys, and their tunes use the raised note (G♯ in A minor, C♯ in D minor). Practising the scale with it puts that sound and that finger move into your hands before you meet it in a song.':
      'Every major scale uses the same step pattern; only the starting note and the black keys change. Same fingering as C, so the new thing is just the black key.'})),
  make:(lv,pr)=>{const S=SCALES[lv];const R=S.r,L=S.l;const up=i=>i,seqIdx=[0,1,2,3,4,5,6,7,6,5,4,3,2,1,0];const h=pr[0];
    const marks=[...(h!=='Left hand'?R.map(([k,f])=>({k,f,h:'r'})):[]),...(h!=='Right hand'?L.map(([k,f])=>({k,f,h:'l'})):[])];
    const seq=seqIdx.map(i=>({k:h==='Right hand'?[R[i][0]]:h==='Left hand'?[L[i][0]]:[R[i][0],L[i][0]],beats:1}));
    return {marks,seq}}};
-const DS={};Object.entries(DRILLS).forEach(([id,D])=>{DS[id]={lv:store.get(D.store+'-lv',D.levels[0].id),mem:store.get(D.store+'-mem',false),stats:store.get(D.store+'-stats',{}),queue:[],qi:0,res:[],done:false}});
+const DS={};Object.entries(DRILLS).forEach(([id,D])=>{DS[id]={key:store.get(D.store+'-key','am'),lv:store.get(D.store+'-lv',D.levels[0].id),mem:store.get(D.store+'-mem',false),stats:store.get(D.store+'-stats',{}),queue:[],qi:0,res:[],done:false}});
 const PT=DS.pt; /* kept for older code paths */
 const dKey=(lv,pr)=>lv+'|'+pr.join('-');
 const dGreen=(id,lv,pr)=>!!(DS[id].stats[dKey(lv,pr)]||{}).green;
-const dCards=id=>DRILLS[id].cards||DRILL_PAIRS;
+const dCards=id=>DRILLS[id].cards||DRILL_KEYS[DS[id].key||'am'].pairs;
 const dLevelGreen=(id,lv)=>dCards(id).every(pr=>dGreen(id,lv,pr));
 const dOpenDrill=id=>true;const dReady=id=>{const n=DRILLS[id].needs;return !n||dLevelGreen(n.drill,n.level)};
 const dOpen=(id,lv)=>true;const dSuggested=id=>{const L=DRILLS[id].levels.find(x=>!dLevelGreen(id,x.id));return L?L.id:null};
@@ -790,8 +813,8 @@ function dBuild(id){const S=DS[id];const notG=dCards(id).filter(pr=>!dGreen(id,S
 function dExercise(id,pr){const S=DS[id];const L=DRILLS[id].levels.find(x=>x.id===S.lv);
   if(DRILLS[id].make){const m=DRILLS[id].make(S.lv,pr);return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,...m,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r)})}
   const chords=pr.length===1?[pr[0],pr[0]]:[...pr,...pr];const seq=[];
-  chords.forEach(c=>L.bar(c).forEach((x,i)=>seq.push({k:x.k,hold:x.hold||null,beats:L.ts==='6/8'?.5:1,marks:i===0?[...LM(c),...(id==='th'?RM(c):[])]:null,say:`<b>${c}</b> · ${x.lab}`})));
-  const both=id==='th';return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,marks:[...LM(pr[0]),...(both?RM(pr[0]):[])],seq,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r)})}
+  chords.forEach(c=>L.bar(c).forEach((x,i)=>seq.push({k:x.k,hold:x.hold||null,beats:L.ts==='6/8'?.5:1,marks:i===0?[...(L.lm?L.lm(c):LM(c)),...(id==='th'?RM(c):[])]:null,say:`<b>${c}</b> · ${x.lab}`})));
+  const both=id==='th';return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,marks:[...(L.lm?L.lm(pr[0]):LM(pr[0])),...(both?RM(pr[0]):[])],seq,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r)})}
 function dDone(id,pr,r){const S=DS[id];const {cv,avg}=ptEven(r.times);const even=cv<.3;const ok=r.miss===0&&even;const k=dKey(S.lv,pr);
   const st=S.stats[k]||{n:0,green:false};st.n++;st.cv=cv;st.avg=avg;st.miss=r.miss;if(ok)st.green=true;S.stats[k]=st;store.set(DRILLS[id].store+'-stats',S.stats);
   S.res.push({pr,miss:r.miss,cv,avg,ok});
@@ -808,7 +831,7 @@ function dHTML(id){const D=DRILLS[id],S=DS[id];
   const levels=D.levels.map(L=>`<button class="btn small" data-dlv="${L.id}" aria-pressed="${S.lv===L.id}">${dLevelGreen(id,L.id)?'✓ ':''}${L.name}${L.id===sug?' <span style="font-size:11px;background:var(--gold);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">suggested</span>':''}</button>`).join('');
   const L=D.levels.find(x=>x.id===S.lv);
   return `<div class="head"><div class="eyebrow">Trainer</div><h2>${D.title}</h2><p>${D.intro}</p>${!dReady(id)?`<p style="font-size:14px;color:var(--muted);margin:0">Suggested after ${D.needsMsg}. Jump in anytime.</p>`:''}</div>
-  <div class="card" style="gap:8px"><div class="row" style="gap:6px">${levels}</div>
+  <div class="card" style="gap:8px">${D.cards?'':`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Key:</span>${Object.entries(DRILL_KEYS).map(([k,K])=>`<button class="btn small" data-dkey="${k}" aria-pressed="${(S.key||'am')===k}">${K.name}</button>`).join('')}</div>`}<div class="row" style="gap:6px">${levels}</div>
    <div class="row" style="gap:6px"><button class="btn small" data-dmem="0" aria-pressed="${!S.mem}">Keys shown</button><button class="btn small" data-dmem="1" aria-pressed="${S.mem}">From memory</button></div>
    <p style="margin:0">${L.desc}</p>
    ${L.why?`<details style="border:1px solid var(--rule);border-radius:8px;padding:8px 12px;background:var(--paper,transparent)"><summary style="cursor:pointer;font-weight:600">Why it's done this way</summary><p style="margin:8px 0 0">${L.why}</p></details>`:''}
@@ -839,7 +862,13 @@ const EAR_LEVELS=[
   home:'Am',pick:()=>({c:['Am','Dm','E'][Math.floor(Math.random()*3)],hint:'After home (Am): which chord?',choices:['Am','Dm','E']})},
  {id:'six',name:'4 · Any chord in C',desc:'Home is <b>C</b>. Then one of <b>C Dm Em F G Am</b>. Play it.',
   why:'These six chords come straight out of the C scale. Telling them apart by ear is most of what "playing by ear" means for chords. Hint: listen for bright or dark first, then for how far it feels from home.',
-  home:'C',pick:()=>({c:['C','Dm','Em','F','G','Am'][Math.floor(Math.random()*6)],hint:'After home (C): which chord?',choices:['C','Dm','Em','F','G','Am']})}];
+  home:'C',pick:()=>({c:['C','Dm','Em','F','G','Am'][Math.floor(Math.random()*6)],hint:'After home (C): which chord?',choices:['C','Dm','Em','F','G','Am']})},
+ {id:'g145',name:'5 · Gm, Cm or D',desc:'Home is <b>Gm</b>, the key of many freilachs. Then: <b>Gm, Cm or D</b>?',
+  why:'The same 1-4-5 in G minor. D (with F♯) is the pull home, exactly like E in A minor. Same feelings, new key: hearing that they match is what lets you play a song in any key.',
+  home:'Gm',pick:()=>({c:['Gm','Cm','D'][Math.floor(Math.random()*3)],hint:'After home (Gm): which chord?',choices:['Gm','Cm','D']})},
+ {id:'fr',name:'6 · Freygish: E, F or Dm',desc:'Home is <b>E major</b> in freygish (Ahava Rabba). Then: <b>E, F or Dm</b>?',
+  why:'In freygish the home chord is major (E) but the music sounds Jewish and minor because the chords next door are F and Dm. The F-to-E half step is the signature move; once you hear it you\'ll recognise freygish songs instantly.',
+  home:'E',pick:()=>({c:['E','F','Dm'][Math.floor(Math.random()*3)],hint:'After home (E, freygish): which chord?',choices:['E','F','Dm']})}];
 const EAR={lv:store.get('ear-lv','mm'),stats:store.get('ear-stats',{}),round:[],i:0,card:null,tries:0,timers:[],busy:false,msg:'',
  voice(c){const ci=chordInfo(c);let r=55;while(r%12!==ci.root)r++;return ci.pcs.map(p=>{let k=r;while(k%12!==p)k++;return k})},
  play(c,at){const ns=EAR.voice(c);if(outOK()){EAR.timers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x90,n,80]))),at));EAR.timers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x80,n,0]))),at+1300))}
@@ -897,6 +926,7 @@ function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
     app.querySelectorAll('[data-dlv]').forEach(b=>b.onclick=()=>{DS[id].lv=b.dataset.dlv;store.set(DRILLS[id].store+'-lv',DS[id].lv);dBuild(id);render()});
     app.querySelectorAll('[data-dmem]').forEach(b=>b.onclick=()=>{DS[id].mem=b.dataset.dmem==='1';store.set(DRILLS[id].store+'-mem',DS[id].mem);render()});
+    app.querySelectorAll('[data-dkey]').forEach(b=>b.onclick=()=>{DS[id].key=b.dataset.dkey;store.set(DRILLS[id].store+'-key',DS[id].key);dBuild(id);render()});
     dPaint(id);return}
   if(cur==='keys'){const app=document.getElementById('app');
     app.innerHTML=`<div class="lessons">${LESSONS.map((l,j)=>`<button class="lchip" data-l="${l.id}" aria-pressed="false">Lesson ${j+1}</button>`).join('')}<button class="lchip" data-l="trainer" aria-pressed="false">Chord Trainer</button></div>`+keyDrillHTML();
