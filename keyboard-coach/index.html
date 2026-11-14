@@ -738,11 +738,14 @@ function keyDrillHTML(){const K=KEYS[KD.key];const open=K.unlock();
 const LM=c=>CFG[c].l.map((k,i)=>({k,f:[5,3,1][i],h:'l'})),RM=c=>CFG[c].r.map((k,i)=>({k,f:[1,3,5][i],h:'r'}));
 const O5M=c=>{const [r,,t]=CFG[c].l;return [{k:r,f:5,h:'l'},{k:t,f:1,h:'l'}]},O58M=c=>{const [r,,t]=CFG[c].l;return [{k:r,f:5,h:'l'},{k:t,f:2,h:'l'},{k:r+12,f:1,h:'l'}]};
 const O585M=c=>{const [r,,t]=CFG[c].l;return [{k:r,f:5,h:'l'},{k:t,f:2,h:'l'},{k:r+12,f:1,h:'l'}]},ROLLM=c=>{const [r,m,t]=CFG[c].l;return [{k:r,f:5,h:'l'},{k:t,f:2,h:'l'},{k:r+12,f:1,h:'l'},{k:m+12,f:3,h:'l'}]};
+const JBM=c=>{const lo=lowRoot(c);const [r,m,t]=CFG[c].l;return [{k:lo,f:5,h:'l'},{k:lo+12,f:1,h:'l'},{k:r,f:5,h:'l'},{k:m,f:3,h:'l'},{k:t,f:1,h:'l'}].filter((x,i,a)=>a.findIndex(y=>y.k===x.k)===i)};
 const DRILL_KEYS={
  am:{name:'A minor (+ C)',pairs:[['C'],['Am'],['C','F'],['F','G'],['G','C'],['Am','Dm'],['Dm','E'],['E','Am']]},
  gm:{name:'G minor',pairs:[['Gm'],['Gm','Cm'],['Cm','D'],['D','Gm'],['Gm','E♭'],['E♭','F'],['F','B♭'],['B♭','D']]},
  dm:{name:'D minor',pairs:[['Dm'],['Dm','Gm'],['Gm','A'],['A','Dm'],['Dm','B♭'],['B♭','C'],['C','F'],['F','A']]},
  em:{name:'E minor',pairs:[['Em'],['Em','Am'],['Am','B'],['B','Em'],['Em','C'],['C','D'],['D','G'],['G','B']]},
+ circ:{name:'Carlebach circle (Am)',pairs:[['Am','Dm'],['Dm','G'],['G','C'],['C','F'],['F','Dm'],['Dm','E'],['E','Am'],['Am']]},
+ circc:{name:'Carlebach circle (Cm)',pairs:[['Cm','Fm'],['Fm','B♭'],['B♭','E♭'],['E♭','A♭'],['A♭','Fm'],['Fm','G'],['G','Cm'],['Cm']]},
  fr:{name:'Freygish (E)',pairs:[['E'],['E','F'],['F','E'],['E','Dm'],['Dm','E'],['E','Am'],['Am','Dm'],['G','F']]}};
 const DRILL_PAIRS=DRILL_KEYS.am.pairs;
 const DRILLS={
@@ -767,7 +770,13 @@ const DRILLS={
     bar:c=>{const [r,,t]=CFG[c].l;return [[r],[t],[r+12],[t],[r],[t],[r+12],[t]].map((k,i)=>({k,lab:['bass','5th','octave','5th'][i%4]}))}},
    {id:'roll',name:'8 · Carlebach roll 1-5-8-10',ts:'6/8',lm:ROLLM,desc:'Bass, 5th, octave, then <b>finger 3 crosses over the thumb</b> to the 10th (the chord\'s middle note, an octave up), and back down: <b>1-5-8-10-8-5</b>. For Am: A, E, A, C, A, E.',
     why:'Gemini described this as the textbook Carlebach kumzitz left hand (root, 5th, octave, then up to the 10th). The 10th is the chord\'s major/minor note placed high enough to sound sweet instead of muddy, so the left hand alone sounds like a full, warm chord. Finger 3 crossing over the thumb is the same cross-over move as in your scales.',
-    bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[r+12],[m+12],[r+12],[t]].map((k,i)=>({k,lab:['bass','5th','octave','10th (3 over)','octave','5th'][i]}))}}]},
+    bar:c=>{const [r,m,t]=CFG[c].l;return [[r],[t],[r+12],[m+12],[r+12],[t]].map((k,i)=>({k,lab:['bass','5th','octave','10th (3 over)','octave','5th'][i]}))}},
+   {id:'jump',name:'9 · Jump bass (ballad)',ts:'4/4',lm:JBM,desc:'Beat 1: a <b>low octave</b> on the chord\'s name note (pinky + thumb, near the bottom of the keyboard). Beats 2, 3, 4: <b>jump up</b> and play the chord in its usual spot.',
+    why:'All three chuppah/ballad pianists Gemini studied do this at the big moments: a deep octave on beat 1 for weight, then the chord in the middle for harmony and pulse. It makes one keyboard sound like a bass player plus a pianist, with no drums needed.',
+    bar:c=>{const lo=lowRoot(c);const L=CFG[c].l;return [{k:[lo,lo+12],lab:'low octave'},{k:L,lab:'chord'},{k:L,lab:'chord'},{k:L,lab:'chord'}]}},
+   {id:'drone',name:'10 · Chuppah drone (open 5th, held)',ts:'4/4',lm:O5M,desc:'Pinky and thumb on the bottom and 5th, pressed once and <b>held for the whole bar</b>. Change only when the chord changes, with no gap.',
+    why:'In the live one-man-band chuppah Gemini studied (style off, strings on the left), the left hand just holds long open 5ths so the string bed never stops while the chosson and kallah walk. The skill is changing chords with <b>no gap</b> in the sound: lift and land in one motion.',
+    bar:c=>{const [r,,t]=CFG[c].l;return [{k:[r,t],beats:4,lab:'open 5th, hold 4 beats'}]}}]},
  th:{title:'Two-Hand Trainer',tab:'Two-Hand Trainer',store:'th',needs:{drill:'pt',level:'bc'},needsMsg:'Pattern Trainer level 2 (Bass, chord) is all green',
   intro:'Both hands, one small job each, building to kumzitz-style piano: left hand flowing, right hand singing. Make one hand automatic, then the other hand gets your attention. Same chords and checking as the Pattern Trainer.',
   levels:[
@@ -820,7 +829,7 @@ function dBuild(id){const S=DS[id];const notG=dCards(id).filter(pr=>!dGreen(id,S
 function dExercise(id,pr){const S=DS[id];const L=DRILLS[id].levels.find(x=>x.id===S.lv);
   if(DRILLS[id].make){const m=DRILLS[id].make(S.lv,pr);return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,...m,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r)})}
   const chords=pr.length===1?[pr[0],pr[0]]:[...pr,...pr];const seq=[];
-  chords.forEach(c=>L.bar(c).forEach((x,i)=>seq.push({k:x.k,hold:x.hold||null,beats:L.ts==='6/8'?.5:1,marks:i===0?[...(L.lm?L.lm(c):LM(c)),...(id==='th'?RM(c):[])]:null,say:`<b>${c}</b> · ${x.lab}`})));
+  chords.forEach(c=>L.bar(c).forEach((x,i)=>seq.push({k:x.k,hold:x.hold||null,beats:x.beats||(L.ts==='6/8'?.5:1),marks:i===0?[...(L.lm?L.lm(c):LM(c)),...(id==='th'?RM(c):[])]:null,say:`<b>${c}</b> · ${x.lab}`})));
   const both=id==='th';return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,marks:[...(L.lm?L.lm(pr[0]):LM(pr[0])),...(both?RM(pr[0]):[])],seq,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r)})}
 function dDone(id,pr,r){const S=DS[id];const {cv,avg}=ptEven(r.times);const even=cv<.3;const ok=r.miss===0&&even;const k=dKey(S.lv,pr);
   const st=S.stats[k]||{n:0,green:false};st.n++;st.cv=cv;st.avg=avg;st.miss=r.miss;if(ok)st.green=true;S.stats[k]=st;store.set(DRILLS[id].store+'-stats',S.stats);
