@@ -1254,7 +1254,27 @@ let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','trainer');
 const P=id=>prog[id]||(prog[id]={step:0,done:[]});const save=()=>{store.set('pb-prog',prog);store.set('pb-cur',cur)};
 const TRAINER_TABS=[['trainer','Chord Trainer'],['pt','Pattern Trainer'],['th','Two-Hand Trainer'],['rh','Right-Hand Trainer'],['jam','Kumzitz Jam'],['inv','Inversion Trainer'],['sc','Scale Trainer'],['ear','Ear Trainer'],['songs','Song Trainer'],['setups','Tyros Setups']];
 const songsOpen=()=>true;const songsReady=()=>dLevelGreen('th','hb');
-const tabsHTML=sel=>`<div class="lessons">${TRAINER_TABS.map(([id,n])=>`<button class="lchip" data-l="${id}" aria-pressed="${sel===id}">${n}</button>`).join('')}</div>`;
+const SETUP_QUICK={
+ solo:'Style <b>off</b> ([ACMP] off) · RIGHT 1 <b>ConcertGrand</b> + RIGHT 2 <b>WarmStrings</b> (quieter) · LEFT <b>off</b> (both hands piano + strings) · sustain pedal',
+ guitar:'Same voices as Setup 1: <b>ConcertGrand</b> + <b>WarmStrings</b>, LEFT off, style off. Strings a little louder; keep the Tyros under the band',
+ chuppah:'Style <b>off</b> · LEFT <b>RealCellos</b> (left hand holds open 5ths) · RIGHT 1 <b>Violin</b> · RIGHT 2 <b>RealStrings</b> · split just below middle C',
+ simcha:'Style <b>on</b>: [ACMP] on, chord fingering <b>FINGERED</b> · left-hand chords at or below the F♯ under middle C · RIGHT 1 a lead voice · Fill-In / Variation on beat 4',
+ hora:'Style <b>on</b> ([ACMP] on) · same left hand as the simcha setup · see Setup 5 for the lead and rhythm',
+ carl:'See Setup 6 · Carlebach upbeat'};
+function setupFor(sel){if(sel==='setups')return null;
+  if(sel==='inv')return ['simcha','the Inversion Trainer'];
+  if(sel==='pt'){const lv=DS.pt.lv;if(lv==='drone'||lv==='jump')return ['chuppah','this level'];return ['solo','the Pattern Trainer']}
+  if(sel==='jam'){const g=JAM.groove;if(g==='chup')return ['chuppah','this band'];if(g==='frei')return ['simcha','this band'];if(g==='hora')return ['hora','this band'];
+    if(g==='click'||JAM.role==='solo')return ['solo','solo kumzitz'];return ['guitar','playing with the band']}
+  if(sel==='th'||sel==='rh'||sel==='songs')return ['solo','this trainer'];
+  return ['solo','this trainer (any piano sound works)']}
+function setupBox(sel){const f=setupFor(sel);if(!f||typeof SETUPS==='undefined')return '';const s=SETUPS.find(x=>x.id===f[0]);if(!s)return '';
+  return `<div style="border:2px solid var(--ink);border-radius:10px;padding:8px 12px;margin:4px 0 10px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center">
+   <span style="font-weight:700">🎹 Tyros for ${f[1]}: ${s.title.replace(/^\d+ · /,'Setup '+(SETUPS.indexOf(s)+1)+' · ')}</span>
+   <span style="flex:1 1 300px;font-size:14px">${SETUP_QUICK[s.id]||''}</span>
+   <button class="btn small" data-l="setups" data-suo="${s.id}">All steps ▸</button></div>`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-suo]');if(b)store.set('su-open',b.dataset.suo)},true);
+const tabsHTML=sel=>`<div class="lessons">${TRAINER_TABS.map(([id,n])=>`<button class="lchip" data-l="${id}" aria-pressed="${sel===id}">${n}</button>`).join('')}</div>`+setupBox(sel);
 function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
   if(cur==='patterns')cur='pt';if(!['trainer','pt','th','rh','jam','inv','sc','ear','songs','setups'].includes(cur))cur='trainer';
   if(cur==='setups'){const app=document.getElementById('app');app.innerHTML=tabsHTML('setups')+setupsHTML();
