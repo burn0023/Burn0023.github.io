@@ -1,20 +1,10 @@
 {
- "date": "16 Nov 2026, 13:47",
- "note": "Your first real Jam round (Pad under the band, A minor, 66 bpm): <b>chord changes are excellent</b>, 64 of 66 on time, within a few hundredths of a second. The notes that didn't fit were mostly <b>left over from the chord before</b> (F or C while the band was already on E, D while on Am): one hand changes a little after the other. Fix: look at the next chord during beat 4 and move both hands together. Earlier results: Pattern levels 1–2 green; E, D/Dm and Em are your slowest chords, and B♭/E♭ in G minor.",
+ "date": "16 Nov 2026, 14:09",
+ "note": "<b>Pad under the band is all green (6 of 6)</b> after two rounds at 66 bpm. Chord changes are almost exactly on the beat. The left-over notes were brushes: soft (velocity 27–59) and 10–80 ms after the beat, as your hand moved over an old key. They went from about 12% to 3%. Next on the path to smooth shapes: Two-Hand 1 → 2 and Pattern 5 unlock Two-Hand 7 (smooth changes), which unlocks the smooth-shapes pad. Earlier results: E, D/Dm and Em are your slowest chords, and B♭/E♭ in G minor.",
  "items": [
   {
-   "title": "Kumzitz Jam · Pad under the band: both hands together",
-   "why": "Same part, same 66 bpm. Goal: zero left-over notes. When the app says a note is 'still from' the old chord, that hand was late.",
-   "go": {
-    "tab": "jam",
-    "role": "pad",
-    "groove": "kz44",
-    "key": "am"
-   }
-  },
-  {
    "title": "Two-Hand Trainer · 1 · Together",
-   "why": "Landing both hands at the same instant, without the band, is exactly the skill behind the left-over notes. It also unlocks level 2 and then the smooth shapes.",
+   "why": "Both hands landing at the same instant. Quick, and it unlocks level 2 (right holds, left steady).",
    "go": {
     "tab": "th",
     "lv": "tog"
@@ -22,11 +12,22 @@
   },
   {
    "title": "Pattern Trainer · 5 · Open 5th",
-   "why": "Unlocks the Right-Hand Trainer and the smooth-shapes path.",
+   "why": "With Two-Hand 2, it unlocks Two-Hand 7 (smooth changes) and the Right-Hand Trainer.",
    "go": {
     "tab": "pt",
     "lv": "o5",
     "key": "am"
+   }
+  },
+  {
+   "title": "Kumzitz Jam · Pad, +4 bpm",
+   "why": "Green at 66 bpm. Try 70 and keep the brushes away: lift the fingers straight up before moving.",
+   "go": {
+    "tab": "jam",
+    "role": "pad",
+    "groove": "kz44",
+    "key": "am",
+    "bpm": 70
    }
   }
  ]
