@@ -965,18 +965,20 @@ const JAM_SIMCHA_KEYS={gm:{name:'G minor',t:7,mode:'minor',pairs:INV_KEYS.gm.pai
 const jamK=()=>['frei','hora'].includes(JAM.groove)?JAM_SIMCHA_KEYS:KZ_KEYS;
 function jamFixKey(){if(!jamK()[JAM.key])JAM.key=Object.keys(jamK())[0]}
 const JAM_ROLES={
- pad:{name:'1 · Pad under the band',desc:'<b>Left hand:</b> open 5th (pinky + thumb), struck on beat 1 and held. <b>Right hand:</b> hold the chord in the <b>nearest shape</b> (the dots): keep the notes the two chords share, move the others one step. Change exactly when the guitar changes, with no gap: lift and land in one move. Pedal: press the new chord, <i>then</i> lift and re-press the pedal. Don\'t strum along: the guitar has the rhythm.',
+ pad:{name:'1 · Pad under the band',desc:'<b>Left hand:</b> open 5th (pinky + thumb), struck on beat 1 and held. <b>Right hand:</b> hold the chord in the shape you know (root position). Change exactly when the guitar changes. Don\'t strum along: the guitar has the rhythm.',
   why:'With a guitar in the room, the guitar owns the rhythm. Gemini\'s kumzitz videos with guitar (Baruch Levine, Avrumy Straus) show the piano holding warm open 5ths and chords underneath and leaving the strumming alone. Two instruments strumming the same rhythm sound messy; a held pad under a strummed guitar sounds full.'},
- fill:{name:'2 · Answer in the gaps',desc:'<b>Left hand:</b> open 5th on beat 1, held. <b>Right hand:</b> rest on beats 1–2 (that\'s where the singers are), then play a few notes from the chord on beats 3–4, like an answer. A 3rd, a grace note, a pickup into the next chord.',
+ pads:{name:'2 · Pad, smooth shapes',desc:'Same as the pad, but the right hand holds each chord in the <b>nearest shape</b> (the dots): keep the notes the two chords share, move the others one step. Change with <b>no gap</b>: lift and land in one move. Pedal: press the new chord, <i>then</i> lift and re-press the pedal.',
+  why:'Moving to the nearest shape (voice leading) is what makes a pad sound smooth: the harmony glides instead of jumping, and the hand barely moves, so there is no gap. It\'s practised first without the band in Two-Hand Trainer level 7.'},
+ fill:{name:'3 · Answer in the gaps',desc:'<b>Left hand:</b> open 5th on beat 1, held. <b>Right hand:</b> rest on beats 1–2 (that\'s where the singers are), then play a few notes from the chord on beats 3–4, like an answer. A 3rd, a grace note, a pickup into the next chord.',
   why:'"Leave space between vocal phrases so the singer and room can project" was one of Gemini\'s clearest findings (Baruch Levine verse). The keyboard talks when the singers breathe. The app counts how many of your right-hand notes land in the gap (beats 3–4).'},
- lead:{name:'3 · Lead the tune',desc:'<b>Left hand:</b> open 5th held. <b>Right hand:</b> play a niggun\'s tune by ear in single notes, 3rds or octaves. The guitar keeps the rhythm, so all your attention can go to the tune.',
+ lead:{name:'4 · Lead the tune',desc:'<b>Left hand:</b> open 5th held. <b>Right hand:</b> play a niggun\'s tune by ear in single notes, 3rds or octaves. The guitar keeps the rhythm, so all your attention can go to the tune.',
   why:'When nobody is singing yet (an intro, a niggun between songs), the keyboard plays the tune and the guitar backs it up. This is the dual-tasking you said is hard, made easier: the left hand job is tiny (one held open 5th per bar), so the right hand gets nearly all your attention.'},
- solo:{name:'4 · Solo piano kumzitz',desc:'Use with <b>Solo · soft click only</b>. <b>Left hand flows</b>: bass, 5th, octave or the Carlebach roll. <b>Right hand:</b> the tune, or hold the chord. Keep the flow going through the chord change.',
+ solo:{name:'5 · Solo piano kumzitz',desc:'Use with <b>Solo · soft click only</b>. <b>Left hand flows</b>: bass, 5th, octave or the Carlebach roll. <b>Right hand:</b> the tune, or hold the chord. Keep the flow going through the chord change.',
   why:'Alone, the piano has to be guitar, bass and singer at once. That\'s why the left hand flows (the rhythm and bass a guitar would give) while the right hand sings. The click only keeps you honest about the tempo; the score checks that your chord changes land on time.'}};
 Object.assign(JAM_ROLES,{
- stab:{name:'5 · Simcha left hand: chord on 1, lift',desc:'<b>Left hand:</b> the 3-note chord in the <b>nearest shape</b> (the dots, at or below F♯ under middle C), struck short on <b>beat 1</b>, then <b>lift</b> the hand. <b>Right hand:</b> free: the tune, or rest. Use with <b>Freilach</b> or <b>Hora</b>.',
+ stab:{name:'6 · Simcha left hand: chord on 1, lift',desc:'<b>Left hand:</b> the 3-note chord in the <b>nearest shape</b> (the dots, at or below F♯ under middle C), struck short on <b>beat 1</b>, then <b>lift</b> the hand. <b>Right hand:</b> free: the tune, or rest. Use with <b>Freilach</b> or <b>Hora</b>.',
   why:'In every fast simcha video Gemini studied (Isrolik Bash, Shaya Lloyd, the HillelKAPS one-man band), the left hand plays tight, short 3-note chords in the style\'s chord zone on beat 1 and lifts cleanly so the style doesn\'t blur, using the free moment to hit Fill or Variation. The nearest shape keeps the hand still. The app checks that your left hand has <b>lifted</b> by the middle of each bar.'},
- drone:{name:'6 · Chuppah: open 5th held, no gap',desc:'<b>Left hand:</b> open 5th (pinky + thumb), held the whole bar. On the change, land the new 5th <b>as</b> the old one lifts: no silence. <b>Right hand:</b> free: a slow tune, or rest. Use with <b>Chuppah · strings</b>.',
+ drone:{name:'7 · Chuppah: open 5th held, no gap',desc:'<b>Left hand:</b> open 5th (pinky + thumb), held the whole bar. On the change, land the new 5th <b>as</b> the old one lifts: no silence. <b>Right hand:</b> free: a slow tune, or rest. Use with <b>Chuppah · strings</b>.',
   why:'Gemini\'s live chuppah one-man band held long root–5th drones in the low strings with the style off, so the sound never stops while the chosson and kallah walk. A gap between chords is the thing everyone hears. The app measures the silence between letting go of one chord and striking the next; under 0.15 s counts as no gap.'}});
 const JAM={groove:store.get('jam-groove','kz44'),role:store.get('jam-role','pad'),key:store.get('jam-key','am'),bpm:store.get('jam-bpm',{}),vol:store.get('jam-vol',.8),
   loops:2,prog:null,state:'idle',ev:[],seen:null,master:null,iv:null,res:null,timer:null,hist:store.get('jam-hist',[]),
@@ -1052,12 +1054,13 @@ function rhFingers(sh){return (sh[2]-sh[1])>=5?[1,2,5]:(sh[1]-sh[0])>=5?[1,4,5]:
 function jamPadShape(c){const pr=JAM.prog||JAM.queue[JAM.qi]||[c];const q=pr.includes(c)?pr:[c];return rhPath(q)[q.indexOf(c)]}
 function jamStabShape(c){const pr=JAM.prog||JAM.queue[JAM.qi]||[c];const P=invPath(pr.includes(c)?pr:[c]);return P[(pr.includes(c)?pr:[c]).indexOf(c)]}
 function jamMarks(c){if(JAM.role==='stab'){const sh=jamStabShape(c);const F=invFingers(sh);return sh.map((k,i)=>({k,f:F[i],h:'l'}))}const [r,,t]=CFG[c].l;const lh=JAM.role==='solo'?[{k:r,f:5,h:'l'},{k:t,f:2,h:'l'},{k:r+12,f:1,h:'l'}]:[{k:r,f:5,h:'l'},{k:t,f:1,h:'l'}];
-  const ps=JAM.role==='pad'?jamPadShape(c):null;return [...lh,...(ps?ps.map((k,i)=>({k,f:rhFingers(ps)[i],h:'r'})):[])]}
+  const ps=JAM.role==='pads'?jamPadShape(c):JAM.role==='pad'?CFG[c].r:null;return [...lh,...(ps?ps.map((k,i)=>({k,f:rhFingers(ps)[i],h:'r'})):[])]}
+const jamIsPad=()=>JAM.role==='pad'||JAM.role==='pads';
 function jamSay(msg,bad){JAM.now=`<span style="color:${bad?'var(--bad,#b3261e)':'var(--ok)'};font-weight:600">${msg}</span>`;if(bad)JAM.fb.push(msg.replace(/<[^>]+>/g,''));jamFb()}
 /* live correction: every note is checked against the chord sounding now; every chord change is checked when it happens */
 function jamJudgeNote(e){const c=jamChordAt(e.t);const ci=chordInfo(c);const pc=e.n%12;const K=jamK()[JAM.key];
   if(ci.pcs.includes(pc)){if(e.n<60&&JAM.role==='stab'&&e.n>INV_ZONE[1])jamSay(`Left hand: keep the chord at or below F♯ under middle C, where the Tyros style reads chords. Use the shape with the dots.`,true);else if(e.n<60&&!['solo','stab'].includes(JAM.role)&&pc===ci.pcs[1])jamSay(`Left hand: leave out ${NAMES[pc]} (the middle note). Just ${NAMES[ci.root]} + ${NAMES[ci.pcs[2]]}, pinky and thumb.`,true);return}
-  if(e.n>=60&&JAM.role!=='pad'&&chordScale(K,c).has(pc))return;
+  if(e.n>=60&&!jamIsPad()&&chordScale(K,c).has(pc))return;
   jamSay(`✗ ${NAMES[pc]} doesn't fit <b>${c}</b>. ${c} is ${pcNames(c)}.`,true)}
 function jamCheckChange(b){const P=JAM.P,prog=JAM.prog;const c=prog[b%prog.length],pc=prog[(b-1+prog.length)%prog.length];if(b===0||c===pc)return;
   const T=P.s0+b*P.bar;const ci=chordInfo(c);const hit=JAM.ev.filter(e=>e.on&&e.t>=T-250&&e.t<=T+350&&ci.pcs.includes(e.n%12));
@@ -1069,7 +1072,7 @@ function jamCheckChange(b){const P=JAM.P,prog=JAM.prog;const c=prog[b%prog.lengt
 function jamCheckHold(b){if(JAM.role==='solo')return;if(JAM.role==='stab'){const down=[...MIDI.held].some(k=>k<60);JAM.chk.lift.n++;if(down)jamSay(`<b>Lift</b> the left hand after beat 1. That's the moment players reach for Fill or Variation.`,true);else JAM.chk.lift.ok++;return}const c=JAM.prog[b%JAM.prog.length];const ci=chordInfo(c);const held=[...MIDI.held];
   const L=held.filter(k=>k<60).map(k=>k%12),R=held.filter(k=>k>=60).map(k=>k%12);const need=[ci.root,ci.pcs[2]];
   if(!need.every(p=>L.includes(p)))jamSay(`Keep the left hand <b>holding</b> ${NAMES[ci.root]} + ${NAMES[ci.pcs[2]]} through the bar.`,true);
-  else if(JAM.role==='pad'&&!ci.pcs.every(p=>R.includes(p)))jamSay(`Right hand: <b>hold</b> the whole ${c} chord (${pcNames(c)}).`,true)}
+  else if(jamIsPad()&&!ci.pcs.every(p=>R.includes(p)))jamSay(`Right hand: <b>hold</b> the whole ${c} chord (${pcNames(c)}).`,true)}
 function jamTick(){if(!document.getElementById('jamCard')){jamStop(true);JAM.state='idle';return}const now=performance.now();
   if(now>JAM.P.end+400){clearInterval(JAM.iv);if(JAM.state==='demo'){JAM.state=MIDI.ok?'armed':'idle';JAM.now='Your turn when you\'re ready: tap Your turn or press the top C.';jamPaint()}else jamScore();return}
   if(JAM.state==='play'){const p=jamPos(now);const P=JAM.P;
@@ -1085,7 +1088,7 @@ function jamMidi(){if(!MIDI.ev||MIDI.ev===JAM.seen)return;JAM.seen=MIDI.ev;if(!d
 function jamScore(){const P=JAM.P,prog=JAM.prog,K=jamK()[JAM.key];const bars=JAM.T.bars;const ons=JAM.ev.filter(e=>e.on);
   let land=0,landN=0,offs=[];for(let b=1;b<bars;b++){const c=prog[b%prog.length],pc=prog[(b-1)%prog.length];if(c===pc)continue;landN++;const T=P.s0+b*P.bar;const ci=chordInfo(c);
     const hit=ons.filter(e=>e.t>=T-250&&e.t<=T+350&&ci.pcs.includes(e.n%12));if(hit.length){land++;offs.push(hit[0].t-T)}}
-  let ct=0,scl=0,cl=0;const clash={};ons.filter(e=>e.t>=P.s0-300&&e.t<=P.end).forEach(e=>{const c=jamChordAt(e.t);const ci=chordInfo(c);if(ci.pcs.includes(e.n%12))ct++;else if(e.n>=60&&JAM.role!=='pad'&&chordScale(K,c).has(e.n%12))scl++;else{cl++;const k=nm(e.n)+' on '+c;clash[k]=(clash[k]||0)+1}});
+  let ct=0,scl=0,cl=0;const clash={};ons.filter(e=>e.t>=P.s0-300&&e.t<=P.end).forEach(e=>{const c=jamChordAt(e.t);const ci=chordInfo(c);if(ci.pcs.includes(e.n%12))ct++;else if(e.n>=60&&!jamIsPad()&&chordScale(K,c).has(e.n%12))scl++;else{cl++;const k=nm(e.n)+' on '+c;clash[k]=(clash[k]||0)+1}});
   const tot=ct+scl+cl||1;const rh=ons.filter(e=>e.n>=60&&e.t>=P.s0&&e.t<=P.end);const gap=rh.filter(e=>jamPos(e.t).frac>=.5).length;
   const avg=offs.length?Math.round(offs.reduce((x,y)=>x+y,0)/offs.length):0;
   const R={land,landN,avg,ct:Math.round(ct/tot*100),scl:Math.round(scl/tot*100),cl:Math.round(cl/tot*100),clash:Object.entries(clash).sort((a,b)=>b[1]-a[1]).slice(0,3),rhBar:+(rh.length/bars).toFixed(1),gap:rh.length?Math.round(gap/rh.length*100):null,n:ons.length,fb:JAM.fb.slice()};
@@ -1106,7 +1109,7 @@ function jamTips(R){const t=[];if(!R.n)return ['No notes came in. Is the keyboar
   if(R.landN&&R.land/R.landN<.9)t.push(R.avg>60?`Your chord changes came <b>late</b> (about ${R.avg} ms). In the last beat of each bar, look at the <b>next</b> chord and move your left hand on the "and" of 4.`:R.avg<-60?`You changed <b>early</b> (about ${-R.avg} ms before the guitar). Wait for the guitar's beat 1.`:`Some chord changes were missed. Slow the tempo down until every change lands.`);
   if(R.cl>5)t.push(`${R.cl}% of notes didn't fit: ${R.clash.map(([k,v])=>k+(v>1?' ×'+v:'')).join(', ')}. Stick to the chord's three notes for now.`);
   if(JAM.role==='fill'&&R.gap!=null&&R.gap<70)t.push(`Only ${R.gap}% of your right-hand notes were in the gap (beats 3–4). Let beats 1–2 belong to the singers.`);
-  if(JAM.role==='pad'&&R.rhBar>4)t.push(`Your right hand played ${R.rhBar} notes a bar. As a pad, hold the chord: about one strike a bar.`);
+  if(jamIsPad()&&R.rhBar>4)t.push(`Your right hand played ${R.rhBar} notes a bar. As a pad, hold the chord: about one strike a bar.`);
   if(R.lift!=null&&R.lift<80)t.push(`Your left hand was still down in the second half of ${100-R.lift}% of the bars. Strike on 1, then <b>lift</b>: short and crisp, so the style stays clean.`);
   if(R.gapAvg!=null&&R.gapAvg>150)t.push(`Average gap between chords: ${R.gapAvg} ms. Keep the old 5th down until the new one lands, so the strings never stop.`);
   if(!t.length)t.push(R.green?'Every change landed and nothing clashed.':'Close. Same again.');return t}
@@ -1117,11 +1120,11 @@ function jamBuild(){jamFixKey();const P=jamK()[JAM.key].pairs;const ng=P.filter(
   JAM.queue=[...ng,...g].slice(0,5);JAM.qi=0;JAM.round=[];JAM.tries=0;JAM.prog=JAM.queue[0];JAM.now='';JAM.state=MIDI.ok?'armed':'idle'}
 function jamHTML(){const G=JAM_GROOVES[JAM.groove],Ro=JAM_ROLES[JAM.role];jamFixKey();if(!JAM.queue.length||!jamK()[JAM.key].pairs.some(p=>p===JAM.queue[0]))jamBuild();
   const btn=(attr,v,sel,n)=>`<button class="btn small" data-${attr}="${v}" aria-pressed="${sel===v}">${n}</button>`;
-  const sug=Object.keys(JAM_ROLES).find(r=>!jamRoleGreen(r));
+  const sug=Object.keys(JAM_ROLES).find(r=>!jamRoleGreen(r)&&!lockedBy('jam',r).length);
   return `<div class="head"><div class="eyebrow">Trainer</div><h2>Kumzitz Jam</h2><p>Play <b>with a band</b>. The band (guitar, soft percussion) plays each 4-chord card twice round while you play your part. The app checks every note and every chord change <b>as you play</b> and tells you straight away what to fix. Same flow as the other trainers: 5 cards a round, cards turn green, the next one comes by itself.</p></div>
   <div class="card" style="gap:8px">
    <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Key:</span>${Object.entries(jamK()).map(([k,K])=>btn('jk',k,JAM.key,K.name)).join('')}</div>
-   <div class="row" style="gap:6px">${Object.entries(JAM_ROLES).map(([k,r])=>`<button class="btn small" data-jr="${k}" aria-pressed="${JAM.role===k}">${jamRoleGreen(k)?'✓ ':''}${r.name}${k===sug?' <span style="font-size:11px;background:var(--gold);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">suggested</span>':''}</button>`).join('')}</div>
+   <div class="row" style="gap:6px">${Object.entries(JAM_ROLES).map(([k,r])=>`<button class="btn small" data-jr="${k}" aria-pressed="${JAM.role===k}"${lockedBy('jam',k).length?' style="opacity:.6"':''}>${jamRoleGreen(k)?'✓ ':lockedBy('jam',k).length?'🔒 ':''}${r.name}${k===sug?' <span style="font-size:11px;background:var(--gold);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">suggested</span>':''}</button>`).join('')}</div>
    <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Band:</span>${Object.entries(JAM_GROOVES).map(([k,g])=>btn('jg',k,JAM.groove,g.name)).join('')}</div>
    ${G.part&&G.part!==JAM.role&&JAM_ROLES[G.part]?`<p style="margin:0;font-size:14px;color:var(--muted)">Matching part for this band: <b>${JAM_ROLES[G.part].name}</b> (tap it above). Any part works with any band.</p>`:''}
    <div class="row" style="gap:6px"><button class="btn small" data-jm="0" aria-pressed="${!JAM.mem}">Keys shown</button><button class="btn small" data-jm="1" aria-pressed="${JAM.mem}">From memory</button></div>
@@ -1130,12 +1133,13 @@ function jamHTML(){const G=JAM_GROOVES[JAM.groove],Ro=JAM_ROLES[JAM.role];jamFix
    <div class="row" style="gap:6px;font-size:14px">${jamK()[JAM.key].pairs.map(pr=>`<span style="padding:2px 8px;border-radius:12px;background:${jamGreen(pr)?'var(--ok)':'var(--rule)'};color:${jamGreen(pr)?'#fff':'inherit'}">${pr.join(' → ')}</span>`).join('')}</div>
    <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Band plays on:</span>${btn('jout','kbd',JAM.out,'The keyboard (MIDI)')}${btn('jout','ipad',JAM.out,'The iPad speaker')}
     <span style="font-weight:600;font-size:14px;margin-left:10px">Band volume:</span><button class="btn small" data-jv="-1" aria-label="Quieter">−</button><span class="bpm">${Math.round(JAM.vol*10)}</span><button class="btn small" data-jv="1" aria-label="Louder">+</button></div>
-   <p style="font-size:13px;color:var(--muted);margin:0">${JAM.out==='kbd'?'The band goes to the keyboard on MIDI channels 10 (drums), 11 (guitar), 12 (bass) and 13 (strings). If you hear nothing, switch to the iPad speaker and tell Claude.':'On the iPad: if you hear nothing, turn the iPad volume up and make sure it isn\'t on silent.'} All parts are open. <b>Suggested</b> marks the first part that isn't all green yet.</p></div>
+   <p style="font-size:13px;color:var(--muted);margin:0">${JAM.out==='kbd'?'The band goes to the keyboard on MIDI channels 10 (drums), 11 (guitar), 12 (bass) and 13 (strings). If you hear nothing, switch to the iPad speaker and tell Claude.':'On the iPad: if you hear nothing, turn the iPad volume up and make sure it isn\'t on silent.'} 🔒 parts build on a skill you haven't finished; the rest are open. <b>Suggested</b> marks the first open part that isn't all green yet.</p></div>
   <article class="card" id="jamCard"></article>`}
 function jamKbHTML(c){const mk=JAM.mem&&JAM.state==='play'?[]:jamMarks(c);return keyboardSVG(36,96,mk,new Set(),MIDI.held)}
 function jamKb(){const el=document.querySelector('#jamCard [data-jkb]');if(!el)return;const c=JAM.state==='play'||JAM.state==='demo'?(JAM.P&&performance.now()>=JAM.P.s0?jamChordAt(performance.now()):JAM.prog[0]):(JAM.queue[JAM.qi]||JAM.prog)[0];el.innerHTML=jamKbHTML(c)}
 function jamFb(){const el=document.querySelector('#jamCard [data-jfb]');if(el)el.innerHTML=JAM.now||'&nbsp;'}
 function jamPaint(){const el=document.getElementById('jamCard');if(!el)return;const prog=JAM.queue[JAM.qi]||JAM.prog;
+  if(lockedBy('jam',JAM.role).length&&JAM.state!=='play'&&JAM.state!=='demo'){el.innerHTML=lockCard('jam',JAM.role,JAM_ROLES[JAM.role].name);return}
   const spd=`<span class="row"><button class="btn small" data-js="-4" aria-label="Slower">−</button><span class="bpm">${jamBpm()} bpm</span><button class="btn small" data-js="4" aria-label="Faster">+</button></span>`;
   const head=`<div class="step">Card ${Math.min(JAM.qi+1,JAM.queue.length)} of ${JAM.queue.length}${JAM.tries?' · again':''}</div><h3 style="font-size:28px;margin:0">${prog.join(' → ')}</h3>`;
   const wire=()=>{el.querySelectorAll('[data-js]').forEach(b=>b.onclick=()=>{JAM.bpm[JAM.groove]=Math.max(36,Math.min(160,jamBpm()+(+b.dataset.js)));store.set('jam-bpm',JAM.bpm);jamPaint()})};
@@ -1190,7 +1194,29 @@ const dKeys=id=>DRILLS[id].keys||DRILL_KEYS;
 const dCards=id=>DRILLS[id].cards||(()=>{const K=dKeys(id);const k=K[DS[id].key]?DS[id].key:Object.keys(K)[0];return K[k].pairs})();
 const dLevelGreen=(id,lv)=>dCards(id).every(pr=>dGreen(id,lv,pr));
 const dOpenDrill=id=>true;const dReady=id=>{const n=DRILLS[id].needs;return !n||dLevelGreen(n.drill,n.level)};
-const dOpen=(id,lv)=>true;const dSuggested=id=>{const L=DRILLS[id].levels.find(x=>!dLevelGreen(id,x.id));return L?L.id:null};
+
+/* ---------- Prerequisites: a level or part that needs a skill you haven't built yet is locked (🔒) until that skill is green in at least one key.
+   Everything else stays open so you can jump around. Same rule in every trainer. ---------- */
+const PREREQ={
+ 'pt:o58':[['pt','o5']],'pt:r1585':[['pt','o58']],'pt:roll':[['pt','r1585']],'pt:drone':[['pt','o5']],
+ 'th:hs':[['th','tog']],'th:hb':[['th','hs'],['pt','bc']],'th:sw':[['th','hs']],'th:kz':[['th','hs'],['pt','b3']],'th:kz5':[['th','kz'],['pt','o58']],'th:smooth':[['th','hs'],['pt','o5']],
+ 'rh:mel':[['pt','o5']],'rh:thirds':[['rh','mel']],'rh:sixths':[['rh','thirds']],'rh:oct':[['rh','mel']],'rh:krekhts':[['rh','mel']],'rh:pickup':[['rh','mel']],'rh:turn':[['rh','krekhts']],
+ 'inv:beat1':[['inv','hold']],'inv:push':[['inv','beat1']],
+ 'jam:pad':[['pt','block']],'jam:pads':[['th','smooth']],'jam:fill':[['rh','mel']],'jam:lead':[['rh','mel']],'jam:solo':[['th','kz5']],'jam:stab':[['inv','beat1']],'jam:drone':[['pt','drone']]};
+/* shapes other than the regular (root-position) chord need the regular chords perfected first: Chord Trainer, both hands, from memory, all green for that key's chords */
+const NEEDS_REGULAR=['th:smooth','jam:pads','inv:hold','inv:beat1','inv:push','jam:stab'];
+const KEY_SET={am:'am',circ:'am',walk:'am',gm:'gm',dm:'dm'};
+function regularSet(tab){const key=tab==='jam'?JAM.key:(DS[tab]||{}).key;if(tab==='inv'&&key==='fr')return 'gm';if(tab==='jam'&&key==='fr'&&JAM.groove!=='frei'&&JAM.groove!=='hora')return 'am';return KEY_SET[key]||null}
+function skillGreen(id,lv){if(id==='tr')return trGreens(lv).both;const S=DS[id].stats;const sets=DRILLS[id].cards?[DRILLS[id].cards]:Object.values(dKeys(id)).map(K=>K.pairs);
+  return sets.some(P=>P.every(pr=>Object.entries(S).some(([k,s])=>s&&s.green&&k.split('|')[0]===lv&&k.split('|').pop()===pr.join('-'))))}
+const skillName=(id,lv)=>{if(id==='tr')return `Chord Trainer · ${SETS[lv].name} · both hands, from memory (regular chords)`;const L=DRILLS[id].levels.find(x=>x.id===lv);return `${DRILLS[id].title} · ${L?L.name:lv}`};
+function lockedBy(tab,lv){const r=(PREREQ[tab+':'+lv]||[]).slice();if(NEEDS_REGULAR.includes(tab+':'+lv)){const s=regularSet(tab);if(s)r.unshift(['tr',s])}return r.filter(([i,l])=>!skillGreen(i,l))}
+function lockCard(tab,lv,what){const need=lockedBy(tab,lv);
+  return `<h3 style="margin:0">🔒 ${what}</h3><p style="margin:0">This builds on a skill you haven't finished yet. It unlocks when ${need.length>1?'these are':'this is'} green${need.some(n=>n[0]==='tr')?' (regular chords first, so the new shapes don\'t get mixed up with them)':' (all cards, in any key)'}:</p>
+   <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">${need.map(([i,l])=>`<button class="btn" data-goskill="${i}|${l}">${skillName(i,l)} ▸</button>`).join('')}</div>
+   <p style="margin:0;font-size:14px;color:var(--muted)">Everything that isn't locked is open, so you can still jump around.</p>`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-goskill]');if(!b)return;const [i,l]=b.dataset.goskill.split('|');coachGo(i==='tr'?{tab:'trainer',set:l,hand:'both',mode:'recall'}:{tab:i,lv:l})});
+const dOpen=(id,lv)=>!lockedBy(id,lv).length;const dSuggested=id=>{const L=DRILLS[id].levels.find(x=>!dLevelGreen(id,x.id)&&dOpen(id,x.id));return L?L.id:null};
 function dBuild(id){const S=DS[id];const notG=dCards(id).filter(pr=>!dGreen(id,S.lv,pr)),G=dCards(id).filter(pr=>dGreen(id,S.lv,pr));
   S.queue=[...notG.slice(0,5),...G.sort(()=>Math.random()-.5).slice(0,Math.max(0,5-notG.length))].slice(0,5);S.qi=0;S.res=[];S.done=false}
 function dExercise(id,pr){const S=DS[id];const L=DRILLS[id].levels.find(x=>x.id===S.lv);
@@ -1212,7 +1238,7 @@ function dFinish(id){const S=DS[id],D=DRILLS[id];const L=D.levels.find(x=>x.id==
   S.done=true;dPaint(id)}
 function dHTML(id){const D=DRILLS[id],S=DS[id];
   const sug=dSuggested(id);
-  const levels=D.levels.map(L=>`<button class="btn small" data-dlv="${L.id}" aria-pressed="${S.lv===L.id}">${dLevelGreen(id,L.id)?'✓ ':''}${L.name}${L.id===sug?' <span style="font-size:11px;background:var(--gold);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">suggested</span>':''}</button>`).join('');
+  const levels=D.levels.map(L=>`<button class="btn small" data-dlv="${L.id}" aria-pressed="${S.lv===L.id}"${dOpen(id,L.id)?'':' style="opacity:.6"'}>${dLevelGreen(id,L.id)?'✓ ':dOpen(id,L.id)?'':'🔒 '}${L.name}${L.id===sug?' <span style="font-size:11px;background:var(--gold);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">suggested</span>':''}</button>`).join('');
   const L=D.levels.find(x=>x.id===S.lv);
   return `<div class="head"><div class="eyebrow">Trainer</div><h2>${D.title}</h2><p>${D.intro}</p>${!dReady(id)?`<p style="font-size:14px;color:var(--muted);margin:0">Suggested after ${D.needsMsg}. Jump in anytime.</p>`:''}</div>
   <div class="card" style="gap:8px">${D.cards?'':`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Key:</span>${Object.entries(dKeys(id)).map(([k,K],j)=>`<button class="btn small" data-dkey="${k}" aria-pressed="${(dKeys(id)[S.key]?S.key:Object.keys(dKeys(id))[0])===k}">${K.name}</button>`).join('')}</div>`}<div class="row" style="gap:6px">${levels}</div>
@@ -1220,10 +1246,10 @@ function dHTML(id){const D=DRILLS[id],S=DS[id];
    <p style="margin:0">${L.desc}</p>
    ${L.why?`<details style="border:1px solid var(--rule);border-radius:8px;padding:8px 12px;background:var(--paper,transparent)"><summary style="cursor:pointer;font-weight:600">Why it's done this way</summary><p style="margin:8px 0 0">${L.why}</p></details>`:''}
    <div class="row" style="gap:6px;font-size:14px">${dCards(id).map(pr=>`<span style="padding:2px 8px;border-radius:12px;background:${dGreen(id,S.lv,pr)?'var(--ok)':'var(--rule)'};color:${dGreen(id,S.lv,pr)?'#fff':'inherit'}">${pr.join(' → ')}</span>`).join('')}</div>
-   <p style="font-size:13px;color:var(--muted);margin:0">All levels are open. <b>Suggested</b> marks the first one that isn't all green yet.</p></div>
+   <p style="font-size:13px;color:var(--muted);margin:0">🔒 levels build on a skill you haven't finished; everything else is open. <b>Suggested</b> marks the first open level that isn't all green yet.</p></div>
   <article class="card" id="dCard"></article>`}
 function dPaint(id,msg){const el=document.getElementById('dCard');if(!el)return;const S=DS[id];
-  if(DRILLS[id].oneLine&&false){}
+  if(!dOpen(id,S.lv)){const L=DRILLS[id].levels.find(x=>x.id===S.lv);el.innerHTML=lockCard(id,S.lv,L.name);return}
   if(S.done){const ok=S.res.filter(x=>x.ok).length;el.innerHTML=`<h3>Round done</h3><p>${ok} of ${S.res.length} clean and even. Sent to Claude.</p><p class="now">Next round starts by itself in a few seconds. Just keep playing.</p><div class="row"><button class="btn small" id="dPause">Pause</button></div>`;
     const t=setTimeout(()=>{if(document.getElementById('dCard')&&cur===id){dBuild(id);render()}},5000);
     document.getElementById('dPause').onclick=()=>{clearTimeout(t);el.querySelector('.now').textContent='Paused.';const b=document.getElementById('dPause');b.textContent='Next round';b.classList.add('primary');b.onclick=()=>{dBuild(id);render()}};return}
@@ -1380,7 +1406,7 @@ function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag
     const land=R.reduce((s,r)=>s+r.land,0),landN=R.reduce((s,r)=>s+r.landN,0);const avg=Math.round(R.reduce((s,r)=>s+(r.avg||0),0)/R.length);
     if(landN&&land/landN<.9)add(75,'Chord changes with the band',`${land} of ${landN} changes landed in your last Jam cards${avg>60?`, about ${avg} ms late`:''}. Practise landing the open 5th without the band, then come back ${avg>60?'a little slower':''}.`,{tab:'pt',lv:'o5',key:DRILL_KEYS[key]?key:'am'});
     const cl=R.filter(r=>r.cl>5).length;if(cl>=2)add(65,'Notes that don\'t fit the chord',`${cl} of your last ${R.length} Jam cards had clashing notes. Right-Hand Trainer level 1 trains which notes belong to each chord.`,{tab:'rh',lv:'mel',key:KZ_KEYS[key]?key:'am'});
-    if(role==='pad'&&R.some(r=>r.rhBar>4))add(55,'Let the right hand hold',`As the pad your right hand played ${Math.max(...R.map(r=>r.rhBar))} notes a bar. Two-Hand Trainer level 2 (right holds, left steady) builds exactly that.`,{tab:'th',lv:'hs'});
+    if((role==='pad'||role==='pads')&&R.some(r=>r.rhBar>4))add(55,'Let the right hand hold',`As the pad your right hand played ${Math.max(...R.map(r=>r.rhBar))} notes a bar. Two-Hand Trainer level 2 (right holds, left steady) builds exactly that.`,{tab:'th',lv:'hs'});
     if(R.some(r=>r.gapAvg>150))add(60,'No gaps between chuppah chords',`Your chord-change gap was up to ${Math.max(...R.map(r=>r.gapAvg||0))} ms. Pattern Trainer level 10 (chuppah drone) trains lift-and-land in one motion.`,{tab:'pt',lv:'drone'});
     if(R.some(r=>r.lift!=null&&r.lift<80))add(60,'Lift after beat 1 (simcha left hand)','The left hand stayed down through the bar. Inversion Trainer level 2 (strike on beat 1, lift) builds it.',{tab:'inv',lv:'beat1'});}
   /* 5. brush-ups: green skills not touched for a while */
@@ -1390,6 +1416,9 @@ function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag
   if(!Object.keys(DS.rh.stats).length)add(25,'Start the Right-Hand Trainer','Kumzitz is two hands. Level 1 (a melody note on each chord, left hand holding the open 5th) is the first step to playing the tune over your left hand.',{tab:'rh',lv:'mel',lh:'o5'});
   if(!Object.keys(JAM.stats).length)add(24,'Play with the band','Try the Kumzitz Jam, part 1 (Pad under the band), slow. It\'s the closest thing to a real kumzitz.',{tab:'jam',role:'pad',groove:'kz44'});
   /* next step: the trainer's own suggested level once a level is all green */
+  /* never send you to something locked: point at the first missing skill instead */
+  out.forEach(x=>{const g=x.go;if(!g)return;const lv=g.tab==='jam'?g.role:g.lv;if(!lv||!(DRILLS[g.tab]||g.tab==='jam'))return;
+    let need=lockedBy(g.tab,lv),guard=0;while(need.length&&guard++<6){const [i,l]=need[0];const deeper=i==='tr'?[]:lockedBy(i,l);if(!deeper.length){x.why=`First: <b>${skillName(i,l)}</b> (it unlocks this). `+x.why;x.go=i==='tr'?{tab:'trainer',set:l,hand:'both',mode:'recall'}:{tab:i,lv:l};break}need=deeper}});
   return out.sort((a,b)=>b.pri-a.pri)}
 const coachAt=g=>{if(DRILLS[g.tab])return (!g.lv||DS[g.tab].lv===g.lv)&&(!g.key||DS[g.tab].key===g.key);if(g.tab==='jam')return (!g.role||JAM.role===g.role)&&(!g.groove||JAM.groove===g.groove);if(g.tab==='trainer')return !g.set||TR.set===g.set;return true};
 function coachStrip(sel){if(sel==='coach'||sel==='setups')return '';const L=coachList();if(!L.length)return '';
