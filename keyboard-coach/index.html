@@ -253,7 +253,7 @@ function metroWidget(){const id='m'+Math.random().toString(36).slice(2,7);const 
 
 /* ---------- sending notes to Claude (Google Form → Sheet) ---------- */
 const RESULTS_FORM='https://docs.google.com/forms/d/e/1FAIpQLSc7CSx01Q0O9oh9Z8YW8e2uvHYoxbwKWfM-mtAawrR-P4lW5g/formResponse';
-function sendReport(txt){try{const body=new URLSearchParams();body.append('entry.1619048076',`${new Date().toLocaleString()} · PIANO BASICS · ${txt}`);
+function sendReport(txt){if(navigator.webdriver)return; /* automated tests never post to the results sheet */try{const body=new URLSearchParams();body.append('entry.1619048076',`${new Date().toLocaleString()} · PIANO BASICS · ${txt}`);
   fetch(RESULTS_FORM,{method:'POST',mode:'no-cors',body}).then(()=>toast('Sent to Claude.'),()=>toast('Couldn\'t send. Check the internet and try again.'))}catch(e){toast('Couldn\'t send.')}}
 
 /* ---------- exercises ---------- */
@@ -453,7 +453,7 @@ function trJudge(){const c=chordInfo(TR.queue[TR.i]);const held=[...MIDI.held].s
     else if(h==='l'&&ns[0]<36){msgs.push('')}});
   if(!enough)return;
   if(allOk){const t=performance.now()-TR.shownAt;const name=TR.queue[TR.i];TR.log.push({c:name,t,miss:TR.miss});
-    const k=trStatKey(name,TR.hand);const s=TR.stats[k]||{n:0,avg:0,miss:0};s.avg=s.n?Math.round((s.avg*Math.min(s.n,4)+t)/(Math.min(s.n,4)+1)):Math.round(t);s.n++;if(TR.miss)s.miss++;if(s.n>=2&&s.avg<2000)s.green=true;TR.stats[k]=s;store.set('tr-stats',TR.stats);
+    const k=trStatKey(name,TR.hand);const s=TR.stats[k]||{n:0,avg:0,miss:0};s.avg=s.n?Math.round((s.avg*Math.min(s.n,4)+t)/(Math.min(s.n,4)+1)):Math.round(t);s.n++;s.last=Date.now();if(TR.miss)s.miss++;if(s.n>=2&&s.avg<2000)s.green=true;TR.stats[k]=s;store.set('tr-stats',TR.stats);
     TR.fb=`✓ ${name} in ${(t/1000).toFixed(1)} s`;TR.miss=false;TR.i++;TR.shownAt=performance.now();
     if(TR.i>=TR.queue.length){trDone();return}}
   else{TR.miss=true;TR.fb='✗ '+msgs.filter(Boolean).join('<br>')}
@@ -1064,10 +1064,13 @@ function jamScore(){const P=JAM.P,prog=JAM.prog,K=jamK()[JAM.key];const bars=JAM
   const R={land,landN,avg,ct:Math.round(ct/tot*100),scl:Math.round(scl/tot*100),cl:Math.round(cl/tot*100),clash:Object.entries(clash).sort((a,b)=>b[1]-a[1]).slice(0,3),rhBar:+(rh.length/bars).toFixed(1),gap:rh.length?Math.round(gap/rh.length*100):null,n:ons.length,fb:JAM.fb.slice()};
   const ch=JAM.chk||{};R.lift=JAM.role==='stab'&&ch.lift&&ch.lift.n?Math.round(ch.lift.ok/ch.lift.n*100):null;R.gapAvg=JAM.role==='drone'&&ch.gaps&&ch.gaps.length?Math.round(ch.gaps.reduce((x,y)=>x+y,0)/ch.gaps.length):null;
   R.green=R.n>0&&R.landN>0&&R.land/R.landN>=.9&&R.cl<=5&&(JAM.role!=='fill'||(R.gap||0)>=70)&&(R.lift==null||R.lift>=80)&&(R.gapAvg==null||R.gapAvg<=150);
-  const k=jamSK(prog);const st=JAM.stats[k]||{n:0,green:false};st.n++;if(R.green)st.green=true;JAM.stats[k]=st;store.set('jam-stats',JAM.stats);
+  const k=jamSK(prog);const st=JAM.stats[k]||{n:0,green:false};st.n++;st.last=Date.now();st.R={land:R.land,landN:R.landN,avg:R.avg,cl:R.cl,rhBar:R.rhBar,gap:R.gap,gapAvg:R.gapAvg,lift:R.lift};if(R.green)st.green=true;JAM.stats[k]=st;store.set('jam-stats',JAM.stats);
   JAM.round.push({prog,R});JAM.cardRes=R;JAM.state='card';jamPaint();
   JAM.timer=setTimeout(()=>{if(!document.getElementById('jamCard')||JAM.state!=='card')return;JAM.tries++;
-    if(R.green||JAM.tries>=2){JAM.qi++;JAM.tries=0}if(JAM.qi>=JAM.queue.length)jamFinish();else{JAM.prog=JAM.queue[JAM.qi];JAM.state='armed';JAM.now='';jamPaint()}},R.green?2500:6000)}
+    /* auto-adjust: changes coming late → slow the band down a little (never below 44) */
+    if(!R.green&&R.landN&&R.land/R.landN<.9&&R.avg>60&&jamBpm()>44){JAM.bpm[JAM.groove]=Math.max(44,jamBpm()-4);store.set('jam-bpm',JAM.bpm);JAM.autoMsg=`Changes were late, so the band slowed to ${jamBpm()} bpm.`}
+    else if(R.green&&JAM.round.slice(-3).length===3&&JAM.round.slice(-3).every(x=>x.R.green)&&!JAM.autoMsg)JAM.autoMsg=`3 cards in a row locked in: try + 4 bpm when you're ready.`;
+    if(R.green||JAM.tries>=2){JAM.qi++;JAM.tries=0}if(JAM.qi>=JAM.queue.length)jamFinish();else{JAM.prog=JAM.queue[JAM.qi];JAM.state='armed';JAM.now=JAM.autoMsg?`<span style="color:var(--ok);font-weight:600">${JAM.autoMsg}</span>`:'';JAM.autoMsg='';jamPaint()}},R.green?2500:6000)}
 function jamFinish(){const K=jamK()[JAM.key];
   sendReport(`KUMZITZ JAM · ${JAM_GROOVES[JAM.groove].name} · ${JAM_ROLES[JAM.role].name} · ${K.name} · ${jamBpm()} bpm · `+JAM.round.map(({prog,R})=>`${prog.join('-')}: changes ${R.land}/${R.landN}, avg ${R.avg>=0?'+':''}${R.avg} ms, chord notes ${R.ct}%, clashing ${R.cl}%${R.clash.length?' ('+R.clash.map(([k,v])=>k+'×'+v).join(', ')+')':''}, RH/bar ${R.rhBar}${R.gap!=null?', gaps '+R.gap+'%':''}${R.lift!=null?', lifted '+R.lift+'%':''}${R.gapAvg!=null?', chord gap '+R.gapAvg+' ms':''}${R.green?' ✓':''}`).join(' · ')+` · part green ${jamK()[JAM.key].pairs.filter(jamGreen).length}/${jamK()[JAM.key].pairs.length}`);
   JAM.hist.unshift({d:new Date().toLocaleDateString(),g:JAM.groove,r:JAM.role,k:JAM.key,ok:JAM.round.filter(x=>x.R.green).length,n:JAM.round.length});JAM.hist=JAM.hist.slice(0,12);store.set('jam-hist',JAM.hist);
@@ -1169,7 +1172,7 @@ function dExercise(id,pr){const S=DS[id];const L=DRILLS[id].levels.find(x=>x.id=
   chords.forEach(c=>L.bar(c).forEach((x,i)=>seq.push({k:x.k,hold:x.hold||null,beats:x.beats||(L.ts==='6/8'?.5:1),marks:i===0?[...(L.lm?L.lm(c):LM(c)),...(id==='th'?RM(c):[])]:null,say:`<b>${c}</b> · ${x.lab}`})));
   const both=id==='th';return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,marks:[...(L.lm?L.lm(pr[0]):LM(pr[0])),...(both?RM(pr[0]):[])],seq,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r)})}
 function dDone(id,pr,r,bt){const S=DS[id];const {cv,avg}=ptEven(r.times,bt);const even=cv<.3;const ok=r.miss===0&&even;const k=dSKey(id,S.lv,pr);
-  const st=S.stats[k]||{n:0,green:false};st.n++;st.cv=cv;st.avg=avg;st.miss=r.miss;if(ok)st.green=true;S.stats[k]=st;store.set(DRILLS[id].store+'-stats',S.stats);
+  const st=S.stats[k]||{n:0,green:false};st.n++;st.last=Date.now();st.cv=cv;st.avg=avg;st.miss=r.miss;if(ok)st.green=true;S.stats[k]=st;store.set(DRILLS[id].store+'-stats',S.stats);
   S.res.push({pr,miss:r.miss,cv,avg,ok});
   const msg=r.miss?`${r.miss} wrong note${r.miss>1?'s':''}. Again, slower.`:!even?`Right notes, but uneven: some notes waited longer than others (${Math.round(cv*100)}% wobble). Go slower and keep it steady.`:`<b style="color:var(--ok)">✓ Clean and even.</b> ${pr.join(' → ')} is green.`;
   setTimeout(()=>{if(ok||S.res.filter(x=>x.pr===pr).length>=3){S.qi++;if(S.qi>=S.queue.length)dFinish(id);else dPaint(id)}else dPaint(id,msg)},ok?900:2200);
@@ -1237,7 +1240,7 @@ const EAR={lv:store.get('ear-lv','mm'),stats:store.get('ear-stats',{}),round:[],
      EAR.timers.push(setTimeout(()=>{EAR.busy=false;EAR.i++;if(EAR.i>=EAR.round.length)EAR.finish();else EAR.next()},1300))}
    else{EAR.tries++;EAR.msg=`That's <b>${got}</b>. Listen again…`;EAR.paint();EAR.timers.push(setTimeout(()=>EAR.ask(),1200))}},
  finish(){const L=EAR_LEVELS.find(x=>x.id===EAR.lv);const first=EAR.res.filter(x=>x.first).length;const miss={};EAR.res.filter(x=>!x.first).forEach(x=>miss[x.c]=(miss[x.c]||0)+1);
-   const st=EAR.stats[EAR.lv]||{best:0,rounds:0};st.rounds++;st.best=Math.max(st.best,first);if(first>=9)st.green=true;EAR.stats[EAR.lv]=st;store.set('ear-stats',EAR.stats);
+   const st=EAR.stats[EAR.lv]||{best:0,rounds:0};st.rounds++;st.last=Date.now();st.best=Math.max(st.best,first);if(first>=9)st.green=true;EAR.stats[EAR.lv]=st;store.set('ear-stats',EAR.stats);
    sendReport(`EAR TRAINER · ${L.name} · first try ${first}/10${Object.keys(miss).length?' · needed a second listen: '+Object.entries(miss).map(([c,n])=>c+'×'+n).join(', '):''}`);
    EAR.card=null;EAR.done={first};EAR.paint();EAR.timers.push(setTimeout(()=>{if(cur==='ear'){EAR.done=null;EAR.newRound()}},6000))},
  paint(){const el=document.getElementById('earCard');if(!el)return;
@@ -1309,8 +1312,70 @@ function setupsHTML(){const pick=store.get('su-open','solo');
 
 let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','trainer');
 const P=id=>prog[id]||(prog[id]={step:0,done:[]});const save=()=>{store.set('pb-prog',prog);store.set('pb-cur',cur)};
-const TRAINER_TABS=[['trainer','Chord Trainer'],['pt','Pattern Trainer'],['th','Two-Hand Trainer'],['rh','Right-Hand Trainer'],['jam','Kumzitz Jam'],['inv','Inversion Trainer'],['sc','Scale Trainer'],['ear','Ear Trainer'],['songs','Song Trainer'],['setups','Tyros Setups']];
+const TRAINER_TABS=[['coach','🧭 Coach'],['trainer','Chord Trainer'],['pt','Pattern Trainer'],['th','Two-Hand Trainer'],['rh','Right-Hand Trainer'],['jam','Kumzitz Jam'],['inv','Inversion Trainer'],['sc','Scale Trainer'],['ear','Ear Trainer'],['songs','Song Trainer'],['setups','Tyros Setups']];
 const songsOpen=()=>true;const songsReady=()=>dLevelGreen('th','hb');
+/* ---------- Coach: reads the results stored on this iPad from every trainer and suggests what to practise next.
+   Plus Claude's notes (coach.json next to the app), written after Claude reads the results sheet. ---------- */
+const COACH={plan:null,loaded:false};
+(function(){try{fetch('coach.json?'+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{COACH.plan=j;COACH.loaded=true;const s=document.getElementById('coachStrip');if(s||cur==='coach')render()}).catch(()=>{COACH.loaded=true})}catch(e){}})();
+const DAY=86400000;
+function coachGo(a){if(!a)return;
+  if(a.tab==='trainer'){if(a.set&&SETS[a.set]){TR.set=a.set;store.set('tr-set',a.set)}if(a.hand){TR.hand=a.hand;store.set('tr-hand',a.hand)}if(a.mode){TR.mode=a.mode;store.set('tr-mode',a.mode)}TR.summary=null;trBuild()}
+  else if(DRILLS[a.tab]){const S=DS[a.tab],D=DRILLS[a.tab];if(a.lv&&D.levels.some(x=>x.id===a.lv)){S.lv=a.lv;store.set(D.store+'-lv',a.lv)}if(a.key&&dKeys(a.tab)[a.key]){S.key=a.key;store.set(D.store+'-key',a.key)}if(a.lh&&a.tab==='rh')store.set('rh-lh',a.lh);dBuild(a.tab)}
+  else if(a.tab==='jam'){['role','groove','key'].forEach(k=>{if(a[k]){JAM[k]=a[k];store.set('jam-'+k,a[k])}});if(a.bpm){JAM.bpm[JAM.groove]=a.bpm;store.set('jam-bpm',JAM.bpm)}jamStop(true);jamBuild()}
+  else if(a.tab==='ear'&&a.lv){EAR.lv=a.lv;store.set('ear-lv',a.lv);EAR.stop();EAR.newRound()}
+  cur=a.tab;save();render();scrollTo(0,0)}
+const keyOfProg=(id,prog)=>{const K=dKeys(id);return Object.keys(K).find(k=>K[k].pairs.some(p=>p.join('-')===prog))};
+function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag)=>out.push({pri,title,why,go,tag:tag||'coach'});
+  /* 1. Claude's notes from the results sheet */
+  const P=COACH.plan;if(P&&Array.isArray(P.items))P.items.forEach((it,i)=>add(100-i,it.title,it.why||'',it.go||null,'claude'));
+  /* 2. chords that are slow or missed in the Chord Trainer */
+  const weak={};Object.entries(TR.stats).forEach(([k,s])=>{if(!s||s.n<3)return;const c=k.split(':').pop();const mr=(s.miss||0)/s.n;if(s.avg>2500||mr>.25){const w=weak[c]||(weak[c]={c,avg:0,mr:0,n:0});w.avg=Math.max(w.avg,s.avg);w.mr=Math.max(w.mr,mr);w.n++}});
+  /* 3. drill cards that keep failing */
+  const chordHits={};const drillWeak=[];
+  Object.entries(DRILLS).forEach(([id,D])=>{const S=DS[id];Object.entries(S.stats).forEach(([k,st])=>{if(!st||st.green||st.n<2)return;const parts=k.split('|');const lv=parts[0];const prog=parts[parts.length-1];
+      const L=D.levels.find(x=>x.id===lv);if(!L)return;drillWeak.push({id,lv,prog,st,L});if(id!=='sc')prog.split('-').forEach(c=>chordHits[c]=(chordHits[c]||0)+1)})});
+  const byLv={};drillWeak.forEach(x=>{const k=x.id+'|'+x.lv;(byLv[k]=byLv[k]||[]).push(x)});
+  Object.values(byLv).forEach(arr=>{const x=arr[0];const D=DRILLS[x.id];const uneven=arr.filter(a=>(a.st.cv||0)>=.3).length;const tries=arr.reduce((s,a)=>s+a.st.n,0);
+    const cards=arr.map(a=>a.prog.replace(/-/g,' → ')).slice(0,3).join(', ');
+    add(60+Math.min(20,tries),`${D.title} · ${x.L.name}`,`Not green yet after ${tries} tries: ${cards}.${uneven?` ${uneven===arr.length?'Mostly':'Partly'} <b>uneven</b> (some notes wait longer than others): go slower and steadier.`:' Mostly wrong notes: use <b>Keys shown</b> for a round, then From memory.'}`,
+      {tab:x.id,lv:x.lv,key:x.id==='sc'?null:keyOfProg(x.id,x.prog)})});
+  /* chords that show up in many failing cards count as weak too */
+  Object.entries(chordHits).forEach(([c,n])=>{if(n>=2){const w=weak[c]||(weak[c]={c,avg:0,mr:0,n:0});w.cards=n}});
+  const wl=Object.values(weak).sort((a,b)=>(b.avg+(b.cards||0)*800)-(a.avg+(a.cards||0)*800));
+  if(wl.length){const names=wl.slice(0,3).map(w=>w.c);const set=Object.keys(SETS).map(k=>[k,SETS[k].chords.filter(c=>names.includes(c)).length]).sort((a,b)=>b[1]-a[1])[0];
+    add(70+wl.length*3,`Brush up the chord${names.length>1?'s':''} ${names.join(', ')}`,wl.slice(0,3).map(w=>`<b>${w.c}</b>${w.avg?' '+(w.avg/1000).toFixed(1)+' s':''}${w.mr>.25?' (often missed)':''}${w.cards?' (in '+w.cards+' hard drill cards)':''}`).join(' · ')+'. A few fast rounds in the Chord Trainer make the shapes automatic, so the patterns get easier.',
+      set&&set[1]?{tab:'trainer',set:set[0],mode:'recall'}:{tab:'trainer'})}
+  /* 4. with the band: what the Jam results say */
+  const jl=Object.entries(JAM.stats).filter(([k,s])=>s&&s.R&&s.last).sort((a,b)=>b[1].last-a[1].last).slice(0,6);
+  if(jl.length){const R=jl.map(x=>x[1].R);const parts=jl.map(x=>x[0].split('|'));const role=parts[0][0],groove=parts[0][1],key=parts[0][2];
+    const land=R.reduce((s,r)=>s+r.land,0),landN=R.reduce((s,r)=>s+r.landN,0);const avg=Math.round(R.reduce((s,r)=>s+(r.avg||0),0)/R.length);
+    if(landN&&land/landN<.9)add(75,'Chord changes with the band',`${land} of ${landN} changes landed in your last Jam cards${avg>60?`, about ${avg} ms late`:''}. Practise landing the open 5th without the band, then come back ${avg>60?'a little slower':''}.`,{tab:'pt',lv:'o5',key:DRILL_KEYS[key]?key:'am'});
+    const cl=R.filter(r=>r.cl>5).length;if(cl>=2)add(65,'Notes that don\'t fit the chord',`${cl} of your last ${R.length} Jam cards had clashing notes. Right-Hand Trainer level 1 trains which notes belong to each chord.`,{tab:'rh',lv:'mel',key:KZ_KEYS[key]?key:'am'});
+    if(role==='pad'&&R.some(r=>r.rhBar>4))add(55,'Let the right hand hold',`As the pad your right hand played ${Math.max(...R.map(r=>r.rhBar))} notes a bar. Two-Hand Trainer level 2 (right holds, left steady) builds exactly that.`,{tab:'th',lv:'hs'});
+    if(R.some(r=>r.gapAvg>150))add(60,'No gaps between chuppah chords',`Your chord-change gap was up to ${Math.max(...R.map(r=>r.gapAvg||0))} ms. Pattern Trainer level 10 (chuppah drone) trains lift-and-land in one motion.`,{tab:'pt',lv:'drone'});
+    if(R.some(r=>r.lift!=null&&r.lift<80))add(60,'Lift after beat 1 (simcha left hand)','The left hand stayed down through the bar. Inversion Trainer level 2 (strike on beat 1, lift) builds it.',{tab:'inv',lv:'beat1'});}
+  /* 5. brush-ups: green skills not touched for a while */
+  const stale=[];Object.entries(DRILLS).forEach(([id,D])=>{D.levels.forEach(L=>{const g=Object.entries(DS[id].stats).filter(([k,s])=>k.split('|')[0]===L.id&&s&&s.green&&s.last);if(!g.length)return;const last=Math.max(...g.map(([,s])=>s.last));const d=Math.floor((now-last)/DAY);if(d>=5)stale.push({id,L,d})})});
+  stale.sort((a,b)=>b.d-a.d).slice(0,2).forEach(s=>add(35+Math.min(15,s.d),`Brush up: ${DRILLS[s.id].title} · ${s.L.name}`,`Green, but last practised ${s.d} days ago. One quick round keeps it in your hands.`,{tab:s.id,lv:s.L.id}));
+  /* 6. the kumzitz focus: trainers not started yet */
+  if(!Object.keys(DS.rh.stats).length)add(25,'Start the Right-Hand Trainer','Kumzitz is two hands. Level 1 (a melody note on each chord, left hand holding the open 5th) is the first step to playing the tune over your left hand.',{tab:'rh',lv:'mel',lh:'o5'});
+  if(!Object.keys(JAM.stats).length)add(24,'Play with the band','Try the Kumzitz Jam, part 1 (Pad under the band), slow. It\'s the closest thing to a real kumzitz.',{tab:'jam',role:'pad',groove:'kz44'});
+  /* next step: the trainer's own suggested level once a level is all green */
+  return out.sort((a,b)=>b.pri-a.pri)}
+const coachAt=g=>{if(DRILLS[g.tab])return (!g.lv||DS[g.tab].lv===g.lv)&&(!g.key||DS[g.tab].key===g.key);if(g.tab==='jam')return (!g.role||JAM.role===g.role)&&(!g.groove||JAM.groove===g.groove);if(g.tab==='trainer')return !g.set||TR.set===g.set;return true};
+function coachStrip(sel){if(sel==='coach'||sel==='setups')return '';const L=coachList();if(!L.length)return '';
+  const here=x=>x.go&&x.go.tab===sel;const top=[...L.filter(here).slice(0,1),...L.filter(x=>!here(x)).slice(0,1)].slice(0,2);
+  window.__coachTop=top;
+  return `<div id="coachStrip" style="border:1px solid var(--rule);border-left:4px solid var(--gold);border-radius:10px;padding:8px 12px;margin:0 0 10px;display:flex;flex-direction:column;gap:6px">
+   ${top.map((x,i)=>`<div style="display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center"><span style="font-weight:700">${x.tag==='claude'?'💬 Claude':'🧭 Coach'}${here(x)?' (this trainer)':''}: ${x.title}</span><span style="flex:1 1 280px;font-size:14px">${x.why}</span>${x.go&&!(here(x)&&coachAt(x.go))?`<button class="btn small" data-coach="${i}">${here(x)?'Do it':'Go'} ▸</button>`:''}</div>`).join('')}
+   <div style="font-size:13px"><button class="btn small" data-l="coach">All suggestions (${L.length}) ▸</button></div></div>`}
+function coachHTML(){const L=coachList();window.__coachTop=L;const P=COACH.plan;
+  return `<div class="head"><div class="eyebrow">Coach</div><h2>What to practise</h2><p>The coach reads your results from every trainer (stored on this iPad) and suggests what needs a brush-up: chords that slow you down, cards that keep failing, things the band showed, and skills you haven't touched for a while. Claude adds notes after reading your results sheet. The top suggestion also shows at the top of every trainer.</p></div>
+  ${P&&P.note?`<div class="card" style="gap:4px"><h3 style="margin:0">💬 Claude's notes${P.date?` <span style="font-size:13px;color:var(--muted);font-weight:400">${P.date}</span>`:''}</h3><p style="margin:0">${P.note}</p></div>`:''}
+  <div class="card" style="gap:10px">${L.length?L.map((x,i)=>`<div style="display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;border-bottom:1px solid var(--rule);padding-bottom:8px"><span style="font-weight:700;flex:1 1 100%">${x.tag==='claude'?'💬 ':'🧭 '}${x.title}</span><span style="flex:1 1 300px;font-size:15px">${x.why}</span>${x.go?`<button class="btn small" data-coach="${i}">Go ▸</button>`:''}</div>`).join(''):'<p>Nothing yet. Play a few rounds in any trainer and suggestions appear here.</p>'}</div>`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-coach]');if(!b)return;const x=(window.__coachTop||[])[+b.dataset.coach];if(x&&x.go)coachGo(x.go)});
+
 const SETUP_QUICK={
  solo:'Style <b>off</b> ([ACMP] off) · RIGHT 1 <b>ConcertGrand</b> + RIGHT 2 <b>WarmStrings</b> (quieter) · LEFT <b>off</b> (both hands piano + strings) · sustain pedal',
  guitar:'Same voices as Setup 1: <b>ConcertGrand</b> + <b>WarmStrings</b>, LEFT off, style off. Strings a little louder; keep the Tyros under the band',
@@ -1318,7 +1383,7 @@ const SETUP_QUICK={
  simcha:'Style <b>on</b>: [ACMP] on, chord fingering <b>FINGERED</b> · left-hand chords at or below the F♯ under middle C · RIGHT 1 a lead voice · Fill-In / Variation on beat 4',
  hora:'Style <b>on</b> ([ACMP] on) · same left hand as the simcha setup · see Setup 5 for the lead and rhythm',
  carl:'See Setup 6 · Carlebach upbeat'};
-function setupFor(sel){if(sel==='setups')return null;
+function setupFor(sel){if(sel==='setups'||sel==='coach')return null;
   if(sel==='inv')return ['simcha','the Inversion Trainer'];
   if(sel==='pt'){const lv=DS.pt.lv;if(lv==='drone'||lv==='jump')return ['chuppah','this level'];return ['solo','the Pattern Trainer']}
   if(sel==='jam'){const g=JAM.groove;if(g==='chup')return ['chuppah','this band'];if(g==='frei')return ['simcha','this band',1];if(g==='hora')return ['hora','this band',1];
@@ -1331,9 +1396,10 @@ function setupBox(sel){const f=setupFor(sel);if(!f||typeof SETUPS==='undefined')
    <span style="flex:1 1 300px;font-size:14px">${SETUP_QUICK[s.id]||''}${f[2]?' · <b>Don\'t press [START]</b> on the Tyros: here the app is the band':''}</span>
    <button class="btn small" data-l="setups" data-suo="${s.id}">All steps ▸</button></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-suo]');if(b)store.set('su-open',b.dataset.suo)},true);
-const tabsHTML=sel=>`<div class="lessons">${TRAINER_TABS.map(([id,n])=>`<button class="lchip" data-l="${id}" aria-pressed="${sel===id}">${n}</button>`).join('')}</div>`+setupBox(sel);
+const tabsHTML=sel=>`<div class="lessons">${TRAINER_TABS.map(([id,n])=>`<button class="lchip" data-l="${id}" aria-pressed="${sel===id}">${n}</button>`).join('')}</div>`+setupBox(sel)+coachStrip(sel);
 function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
-  if(cur==='patterns')cur='pt';if(!['trainer','pt','th','rh','jam','inv','sc','ear','songs','setups'].includes(cur))cur='trainer';
+  if(cur==='patterns')cur='pt';if(cur==='coach'){const app=document.getElementById('app');app.innerHTML=tabsHTML('coach')+coachHTML();app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});return}
+  if(!['trainer','pt','th','rh','jam','inv','sc','ear','songs','setups'].includes(cur))cur='trainer';
   if(cur==='setups'){const app=document.getElementById('app');app.innerHTML=tabsHTML('setups')+setupsHTML();
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
     app.querySelectorAll('[data-su]').forEach(b=>b.onclick=()=>{store.set('su-open',b.dataset.su);render()});return}
