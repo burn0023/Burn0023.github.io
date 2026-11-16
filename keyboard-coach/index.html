@@ -98,8 +98,10 @@ const CAL=store.get('pb-cal',{});let calStep=0,calSeen={};
 function onMidi(e){const d0=e.data;if(d0[0]>=0xF8){clockMsg(d0[0]);return}if(d0.length<3)return;const t=d0[0]&0xf0,ch=d0[0]&0x0f;
   if(calStep&&t===0x90&&d0[2]>0){calNote(ch,d0[1]);return}if(calStep)return;
   const d=[d0[0],d0[1]-(CAL[ch]||0),d0[2]];
-  if((t===0x90||t===0x80)&&(d[1]===95||d[1]===96)){if(t===0x90&&d[2]>0)remoteKey(d[1]);return}
-  if((t===0x90||t===0x80)&&d[1]===POSTURE_KEY){if(t===0x90&&d[2]>0)postureShow();return}
+  /* a note outside the 61 keys means the octave line-up is off (e.g. a registration changed the octave) */
+  if(t===0x90&&d[2]>0&&(d[1]>96||d[1]<36)&&!(onMidi.warned>performance.now()-20000)){onMidi.warned=performance.now();toast('Notes are coming in an octave off. Tap "Line up keys" at the top so the app reads the right keys.')}
+  /* remote keys only count when pressed ALONE (no other key held), so a high melody note or chord never triggers them */
+  if((t===0x90||t===0x80)&&(d[1]===95||d[1]===96||d[1]===POSTURE_KEY)){if(t===0x90&&d[2]>0&&MIDI.held.size===0){if(d[1]===POSTURE_KEY)postureShow();else{toast(d[1]===96?'Top C → Your turn / Stop':'Top B → Hear it');remoteKey(d[1])}return}if(t===0x80||d[2]===0)return}
   if(t===0x90&&d[2]>0&&document.getElementById('postureBox')){postureClose();return}
   if(t===0x90&&d[2]>0){MIDI.held.add(d[1]);MIDI.ev={on:true,n:d[1]}}else if(t===0x80||t===0x90){MIDI.held.delete(d[1]);MIDI.ev={on:false,n:d[1]}}else return;
   MIDI.subs.forEach(f=>{try{f()}catch(x){}})}
