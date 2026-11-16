@@ -822,7 +822,12 @@ const DRILLS={
     bar:c=>{const [r,m,t]=CFG[c].l;const R=CFG[c].r;return [[r],[t],[m],[r],[t],[m]].map((k,i)=>({k:i===0?[...k,...R]:k,hold:i===0?{k:R,beats:3}:null,lab:i===0?'bottom + right chord (hold)':['bottom','top','middle'][i%3]}))}},
    {id:'kz5',name:'6 · Kumzitz open: bass, 5th, octave + right holds',ts:'6/8',lm:O58M,desc:'Right hand holds the full chord (it has the middle note). Left hand plays <b>bass, 5th, octave</b> twice under it.',
     why:'The open left hand from Pattern Trainer level 6 under a held right-hand chord: the full, clear kumzitz sound, with the major/minor note up in the right hand where it sounds sweet.',
-    bar:c=>{const [r,,t]=CFG[c].l;const R=CFG[c].r;return [[r],[t],[r+12],[r],[t],[r+12]].map((k,i)=>({k:i===0?[...k,...R]:k,hold:i===0?{k:R,beats:3}:null,lab:i===0?'bass + right chord (hold)':['bass','5th','octave'][i%3]}))}}]}};
+    bar:c=>{const [r,,t]=CFG[c].l;const R=CFG[c].r;return [[r],[t],[r+12],[r],[t],[r+12]].map((k,i)=>({k:i===0?[...k,...R]:k,hold:i===0?{k:R,beats:3}:null,lab:i===0?'bass + right chord (hold)':['bass','5th','octave'][i%3]}))}},
+   {id:'smooth',name:'7 · Smooth changes: nearest shape',ts:'4/4',desc:'Left hand holds the <b>open 5th</b>, right hand holds the chord in the <b>nearest shape</b> (the dots). On each change: keep the notes the chords share, move the others one step, and land both hands together with <b>no gap</b>.',
+    why:'This is what makes a pad under a band, or a slow kumzitz, sound smooth: the right hand barely moves (voice leading), so the harmony glides instead of jumping. Root position every time makes the whole hand leap, which leaves a gap and sounds choppy. Same shapes as the Kumzitz Jam pad part.',
+    make:pr=>{const chords=pr.length===1?[pr[0],pr[0]]:[...pr,...pr];const P=rhPath(chords);
+      const seq=chords.map((c,i)=>{const [r,,t]=CFG[c].l;const sh=P[i];const F=rhFingers(sh);return {k:[r,t,...sh],beats:4,marks:[{k:r,f:5,h:'l'},{k:t,f:1,h:'l'},...sh.map((k,j)=>({k,f:F[j],h:'r'}))],say:`<b>${c}</b> · open 5th + ${sh.map(nm).join(' ')}`}});
+      return {marks:seq[0].marks,seq}}}]}};
 /* Scale Trainer: levels are keys, cards are right hand / left hand / both. Fingering per standard scale fingering. */
 const SCALES={
  C:{name:'C major',r:[[60,1],[62,2],[64,3],[65,1],[67,2],[69,3],[71,4],[72,5]],l:[[48,5],[50,4],[52,3],[53,2],[55,1],[57,3],[59,2],[60,1]],tip:'All white keys. Right thumb on C and F.'},
@@ -1189,6 +1194,7 @@ const dOpen=(id,lv)=>true;const dSuggested=id=>{const L=DRILLS[id].levels.find(x
 function dBuild(id){const S=DS[id];const notG=dCards(id).filter(pr=>!dGreen(id,S.lv,pr)),G=dCards(id).filter(pr=>dGreen(id,S.lv,pr));
   S.queue=[...notG.slice(0,5),...G.sort(()=>Math.random()-.5).slice(0,Math.max(0,5-notG.length))].slice(0,5);S.qi=0;S.res=[];S.done=false}
 function dExercise(id,pr){const S=DS[id];const L=DRILLS[id].levels.find(x=>x.id===S.lv);
+  const LV=DRILLS[id].levels.find(x=>x.id===S.lv);if(LV&&LV.make){const m=LV.make(pr);return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,...m,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r,m.seq.map(x=>x.beats))})}
   if(DRILLS[id].make){const m=DRILLS[id].make(S.lv,pr);const bt=m.seq.map(x=>x.beats);return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,...m,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r,bt)})}
   const chords=pr.length===1?[pr[0],pr[0]]:[...pr,...pr];const seq=[];
   chords.forEach(c=>L.bar(c).forEach((x,i)=>seq.push({k:x.k,hold:x.hold||null,beats:x.beats||(L.ts==='6/8'?.5:1),marks:i===0?[...(L.lm?L.lm(c):LM(c)),...(id==='th'?RM(c):[])]:null,say:`<b>${c}</b> · ${x.lab}`})));
