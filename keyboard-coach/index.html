@@ -62,7 +62,7 @@ textarea{font:inherit;width:100%;box-sizing:border-box;border:1px solid var(--ru
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
-<div class="top"><h1>Piano Basics</h1><div class="conn"><span class="dot" id="dot"></span><span id="connTxt">Not connected</span><button class="btn small" id="connBtn">Connect keyboard</button><button class="btn small" id="calBtn">Line up keys</button></div></div>
+<div class="top"><h1>Piano Basics</h1><div class="conn"><span class="dot" id="dot"></span><span id="connTxt">Not connected</span><button class="btn small" id="connBtn">Connect keyboard</button><button class="btn small" id="calBtn">Line up keys</button><button class="btn small" id="postBtn" title="Or press the lowest C♯">🧍 Posture</button></div></div>
 <div class="wrap" id="app"></div>
 <div id="toast" hidden></div>
 
@@ -99,9 +99,11 @@ function onMidi(e){const d0=e.data;if(d0[0]>=0xF8){clockMsg(d0[0]);return}if(d0.
   if(calStep&&t===0x90&&d0[2]>0){calNote(ch,d0[1]);return}if(calStep)return;
   const d=[d0[0],d0[1]-(CAL[ch]||0),d0[2]];
   if((t===0x90||t===0x80)&&(d[1]===95||d[1]===96)){if(t===0x90&&d[2]>0)remoteKey(d[1]);return}
+  if((t===0x90||t===0x80)&&d[1]===POSTURE_KEY){if(t===0x90&&d[2]>0)postureShow();return}
+  if(t===0x90&&d[2]>0&&document.getElementById('postureBox')){postureClose();return}
   if(t===0x90&&d[2]>0){MIDI.held.add(d[1]);MIDI.ev={on:true,n:d[1]}}else if(t===0x80||t===0x90){MIDI.held.delete(d[1]);MIDI.ev={on:false,n:d[1]}}else return;
   MIDI.subs.forEach(f=>{try{f()}catch(x){}})}
-document.getElementById('connBtn').onclick=connect;document.getElementById('calBtn').onclick=()=>calStart();
+document.getElementById('connBtn').onclick=connect;document.getElementById('postBtn').onclick=()=>postureShow();document.getElementById('calBtn').onclick=()=>calStart();
 /* Line up keys: the Tyros can send some parts an octave off (e.g. the LEFT part's octave setting). Bernard presses two known keys; the app learns the offset for each MIDI channel. */
 function calShow(html){let b=document.getElementById('calBar');if(!b){b=document.createElement('div');b.id='calBar';b.className='card';b.style.cssText='margin:12px 16px;border:2px solid var(--accent)';document.getElementById('app').before(b)}b.innerHTML=html;b.hidden=!html}
 function calStart(){if(!MIDI.ok){toast('Tap Connect keyboard first.');return}calStep=1;calSeen={};
@@ -1375,6 +1377,54 @@ function coachHTML(){const L=coachList();window.__coachTop=L;const P=COACH.plan;
   ${P&&P.note?`<div class="card" style="gap:4px"><h3 style="margin:0">💬 Claude's notes${P.date?` <span style="font-size:13px;color:var(--muted);font-weight:400">${P.date}</span>`:''}</h3><p style="margin:0">${P.note}</p></div>`:''}
   <div class="card" style="gap:10px">${L.length?L.map((x,i)=>`<div style="display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;border-bottom:1px solid var(--rule);padding-bottom:8px"><span style="font-weight:700;flex:1 1 100%">${x.tag==='claude'?'💬 ':'🧭 '}${x.title}</span><span style="flex:1 1 300px;font-size:15px">${x.why}</span>${x.go?`<button class="btn small" data-coach="${i}">Go ▸</button>`:''}</div>`).join(''):'<p>Nothing yet. Play a few rounds in any trainer and suggestions appear here.</p>'}</div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-coach]');if(!b)return;const x=(window.__coachTop||[])[+b.dataset.coach];if(x&&x.go)coachGo(x.go)});
+
+/* ---------- Posture & hand placement reminder: the 🧍 Posture button, or the LOWEST C♯ key (never used in any trainer). Play any other note to close it. ---------- */
+const POSTURE_KEY=37;
+const POSTURE_TIPS=[
+ ['Height','Forearms about <b>level with the keys</b>: elbows at key height or a little above. Too low and the wrists drop; too high and the shoulders lift.'],
+ ['Distance','Elbows a little <b>in front of your body</b>, arms relaxed, not stretched and not squashed. Your knees just under the front edge of the keyboard.'],
+ ['Seat','Sit on the <b>front half</b> of the seat, back tall but relaxed, both feet flat. Right foot near the sustain pedal.'],
+ ['Shoulders','<b>Down and loose.</b> If they creep up while you concentrate, drop them and breathe out.'],
+ ['Wrists','<b>Level</b> with the back of the hand: not sagging below the keys, not arched up.'],
+ ['Fingers','<b>Curved</b>, like holding a ball. Play on the fingertips; the thumb plays on its side corner.'],
+ ['Centre','Sit facing <b>middle C</b>. In these trainers the left hand lives in the octave below middle C and the right hand from middle C up, so both stay close to you.']];
+function postureFigure(){return `<svg viewBox="0 0 260 170" style="width:100%;max-width:320px;height:auto" aria-label="Side view: seated player with forearm level with the keys">
+  <rect x="150" y="78" width="100" height="10" rx="2" fill="#222"/><rect x="150" y="70" width="100" height="8" fill="#fff" stroke="#555"/><text x="200" y="104" font-size="10" text-anchor="middle" fill="currentColor">keyboard</text>
+  <rect x="40" y="120" width="70" height="8" rx="2" fill="#8b6b4a"/><line x1="48" y1="128" x2="48" y2="165" stroke="#8b6b4a" stroke-width="4"/><line x1="102" y1="128" x2="102" y2="165" stroke="#8b6b4a" stroke-width="4"/>
+  <circle cx="72" cy="22" r="13" fill="none" stroke="currentColor" stroke-width="3"/>
+  <line x1="72" y1="35" x2="70" y2="118" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+  <line x1="71" y1="45" x2="96" y2="76" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+  <line x1="96" y1="76" x2="152" y2="73" stroke="#e8a33d" stroke-width="5" stroke-linecap="round"/>
+  <path d="M152 73 q8 -3 10 4" fill="none" stroke="#e8a33d" stroke-width="4" stroke-linecap="round"/>
+  <line x1="70" y1="118" x2="118" y2="118" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><line x1="118" y1="118" x2="120" y2="160" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+  <line x1="120" y1="160" x2="134" y2="160" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+  <text x="124" y="64" font-size="10" text-anchor="middle" fill="#b06d00" font-weight="700">forearm level</text>
+  <text x="100" y="98" font-size="10" fill="currentColor">elbow a bit</text><text x="100" y="110" font-size="10" fill="currentColor">in front</text>
+  <text x="128" y="152" font-size="10" fill="currentColor">feet flat</text></svg>`}
+function placementPicture(){const marks=[];
+  return keyboardSVG(36,96,marks,new Set(),new Set()).replace('</svg>',`<rect x="${KB_WI[45]*26}" y="2" width="${(KB_WI[59]-KB_WI[45]+1)*26}" height="10" fill="#7c4dbe" opacity=".75"/><text x="${(KB_WI[45]+KB_WI[59]+1)/2*26}" y="11" font-size="9" fill="#fff" text-anchor="middle">LEFT HAND</text>
+   <rect x="${KB_WI[60]*26}" y="2" width="${(KB_WI[79]-KB_WI[60]+1)*26}" height="10" fill="#2b62d9" opacity=".75"/><text x="${(KB_WI[60]+KB_WI[79]+1)/2*26}" y="11" font-size="9" fill="#fff" text-anchor="middle">RIGHT HAND</text></svg>`)}
+function postureWhere(){const s=setupFor(cur);const extra=cur==='inv'||(cur==='jam'&&JAM.role==='stab')?' For this trainer the left hand stays <b>at or below the F♯ under middle C</b> (the Tyros chord zone).':cur==='pt'&&['jump'].includes(DS.pt.lv)?' Jump bass: the low octave is near the bottom of the keyboard, then jump back.':'';
+  return `Left hand: the octave below middle C. Right hand: from middle C up.${extra}`}
+function postureShow(){let o=document.getElementById('postureBox');if(o){o.remove();return}
+  o=document.createElement('div');o.id='postureBox';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:16px';
+  o.innerHTML=`<div class="card" style="max-width:760px;width:100%;gap:10px;background:var(--bg,#fff)"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">🧍 Posture and hand placement</h3><button class="btn small" id="postClose">Close</button></div>
+   <p style="margin:0;font-size:14px;color:var(--muted)">Opens with the <b>lowest C♯</b> on the keyboard. Play any other note to close it and carry on.</p>
+   <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center"><div style="flex:1 1 240px">${postureFigure()}</div>
+    <ul style="flex:1 1 320px;margin:0;padding-left:18px">${POSTURE_TIPS.map(([t,x])=>`<li style="margin-bottom:4px"><b>${t}:</b> ${x}</li>`).join('')}</ul></div>
+   <h4 style="margin:4px 0 0">Where your hands go</h4><div class="kb">${placementPicture()}</div><p style="margin:0">${postureWhere()}</p>
+   <details style="border:1px solid var(--rule);border-radius:8px;padding:8px 12px"><summary style="cursor:pointer;font-weight:600">Camera check (test)</summary>
+    <p style="margin:8px 0">Idea: the iPad on the music rest watches your shoulders, elbows and wrists and tells you if they drift. First a quick test: does the camera work inside this app? Tap the button. The result is sent to Claude automatically, and nothing is recorded or sent from the picture itself.</p>
+    <div class="row"><button class="btn small" id="camTest">Test the camera</button><span id="camMsg" style="font-size:14px"></span></div>
+    <video id="camVid" playsinline muted style="display:none;width:100%;max-width:360px;transform:scaleX(-1);border-radius:8px;margin-top:8px"></video></details></div>`;
+  document.body.appendChild(o);document.getElementById('postClose').onclick=postureClose;o.onclick=e=>{if(e.target===o)postureClose()};
+  document.getElementById('camTest').onclick=camTest}
+function postureClose(){const v=document.getElementById('camVid');if(v&&v.srcObject){v.srcObject.getTracks().forEach(t=>t.stop())}const o=document.getElementById('postureBox');if(o)o.remove()}
+async function camTest(){const m=document.getElementById('camMsg'),v=document.getElementById('camVid');
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){m.textContent='This app has no camera access (no getUserMedia). Sent to Claude.';sendReport('CAMERA TEST · no getUserMedia in this browser');return}
+  try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});v.srcObject=st;v.style.display='block';await v.play();
+    const tr=st.getVideoTracks()[0];const s=tr.getSettings?tr.getSettings():{};m.innerHTML=`<b style="color:var(--ok)">✓ Camera works</b> (${s.width||'?'}×${s.height||'?'}). Can you see your shoulders and hands? Tell Claude.`;sendReport(`CAMERA TEST · works · ${s.width||'?'}x${s.height||'?'} · ${navigator.userAgent}`)}
+  catch(e){m.textContent=`The camera didn't open (${e.name}). Sent to Claude.`;sendReport(`CAMERA TEST · failed · ${e.name}: ${e.message} · ${navigator.userAgent}`)}}
 
 const SETUP_QUICK={
  solo:'Style <b>off</b> ([ACMP] off) · RIGHT 1 <b>ConcertGrand</b> + RIGHT 2 <b>WarmStrings</b> (quieter) · LEFT <b>off</b> (both hands piano + strings) · sustain pedal',
