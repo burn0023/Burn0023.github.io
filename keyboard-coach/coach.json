@@ -1,31 +1,28 @@
 {
- "date": "16 Nov 2026",
- "note": "From your results sheet: Pattern Trainer levels 1 and 2 are all green (14 Nov). The E → Am and Dm → E cards were the hardest on the way there. In the Chord Trainer, <b>D vs Dm</b>, <b>E</b> and <b>Em</b> were your slowest chords, and in G minor <b>B♭</b> and <b>E♭</b> were much slower than the rest. Today's (16 Nov) rows were test runs, so they're not counted. Next step for kumzitz: the right hand on top of a steady left hand.",
+ "date": "16 Nov 2026, 13:47",
+ "note": "Your first real Jam round (Pad under the band, A minor, 66 bpm): <b>chord changes are excellent</b>, 64 of 66 on time, within a few hundredths of a second. The notes that didn't fit were mostly <b>left over from the chord before</b> (F or C while the band was already on E, D while on Am): one hand changes a little after the other. Fix: look at the next chord during beat 4 and move both hands together. Earlier results: Pattern levels 1–2 green; E, D/Dm and Em are your slowest chords, and B♭/E♭ in G minor.",
  "items": [
   {
-   "title": "Right-Hand Trainer · 1 · Melody note on each chord",
-   "why": "Your left-hand patterns are green, so add the right hand: one melody note per chord with the left hand holding the open 5th. This is the core kumzitz two-hand skill.",
-   "go": {
-    "tab": "rh",
-    "lv": "mel",
-    "key": "am",
-    "lh": "o5"
-   }
-  },
-  {
-   "title": "Kumzitz Jam · Pad under the band",
-   "why": "Your first real try with the band: hold the open 5th in the left hand and the chord in the right hand for the whole bar, changing exactly with the guitar. Start slow, around 60 bpm.",
+   "title": "Kumzitz Jam · Pad under the band: both hands together",
+   "why": "Same part, same 66 bpm. Goal: zero left-over notes. When the app says a note is 'still from' the old chord, that hand was late.",
    "go": {
     "tab": "jam",
     "role": "pad",
     "groove": "kz44",
-    "key": "am",
-    "bpm": 60
+    "key": "am"
+   }
+  },
+  {
+   "title": "Two-Hand Trainer · 1 · Together",
+   "why": "Landing both hands at the same instant, without the band, is exactly the skill behind the left-over notes. It also unlocks level 2 and then the smooth shapes.",
+   "go": {
+    "tab": "th",
+    "lv": "tog"
    }
   },
   {
    "title": "Pattern Trainer · 5 · Open 5th",
-   "why": "The open 5th (pinky + thumb) is the left hand in the Jam and the Right-Hand Trainer. Make it automatic in A minor first.",
+   "why": "Unlocks the Right-Hand Trainer and the smooth-shapes path.",
    "go": {
     "tab": "pt",
     "lv": "o5",
