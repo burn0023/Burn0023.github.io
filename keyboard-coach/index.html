@@ -86,7 +86,7 @@ async function connect(){ac();if(!navigator.requestMIDIAccess){toast('This brows
     const hook=()=>{let n=0;acc.inputs.forEach(i=>{i.onmidimessage=onMidi;n++});MIDI.ok=n>0;paintConn();if(!MIDI.ok)toast('No keyboard found. Check the USB cable, then tap Connect again.')};
     acc.onstatechange=hook;hook();if(MIDI.ok){toast('Keyboard connected.');if(['pt','th','rh','jam','sc','ear','inv'].includes(cur))render();if(!localStorage.getItem('pb-cal'))setTimeout(calStart,600)}}catch(e){toast('Couldn\'t open MIDI. Tap Connect again.')}}
 const CAL=store.get('pb-cal',{});let calStep=0,calSeen={};
-function onMidi(e){const d0=e.data;if(d0[0]>=0xF8){clockMsg(d0[0]);return}if(d0.length<3)return;const t=d0[0]&0xf0,ch=d0[0]&0x0f;
+function onMidi(e){const d0=e.data;if(typeof remoteMsg==='function'&&remoteMsg(d0))return;if(d0[0]>=0xF8){clockMsg(d0[0]);return}if(d0.length<3)return;const t=d0[0]&0xf0,ch=d0[0]&0x0f;
   if(calStep&&t===0x90&&d0[2]>0){calNote(ch,d0[1]);return}if(calStep)return;
   const d=[d0[0],d0[1]-(CAL[ch]||0),d0[2]];
   if(t===0x90&&d[2]>0){MIDI.held.add(d[1]);MIDI.ev={on:true,n:d[1]}}else if(t===0x80||t===0x90){MIDI.held.delete(d[1]);MIDI.ev={on:false,n:d[1]}}else return;
@@ -1040,6 +1040,28 @@ function jamTick(){if(!document.getElementById('jamCard')){jamStop(true);JAM.sta
     if(p.bar>=0&&p.frac>.55&&JAM.chk.hold<p.bar){JAM.chk.hold=p.bar;jamCheckHold(p.bar)}}
   jamPaintLive(now)}
 const JAM_KEY_GO=96,JAM_KEY_HEAR=95;
+
+/* Remote buttons: any Tyros control that sends MIDI (a wheel, a pedal, a button) can be learned as Your turn / Hear it */
+const REM={map:store.get('jam-remote',{}),learn:null,timer:null,last:{}};
+function remSig(d){const s=d[0],t=s&0xf0,ch=s&15;if(s===0xFA||s===0xFB||s===0xFC)return 'rt:'+s.toString(16);if(s>=0xF0)return null;
+  if(t===0xB0)return `cc:${ch}:${d[1]}`;if(t===0xC0)return `pc:${ch}:${d[1]}`;if(t===0xE0)return `pb:${ch}`;if(t===0x90&&d[2]>0)return `kn:${d[1]}`;return null}
+function remName(sig){if(!sig)return '';const [t,a,b]=sig.split(':');if(t==='rt')return a==='fa'?'Tyros START (MIDI start)':a==='fc'?'Tyros STOP (MIDI stop)':'MIDI continue';
+  if(t==='cc')return b==='1'?'Modulation wheel (push up)':b==='64'?'Sustain pedal (warning: you use it to play)':b==='66'?'Sostenuto pedal':b==='67'?'Soft pedal':`Controller ${b} (channel ${+a+1})`;
+  if(t==='pc')return `Program change ${b} (a voice/registration button)`;if(t==='pb')return 'Pitch bend wheel (push up)';if(t==='kn')return `the ${nm(+a)} key`;return sig}
+function remFire(which){if(cur!=='jam'||!document.getElementById('jamCard'))return false;if(JAM.state==='play'||JAM.state==='demo'){jamStop();return true}
+  if(JAM.state==='armed'||JAM.state==='idle'){jamStart(which==='hear');return true}return true}
+function remoteMsg(d){if(d[0]===0xF8||d[0]===0xFE)return false;const sig=remSig(d);if(!sig)return false;
+  if(REM.learn){if(sig.startsWith('kn:'))return false;REM.map[REM.learn]=sig;store.set('jam-remote',REM.map);toast(`Learned: ${remName(sig)} = ${REM.learn==='go'?'Your turn':'Hear it'}`);REM.learn=null;clearTimeout(REM.timer);if(cur==='jam')render();return true}
+  const which=Object.keys(REM.map).find(k=>REM.map[k]===sig);if(!which)return false;
+  /* continuous controls fire once when pushed past halfway, and re-arm when they come back */
+  if(sig.startsWith('cc:')||sig.startsWith('pb:')){const v=sig.startsWith('pb:')?d[2]:d[2];const on=sig.startsWith('pb:')?v>=96:v>=64;const was=REM.last[sig];REM.last[sig]=on;if(!on||was)return sig.endsWith(':64')?false:true}
+  remFire(which);return !sig.endsWith(':64')}
+function remHTML(){const row=(k,label,def)=>`<span style="font-size:14px"><b>${label}:</b> ${REM.map[k]?remName(REM.map[k]):def} <button class="btn small" data-rlearn="${k}">${REM.learn===k?'Press it on the Tyros now…':'Learn'}</button>${REM.map[k]?` <button class="btn small" data-rclear="${k}">Clear</button>`:''}</span>`;
+  return `<div class="row" style="gap:10px">${row('go','Your turn','top C key')}${row('hear','Hear it','B key below the top C')}</div>
+  <p style="font-size:13px;color:var(--muted);margin:0">Tap <b>Learn</b>, then press a Tyros button, wheel or pedal. If the app learns it, that control starts the band (and stops it). The top C and the B below it always work too. Not every Tyros button sends anything over MIDI; if nothing gets learned within 10 seconds, that button doesn't.</p>`}
+document.addEventListener('click',e=>{const l=e.target.closest&&e.target.closest('[data-rlearn]');const c=e.target.closest&&e.target.closest('[data-rclear]');
+  if(l){if(!MIDI.ok){toast('Connect the keyboard first.');return}REM.learn=l.dataset.rlearn;clearTimeout(REM.timer);REM.timer=setTimeout(()=>{if(REM.learn){REM.learn=null;toast('Nothing came in from the Tyros. That button doesn\'t send MIDI; try another (a wheel or a pedal).');if(cur==='jam')render()}},10000);l.textContent='Press it on the Tyros now…'}
+  if(c){delete REM.map[c.dataset.rclear];store.set('jam-remote',REM.map);render()}});
 function jamMidi(){if(!MIDI.ev||MIDI.ev===JAM.seen)return;JAM.seen=MIDI.ev;if(!document.getElementById('jamCard'))return;const e=MIDI.ev;
   /* remote buttons on the keyboard: top C = Your turn (or Stop), the B just below it = Hear it */
   if(e.n===JAM_KEY_GO||e.n===JAM_KEY_HEAR){if(!e.on)return;if(JAM.state==='play'||JAM.state==='demo'){jamStop();return}if(JAM.state==='armed'||JAM.state==='idle'){jamStart(e.n===JAM_KEY_HEAR)}return}
@@ -1088,6 +1110,7 @@ function jamHTML(){const G=JAM_GROOVES[JAM.groove],Ro=JAM_ROLES[JAM.role];jamFix
    <p style="margin:0">${Ro.desc}</p>
    <details style="border:1px solid var(--rule);border-radius:8px;padding:8px 12px"><summary style="cursor:pointer;font-weight:600">Why it's done this way</summary><p style="margin:8px 0 0">${Ro.why}</p><p style="margin:8px 0 0"><b>The band:</b> ${G.desc}</p></details>
    <div class="row" style="gap:6px;font-size:14px">${jamK()[JAM.key].pairs.map(pr=>`<span style="padding:2px 8px;border-radius:12px;background:${jamGreen(pr)?'var(--ok)':'var(--rule)'};color:${jamGreen(pr)?'#fff':'inherit'}">${pr.join(' → ')}</span>`).join('')}</div>
+   ${remHTML()}
    <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Band plays on:</span>${btn('jout','kbd',JAM.out,'The keyboard (MIDI)')}${btn('jout','ipad',JAM.out,'The iPad speaker')}
     <span style="font-weight:600;font-size:14px;margin-left:10px">Band volume:</span><button class="btn small" data-jv="-1" aria-label="Quieter">−</button><span class="bpm">${Math.round(JAM.vol*10)}</span><button class="btn small" data-jv="1" aria-label="Louder">+</button></div>
    <p style="font-size:13px;color:var(--muted);margin:0">${JAM.out==='kbd'?'The band goes to the keyboard on MIDI channels 10 (drums), 11 (guitar), 12 (bass) and 13 (strings). If you hear nothing, switch to the iPad speaker and tell Claude.':'On the iPad: if you hear nothing, turn the iPad volume up and make sure it isn\'t on silent.'} All parts are open. <b>Suggested</b> marks the first part that isn't all green yet.</p></div>
