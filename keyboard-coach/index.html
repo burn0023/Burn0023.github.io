@@ -69,6 +69,15 @@ textarea{font:inherit;width:100%;box-sizing:border-box;border:1px solid var(--ru
 <script>
 /* ---------- storage ---------- */
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+/* a picture of the top end of the keyboard (G A B C) with the remote key coloured, used on every trainer's Hear it / Your turn buttons */
+const KEYBTN_CSS='display:inline-flex;flex-direction:column;align-items:center;gap:3px;padding:8px 14px;min-width:120px';
+function topKeysSVG(on){const W=['G','A','B','C'];const w=17,hh=42;let s='';W.forEach((n,i)=>{const hot=n===on;s+=`<rect x="${i*w}" y="0" width="${w}" height="${hh}" rx="2" fill="${hot?'#e8a33d':'#fff'}" stroke="#555"/>`;if(hot)s+=`<text x="${i*w+w/2}" y="${hh-5}" font-size="10" text-anchor="middle" font-weight="700" fill="#222">${n}</text>`});
+  [0,1].forEach(i=>{s+=`<rect x="${(i+1)*w-5}" y="0" width="10" height="26" rx="1" fill="#222"/>`});
+  return `<svg width="${W.length*w+1}" height="${hh+1}" viewBox="-0.5 -0.5 ${W.length*w+1} ${hh+1}" aria-hidden="true">${s}</svg>`}
+const KEYS_REMOTE={hear:'B',go:'C'};
+/* every trainer: the top B works as Hear it, the top C as Your turn (or Stop). Buttons carry data-remote="hear" / "go". */
+const keyBtnInner=(which,label)=>`${topKeysSVG(KEYS_REMOTE[which])}<span data-lab>${label}</span><span style="font-size:12px;font-weight:400">or press the <b>top ${KEYS_REMOTE[which]}</b></span>`;
+function remoteKey(n){const which=n===96?'go':'hear';const b=[...document.querySelectorAll(`#app [data-remote="${which}"]`)].find(x=>x.offsetParent!==null&&!x.disabled);if(b)b.click();else if(which==='go')toast('Top C = Your turn: nothing to start on this screen.')}
 let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,3000)}
 
 /* ---------- notes ---------- */
@@ -89,6 +98,7 @@ const CAL=store.get('pb-cal',{});let calStep=0,calSeen={};
 function onMidi(e){const d0=e.data;if(d0[0]>=0xF8){clockMsg(d0[0]);return}if(d0.length<3)return;const t=d0[0]&0xf0,ch=d0[0]&0x0f;
   if(calStep&&t===0x90&&d0[2]>0){calNote(ch,d0[1]);return}if(calStep)return;
   const d=[d0[0],d0[1]-(CAL[ch]||0),d0[2]];
+  if((t===0x90||t===0x80)&&(d[1]===95||d[1]===96)){if(t===0x90&&d[2]>0)remoteKey(d[1]);return}
   if(t===0x90&&d[2]>0){MIDI.held.add(d[1]);MIDI.ev={on:true,n:d[1]}}else if(t===0x80||t===0x90){MIDI.held.delete(d[1]);MIDI.ev={on:false,n:d[1]}}else return;
   MIDI.subs.forEach(f=>{try{f()}catch(x){}})}
 document.getElementById('connBtn').onclick=connect;document.getElementById('calBtn').onclick=()=>calStart();
@@ -198,11 +208,11 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
       cm=expMarks(steps[T.idx].exp,steps[T.idx].mk)}
     nowTxt=turnTxt();draw()};
   const bk='pb-bpm-'+ex.key;const bpm=()=>store.get(bk,ex.bpm||60);
-  const draw=()=>{const el=document.getElementById(id);if(!el){MIDI.subs.delete(draw);MIDI.subs.delete(judge);return}const tb=el.querySelector('[data-a=turn]');if(tb){tb.textContent=T.on?'■ Stop':(isPassed(ex.key)?'✓ Your turn':'🎯 Your turn');tb.classList.toggle('primary',!isPassed(ex.key))}
+  const draw=()=>{const el=document.getElementById(id);if(!el){MIDI.subs.delete(draw);MIDI.subs.delete(judge);return}const tb=el.querySelector('[data-a=turn]');if(tb){tb.querySelector('[data-lab]').textContent=T.on?'■ Stop':(isPassed(ex.key)?'✓ Your turn':'🎯 Your turn');tb.classList.toggle('primary',!isPassed(ex.key))}
     el.querySelector('[data-kbs]').innerHTML=keyboardSVG(36,96,(T.on&&mem())?[]:cm,new Set([...lit,...held]),MIDI.held);
     const hl=el.querySelector('[data-handsvg]');if(T.on&&!mem())hf=handFrame([...steps[T.idx].exp],allMarks,hf);paintHands(hl,hf,(playing||T.on)&&!(T.on&&mem()));
     el.querySelector('[data-now]').innerHTML=nowTxt||(isPassed(ex.key)?'<b style="color:var(--ok)">✓ Passed.</b> Practise it any time.':MIDI.ok?`Tap <b>Hear it</b> to watch, then <b>Your turn</b>. Pass = ${need} run${need>1?'s':''} with no wrong notes.`:'Tap <b>Connect keyboard</b> at the top, then <b>Hear it</b>.');
-    el.querySelector('[data-a=hear]').textContent=playing?'■ Stop':'▶ Hear it';const fb=el.querySelector('[data-a=fast]');if(fb)fb.textContent=playing?'■ Stop':`▶ Song speed`;el.querySelector('[data-bpm]').textContent=bpm()+' bpm'};
+    el.querySelector('[data-a=hear] [data-lab]').textContent=playing?'■ Stop':'▶ Hear it';const fb=el.querySelector('[data-a=fast]');if(fb)fb.textContent=playing?'■ Stop':`▶ Song speed`;el.querySelector('[data-bpm]').textContent=bpm()+' bpm'};
   let voices=[];const outN=(ns,at,d,v)=>{timers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x90,n,v||80]))),at));timers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x80,n,0]))),at+d))};
   const stop=()=>{timers.forEach(clearTimeout);timers=[];voices.forEach(o=>{try{o.stop()}catch(e){}});voices=[];playing=false;hf=null;lit=new Set();held=new Set();cm=ex.marks;nowTxt='';if(outOK())MIDI.acc.outputs.forEach(o=>{for(let n=24;n<100;n++)o.send([0x80,n,0])});draw()};
   const hear=(fast)=>{if(playing){stop();if(ex.auto)startTurn();return}if(T.on)endTurn();playing=true;const spb=60000/(fast||bpm());let t=300;const a=ac();const viaOut=outOK();
@@ -227,7 +237,7 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
     el.querySelector('[data-a="s-"]').onclick=()=>{store.set(bk,Math.max(40,bpm()-5));draw()};
     el.querySelector('[data-a="s+"]').onclick=()=>{store.set(bk,Math.min(180,bpm()+5));draw()};draw();if(ex.auto&&MIDI.ok)startTurn()});
   return `${ex.title?`<h4 style="margin:6px 0 0">${ex.title}</h4>`:''}<div id="${id}" class="check"><div class="kb" data-kb><div data-kbs></div>${SHOW_HANDS?`<svg data-handsvg viewBox="-1 0 938 160" style="display:block;width:100%;height:auto;margin-top:calc(-100% * ${HY} / 938);pointer-events:none;position:relative">${handLayer()}</svg>`:''}</div>${LEGEND}<p class="now" data-now></p>
-   <div class="row"><button class="btn" data-a="hear">▶ Hear it</button><button class="btn primary" data-a="turn">🎯 Your turn</button>${ex.fast?`<button class="btn" data-a="fast">▶ Song speed</button>`:''}<span class="row"><button class="btn small" data-a="s-" aria-label="Slower">−</button><span class="bpm" data-bpm></span><button class="btn small" data-a="s+" aria-label="Faster">+</button></span></div>
+   <div class="row"><button class="btn" data-a="hear" data-remote="hear" style="${KEYBTN_CSS}">${keyBtnInner('hear','▶ Hear it')}</button><button class="btn primary" data-a="turn" data-remote="go" style="${KEYBTN_CSS}">${keyBtnInner('go','🎯 Your turn')}</button>${ex.fast?`<button class="btn" data-a="fast">▶ Song speed</button>`:''}<span class="row"><button class="btn small" data-a="s-" aria-label="Slower">−</button><span class="bpm" data-bpm></span><button class="btn small" data-a="s+" aria-label="Faster">+</button></span></div>
    <p class="note" style="font-size:13px;color:var(--muted);margin:0">Speed only changes <b>Hear it</b>. In <b>Your turn</b> the app waits for you, so go at your own pace.</p></div>`}
 
 /* ---------- metronome ---------- */
@@ -485,7 +495,7 @@ function trPaint(){const el=document.getElementById('trCard');if(!el){MIDI.subs.
    <div style="font-family:var(--f-d);font-size:56px;font-weight:700;line-height:1;text-align:center;padding:8px 0">${name}</div>
    <div class="kb">${keyboardSVG(36,96,show?marks:[],new Set(),MIDI.held)}</div>
    <p class="now">${TR.fb||(MIDI.ok?(show?'Play it. The keys you press light up gold.':'Play it from memory. If you miss, the keys appear.'):'Tap <b>Connect keyboard</b> at the top first.')}</p>
-   <div class="row"><button class="btn small" id="trHear">▶ Hear it</button><button class="btn small" id="trSkip">Show me</button><button class="btn small" id="trNew">New round ↺</button></div>`;
+   <div class="row"><button class="btn" id="trHear" data-remote="hear" style="${KEYBTN_CSS}">${keyBtnInner('hear','▶ Hear it')}</button><button class="btn small" id="trSkip">Show me</button><button class="btn small" id="trNew">New round ↺</button></div>`;
   document.getElementById('trHear').onclick=()=>{const ns=marks.map(x=>x.k);if(outOK())sendOut(ns,0,1200);else{const a=ac();if(a)ns.forEach(k=>tone(k,a.currentTime+.05,1.2))}};
   document.getElementById('trSkip').onclick=()=>{TR.miss=true;TR.fb='Here it is. Play it to go on.';trPaint()};
   document.getElementById('trNew').onclick=()=>{TR.summary=null;trBuild();trPaint()};
@@ -569,8 +579,8 @@ function listenMidi(){if(!LISTEN.on||!MIDI.ev||MIDI.ev===LISTEN.seen)return;LIST
 MIDI.subs.add(listenMidi);
 function listenToggle(){const btn=document.getElementById('lsBtn');
   if(!LISTEN.on){if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}Object.assign(LISTEN,{on:true,t0:performance.now(),last:performance.now(),ev:[],song:SR.song,seen:null});
-    btn.textContent='■ Stop and send to Claude';btn.classList.remove('primary');document.getElementById('lsStat').textContent='Listening… play the song.';return}
-  LISTEN.on=false;btn.textContent='● Listen';btn.classList.add('primary');const sg=SR_SONGS[LISTEN.song];const secs=Math.round((performance.now()-LISTEN.t0)/1000);
+    btn.querySelector('[data-lab]').textContent='■ Stop and send to Claude';btn.classList.remove('primary');document.getElementById('lsStat').textContent='Listening… play the song.';return}
+  LISTEN.on=false;btn.querySelector('[data-lab]').textContent='● Listen';btn.classList.add('primary');const sg=SR_SONGS[LISTEN.song];const secs=Math.round((performance.now()-LISTEN.t0)/1000);
   const notes=LISTEN.ev.filter(x=>x.includes('+')).length;if(!notes){document.getElementById('lsStat').textContent='Nothing played, nothing sent.';return}
   const id=Date.now().toString(36);const data=LISTEN.ev.join(' ');const chunks=[];for(let i=0;i<data.length;i+=6000)chunks.push(data.slice(i,i+6000));
   chunks.forEach((c,i)=>setTimeout(()=>sendReport(`SONG LISTEN · ${sg.title} · id ${id} · part ${i+1}/${chunks.length} · ${secs} s · ${notes} notes · format: centiseconds since last event (base36), + on / - off, MIDI note (base36) · ${c}`),i*700));
@@ -580,8 +590,8 @@ function srHTML(){const ids=Object.keys(SR_SONGS).filter(id=>!SR_SONGS[id].hidde
   let grid='';sg.parts.forEach(([pn,bars])=>{grid+=`<div style="font-weight:700;margin-top:10px">Part ${pn}</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">${bars.map(b=>`<div style="border:1px solid var(--rule);border-left:3px solid var(--ink);border-radius:4px;padding:12px 4px;display:flex;justify-content:center;gap:10px;font-weight:700;font-size:20px">${b.map(c=>`<span>${c}</span>`).join('')}</div>`).join('')}</div>`});
   return `<article class="card"><div class="row" style="gap:6px">${picks}</div></article>
   <article class="card"><h3 style="margin:0">${sg.title}</h3><p style="color:var(--muted);margin:0">${sg.by?sg.by+' · ':''}${sg.src} · ${sg.ts} · one box = one bar</p>
-   <div class="row" style="margin-top:8px;align-items:center"><button class="btn primary" id="lsBtn">● Listen</button><span id="lsStat" style="font-size:14px;color:var(--muted)">Tap Listen, play the song your way, then Stop. Claude gets everything you played.</span></div>${grid}</article>`}
-function srPaint(){const b=document.getElementById('lsBtn');if(b&&!b.onclick)b.onclick=listenToggle;if(b&&LISTEN.on){b.textContent='■ Stop and send to Claude';b.classList.remove('primary')}}
+   <div class="row" style="margin-top:8px;align-items:center"><button class="btn primary" id="lsBtn" data-remote="go" style="${KEYBTN_CSS}">${keyBtnInner('go','● Listen')}</button><span id="lsStat" style="font-size:14px;color:var(--muted)">Tap Listen, play the song your way, then Stop. Claude gets everything you played.</span></div>${grid}</article>`}
+function srPaint(){const b=document.getElementById('lsBtn');if(b&&!b.onclick)b.onclick=listenToggle;if(b&&LISTEN.on){b.querySelector('[data-lab]').textContent='■ Stop and send to Claude';b.classList.remove('primary')}}
 function srPaintOld(){const el=document.getElementById('srCard');if(!el)return;const sg=SR_SONGS[SR.song];const R=SR.run;
   const E=R?R.E:srEvents(sg);const ev=E.ev;
   const grid=document.getElementById('srGrid');if(grid){let k=0;grid.innerHTML=sg.parts.map(([pn,bars])=>`<div style="font-weight:700;margin-top:8px">Part ${pn}</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">${bars.map(b=>`<div style="border:1px solid var(--rule);border-left:3px solid var(--ink);border-radius:4px;padding:8px 4px;display:flex;justify-content:center;gap:8px;font-weight:700">${b.map(c=>{const i=k++;const st=!R?'':R.hit[i]?(R.late[i]?'color:var(--gold)':'color:var(--ok)'):R.miss[i]?'color:#c0392b':i===R.i&&!R.done?'background:var(--accent);color:#fff;border-radius:4px;padding:0 4px':'';return `<span style="${st}">${c}</span>`}).join('')}</div>`).join('')}</div>`).join('')}
@@ -1040,36 +1050,9 @@ function jamTick(){if(!document.getElementById('jamCard')){jamStop(true);JAM.sta
     if(p.bar>=0&&p.frac>.55&&JAM.chk.hold<p.bar){JAM.chk.hold=p.bar;jamCheckHold(p.bar)}}
   jamPaintLive(now)}
 const JAM_KEY_GO=96,JAM_KEY_HEAR=95;
-/* a picture of the top end of the keyboard (G A B C) with the remote key coloured, for the Hear it / Your turn buttons */
-const KEYBTN_CSS='display:inline-flex;flex-direction:column;align-items:center;gap:3px;padding:8px 14px;min-width:120px';
-function topKeysSVG(on){const W=['G','A','B','C'];const w=17,hh=42;let s='';W.forEach((n,i)=>{const hot=n===on;s+=`<rect x="${i*w}" y="0" width="${w}" height="${hh}" rx="2" fill="${hot?'#e8a33d':'#fff'}" stroke="#555"/>`;if(hot)s+=`<text x="${i*w+w/2}" y="${hh-5}" font-size="10" text-anchor="middle" font-weight="700" fill="#222">${n}</text>`});
-  [0,1].forEach(i=>{s+=`<rect x="${(i+1)*w-5}" y="0" width="10" height="26" rx="1" fill="#222"/>`});
-  return `<svg width="${W.length*w+1}" height="${hh+1}" viewBox="-0.5 -0.5 ${W.length*w+1} ${hh+1}" aria-hidden="true">${s}</svg>`}
 
-/* Remote buttons: any Tyros control that sends MIDI (a wheel, a pedal, a button) can be learned as Your turn / Hear it */
-const REM={map:store.get('jam-remote',{}),learn:null,timer:null,last:{}};
-function remSig(d){const s=d[0],t=s&0xf0,ch=s&15;if(s===0xFA||s===0xFB||s===0xFC)return 'rt:'+s.toString(16);if(s>=0xF0)return null;
-  if(t===0xB0)return `cc:${ch}:${d[1]}`;if(t===0xC0)return `pc:${ch}:${d[1]}`;if(t===0xE0)return `pb:${ch}`;if(t===0x90&&d[2]>0)return `kn:${d[1]}`;return null}
-function remName(sig){if(!sig)return '';const [t,a,b]=sig.split(':');if(t==='rt')return a==='fa'?'Tyros START (MIDI start)':a==='fc'?'Tyros STOP (MIDI stop)':'MIDI continue';
-  if(t==='cc')return b==='1'?'Modulation wheel (push up)':b==='64'?'Sustain pedal (warning: you use it to play)':b==='66'?'Sostenuto pedal':b==='67'?'Soft pedal':`Controller ${b} (channel ${+a+1})`;
-  if(t==='pc')return `Program change ${b} (a voice/registration button)`;if(t==='pb')return 'Pitch bend wheel (push up)';if(t==='kn')return `the ${nm(+a)} key`;return sig}
-function remFire(which){if(cur!=='jam'||!document.getElementById('jamCard'))return false;if(JAM.state==='play'||JAM.state==='demo'){jamStop();return true}
-  if(JAM.state==='armed'||JAM.state==='idle'){jamStart(which==='hear');return true}return true}
-function remoteMsg(d){if(d[0]===0xF8||d[0]===0xFE)return false;const sig=remSig(d);if(!sig)return false;
-  if(REM.learn){if(sig.startsWith('kn:'))return false;REM.map[REM.learn]=sig;store.set('jam-remote',REM.map);toast(`Learned: ${remName(sig)} = ${REM.learn==='go'?'Your turn':'Hear it'}`);REM.learn=null;clearTimeout(REM.timer);if(cur==='jam')render();return true}
-  const which=Object.keys(REM.map).find(k=>REM.map[k]===sig);if(!which)return false;
-  /* continuous controls fire once when pushed past halfway, and re-arm when they come back */
-  if(sig.startsWith('cc:')||sig.startsWith('pb:')){const v=sig.startsWith('pb:')?d[2]:d[2];const on=sig.startsWith('pb:')?v>=96:v>=64;const was=REM.last[sig];REM.last[sig]=on;if(!on||was)return sig.endsWith(':64')?false:true}
-  remFire(which);return !sig.endsWith(':64')}
-function remHTML(){const row=(k,label,def)=>`<span style="font-size:14px"><b>${label}:</b> ${REM.map[k]?remName(REM.map[k]):def} <button class="btn small" data-rlearn="${k}">${REM.learn===k?'Press it on the Tyros now…':'Learn'}</button>${REM.map[k]?` <button class="btn small" data-rclear="${k}">Clear</button>`:''}</span>`;
-  return `<div class="row" style="gap:10px">${row('go','Your turn','top C key')}${row('hear','Hear it','B key below the top C')}</div>
-  <p style="font-size:13px;color:var(--muted);margin:0">Tap <b>Learn</b>, then press a Tyros button, wheel or pedal. If the app learns it, that control starts the band (and stops it). The top C and the B below it always work too. Not every Tyros button sends anything over MIDI; if nothing gets learned within 10 seconds, that button doesn't.</p>`}
-document.addEventListener('click',e=>{const l=e.target.closest&&e.target.closest('[data-rlearn]');const c=e.target.closest&&e.target.closest('[data-rclear]');
-  if(l){if(!MIDI.ok){toast('Connect the keyboard first.');return}REM.learn=l.dataset.rlearn;clearTimeout(REM.timer);REM.timer=setTimeout(()=>{if(REM.learn){REM.learn=null;toast('Nothing came in from the Tyros. That button doesn\'t send MIDI; try another (a wheel or a pedal).');if(cur==='jam')render()}},10000);l.textContent='Press it on the Tyros now…'}
-  if(c){delete REM.map[c.dataset.rclear];store.set('jam-remote',REM.map);render()}});
 function jamMidi(){if(!MIDI.ev||MIDI.ev===JAM.seen)return;JAM.seen=MIDI.ev;if(!document.getElementById('jamCard'))return;const e=MIDI.ev;
-  /* remote buttons on the keyboard: top C = Your turn (or Stop), the B just below it = Hear it */
-  if(e.n===JAM_KEY_GO||e.n===JAM_KEY_HEAR){if(!e.on)return;if(JAM.state==='play'||JAM.state==='demo'){jamStop();return}if(JAM.state==='armed'||JAM.state==='idle'){jamStart(e.n===JAM_KEY_HEAR)}return}
+
   if(JAM.state==='play'){const ev={t:performance.now(),n:e.n,on:e.on};JAM.ev.push(ev);if(e.on&&ev.t>=JAM.P.s0-150)jamJudgeNote(ev)}
   jamKb()}
 function jamScore(){const P=JAM.P,prog=JAM.prog,K=jamK()[JAM.key];const bars=JAM.T.bars;const ons=JAM.ev.filter(e=>e.on);
@@ -1138,11 +1121,11 @@ function jamPaint(){const el=document.getElementById('jamCard');if(!el)return;co
      <p style="margin:0"><span class="step" data-jpass>Count-in…</span> <span style="font-size:36px;font-weight:700" data-jnow>${JAM.prog[0]}</span> <span style="color:var(--muted)" data-jnext>next: ${JAM.prog[1]||JAM.prog[0]}</span></p>
      <div class="beats" data-jbeats>${Array.from({length:JAM_GROOVES[JAM.groove].beats},()=>'<i></i>').join('')}</div>
      <div class="kb" data-jkb>${jamKbHTML(JAM.prog[0])}</div>${LEGEND}<p class="now" data-jfb>${JAM.state==='demo'?'Listen: the band, with your part on top.':JAM.now||'&nbsp;'}</p>
-     <div class="row"><button class="btn" id="jamStop" style="${KEYBTN_CSS}">${topKeysSVG('C')}<span>■ Stop</span><span style="font-size:12px;font-weight:400">or press the <b>top C</b></span></button></div>`;
+     <div class="row"><button class="btn" id="jamStop" data-remote="go" style="${KEYBTN_CSS}">${keyBtnInner('go','■ Stop')}</button></div>`;
     document.getElementById('jamStop').onclick=()=>{jamStop();};return}
-  if(JAM.state==='idle'&&MIDI.ok)JAM.state='armed';const c0=prog[0];el.innerHTML=head+`<p style="margin:0">${JAM.state==='armed'?`Tap <b>Your turn</b> when you're ready: one bar of count-in, then the band. Or use the keyboard as the buttons: the <b>top C</b> = Your turn (press it again to stop), the <b>B just below it</b> = Hear it.`:'Tap <b>Connect keyboard</b> at the top, then <b>Your turn</b> when you\'re ready.'}</p>
+  if(JAM.state==='idle'&&MIDI.ok)JAM.state='armed';const c0=prog[0];el.innerHTML=head+`<p style="margin:0">${JAM.state==='armed'?`Tap <b>Your turn</b> when you're ready: one bar of count-in, then the band. `:'Tap <b>Connect keyboard</b> at the top, then <b>Your turn</b> when you\'re ready.'}</p>
    <div class="kb" data-jkb>${jamKbHTML(c0)}</div>${LEGEND}<p class="now" data-jfb>${JAM.now||'&nbsp;'}</p>
-   <div class="row"><button class="btn" id="jamHear" style="${KEYBTN_CSS}">${topKeysSVG('B')}<span>▶ Hear it</span><span style="font-size:12px;font-weight:400">or press the <b>top B</b></span></button><button class="btn primary" id="jamGo" style="${KEYBTN_CSS}">${topKeysSVG('C')}<span>🎯 Your turn</span><span style="font-size:12px;font-weight:400">or press the <b>top C</b></span></button>${spd}</div>`;
+   <div class="row"><button class="btn" id="jamHear" data-remote="hear" style="${KEYBTN_CSS}">${keyBtnInner('hear','▶ Hear it')}</button><button class="btn primary" id="jamGo" data-remote="go" style="${KEYBTN_CSS}">${keyBtnInner('go','🎯 Your turn')}</button>${spd}</div>`;
   document.getElementById('jamHear').onclick=()=>jamStart(true);document.getElementById('jamGo').onclick=()=>jamStart();wire()}
 function jamPaintLive(now){const el=document.getElementById('jamCard');if(!el)return;const p=jamPos(now);const prog=JAM.prog;const pass=el.querySelector('[data-jpass]');if(!pass)return;
   if(p.bar<0){pass.textContent='Count-in '+(Math.max(0,p.beat)+1);}else{pass.textContent=`Round ${Math.min(JAM.loops,Math.floor(p.bar/prog.length)+1)} of ${JAM.loops}`;
@@ -1263,7 +1246,7 @@ const EAR={lv:store.get('ear-lv','mm'),stats:store.get('ear-stats',{}),round:[],
    el.innerHTML=`<div class="step">Chord ${EAR.i+1} of ${EAR.round.length}</div><h3 style="margin:0">${EAR.card.hint}</h3>
     <p style="margin:0;color:var(--muted)">Choices: ${EAR.card.choices.map(c=>`<b>${c}</b>`).join(' · ')}</p>
     <p class="now">${EAR.busy&&!EAR.msg?'Listen…':EAR.msg||'Play the chord you heard, either hand, any octave.'}</p>
-    <div class="row"><button class="btn" id="earAgain">▶ Hear again</button></div>`;
+    <div class="row"><button class="btn" id="earAgain" data-remote="hear" style="${KEYBTN_CSS}">${keyBtnInner('hear','▶ Hear again')}</button></div>`;
    document.getElementById('earAgain').onclick=()=>EAR.ask()}};
 MIDI.subs.add(()=>EAR.heard());
 function earHTML(){const levels=EAR_LEVELS.map(L=>`<button class="btn small" data-earlv="${L.id}" aria-pressed="${EAR.lv===L.id}">${(EAR.stats[L.id]||{}).green?'✓ ':''}${L.name}</button>`).join('');const L=EAR_LEVELS.find(x=>x.id===EAR.lv);
