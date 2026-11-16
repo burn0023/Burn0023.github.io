@@ -960,7 +960,7 @@ const JAM_SIMCHA_KEYS={gm:{name:'G minor',t:7,mode:'minor',pairs:INV_KEYS.gm.pai
 const jamK=()=>['frei','hora'].includes(JAM.groove)?JAM_SIMCHA_KEYS:KZ_KEYS;
 function jamFixKey(){if(!jamK()[JAM.key])JAM.key=Object.keys(jamK())[0]}
 const JAM_ROLES={
- pad:{name:'1 · Pad under the band',desc:'<b>Left hand:</b> open 5th (pinky + thumb), struck on beat 1 and held. <b>Right hand:</b> hold the chord. Change exactly when the guitar changes. Don\'t strum along: the guitar has the rhythm.',
+ pad:{name:'1 · Pad under the band',desc:'<b>Left hand:</b> open 5th (pinky + thumb), struck on beat 1 and held. <b>Right hand:</b> hold the chord in the <b>nearest shape</b> (the dots): keep the notes the two chords share, move the others one step. Change exactly when the guitar changes, with no gap: lift and land in one move. Pedal: press the new chord, <i>then</i> lift and re-press the pedal. Don\'t strum along: the guitar has the rhythm.',
   why:'With a guitar in the room, the guitar owns the rhythm. Gemini\'s kumzitz videos with guitar (Baruch Levine, Avrumy Straus) show the piano holding warm open 5ths and chords underneath and leaving the strumming alone. Two instruments strumming the same rhythm sound messy; a held pad under a strummed guitar sounds full.'},
  fill:{name:'2 · Answer in the gaps',desc:'<b>Left hand:</b> open 5th on beat 1, held. <b>Right hand:</b> rest on beats 1–2 (that\'s where the singers are), then play a few notes from the chord on beats 3–4, like an answer. A 3rd, a grace note, a pickup into the next chord.',
   why:'"Leave space between vocal phrases so the singer and room can project" was one of Gemini\'s clearest findings (Baruch Levine verse). The keyboard talks when the singers breathe. The app counts how many of your right-hand notes land in the gap (beats 3–4).'},
@@ -1038,9 +1038,16 @@ function jamPos(t){const P=JAM.P;if(t<P.s0)return {bar:-1,beat:Math.floor((t-(P.
 const jamChordAt=t=>{const P=JAM.P,prog=JAM.prog;const b=Math.floor((t+120-P.s0)/P.bar);return prog[((b%prog.length)+prog.length)%prog.length]};
 const pcNames=c=>chordInfo(c).pcs.map(p=>NAMES[p]).join(' ');
 /* what the picture shows for each part */
+/* right-hand pad voicing: the NEAREST shape of each chord (keep shared notes, move the others by a step), between middle C and G above the next C */
+function rhShapes(c){const ci=chordInfo(c);const out=[];for(let lo=60;lo<=72;lo++){if(!ci.pcs.includes(lo%12))continue;const sh=[lo];let k=lo;for(let n=0;n<2;n++){k++;while(!ci.pcs.includes(k%12))k++;sh.push(k)}if(sh[2]<=79)out.push(sh)}return out}
+function rhPath(prog){let prev=null;return prog.map(c=>{const S=rhShapes(c);let best;const ci=chordInfo(c);
+  if(!prev)best=S.filter(sh=>sh[0]%12===ci.root).sort((a,b)=>Math.abs(a[0]-62)-Math.abs(b[0]-62))[0]||S[0];
+  else best=S.slice().sort((a,b)=>a.reduce((t,k,j)=>t+Math.abs(k-prev[j]),0)-b.reduce((t,k,j)=>t+Math.abs(k-prev[j]),0))[0];prev=best;return best})}
+function rhFingers(sh){return (sh[2]-sh[1])>=5?[1,2,5]:(sh[1]-sh[0])>=5?[1,4,5]:[1,3,5]}
+function jamPadShape(c){const pr=JAM.prog||JAM.queue[JAM.qi]||[c];const q=pr.includes(c)?pr:[c];return rhPath(q)[q.indexOf(c)]}
 function jamStabShape(c){const pr=JAM.prog||JAM.queue[JAM.qi]||[c];const P=invPath(pr.includes(c)?pr:[c]);return P[(pr.includes(c)?pr:[c]).indexOf(c)]}
 function jamMarks(c){if(JAM.role==='stab'){const sh=jamStabShape(c);const F=invFingers(sh);return sh.map((k,i)=>({k,f:F[i],h:'l'}))}const [r,,t]=CFG[c].l;const lh=JAM.role==='solo'?[{k:r,f:5,h:'l'},{k:t,f:2,h:'l'},{k:r+12,f:1,h:'l'}]:[{k:r,f:5,h:'l'},{k:t,f:1,h:'l'}];
-  return [...lh,...(JAM.role==='pad'?CFG[c].r.map((k,i)=>({k,f:[1,3,5][i],h:'r'})):[])]}
+  const ps=JAM.role==='pad'?jamPadShape(c):null;return [...lh,...(ps?ps.map((k,i)=>({k,f:rhFingers(ps)[i],h:'r'})):[])]}
 function jamSay(msg,bad){JAM.now=`<span style="color:${bad?'var(--bad,#b3261e)':'var(--ok)'};font-weight:600">${msg}</span>`;if(bad)JAM.fb.push(msg.replace(/<[^>]+>/g,''));jamFb()}
 /* live correction: every note is checked against the chord sounding now; every chord change is checked when it happens */
 function jamJudgeNote(e){const c=jamChordAt(e.t);const ci=chordInfo(c);const pc=e.n%12;const K=jamK()[JAM.key];
