@@ -626,7 +626,7 @@ function freeAnalyse(S){const ons=S.ev.filter(e=>e.on);if(!ons.length)return nul
   return {secs:Math.round((S.last-S.t0)/1000),notes:ons.length,key:best.k,outside:Math.round(outside/ons.length*100),chords:top,lh:lhShapes,lhN:lh.length,rhN:rh.length,
     rhRange:rh.length?nm(Math.min(...rh))+'–'+nm(Math.max(...rh)):'-',lhRange:lh.length?nm(Math.min(...lh))+'–'+nm(Math.max(...lh)):'-',bpm:med?Math.round(60000/med):0,mel:{root:fitRoot,third:fit3,fifth:fit5,other:fitNo},screens:[...S.screens]}}
 /* junk filter: tiny sessions are dropped; raw notes only for real playing (enough notes, mostly in one key); at most 12 sends a day */
-function freeSend(){const S=FREE.s;FREE.s=null;if(!S)return;const A=freeAnalyse(S);if(!A||A.notes<30||A.secs<20)return;
+function freeSend(){const S=FREE.s;FREE.s=null;if(!S)return;const A=freeAnalyse(S);if(!A||A.notes<20||A.secs<10)return;
   const day=new Date().toDateString();const q=store.get('free-day',{d:'',n:0});if(q.d!==day){q.d=day;q.n=0}if(q.n>=12)return;q.n++;store.set('free-day',q);
   const keepRaw=A.notes>=60&&A.outside<=25;
   const id=Date.now().toString(36);const data=S.raw.join(' ');const chunks=[];if(keepRaw)for(let i=0;i<data.length&&chunks.length<FREE_MAX_CHUNKS;i+=6000)chunks.push(data.slice(i,i+6000));
