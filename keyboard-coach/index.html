@@ -62,7 +62,7 @@ textarea{font:inherit;width:100%;box-sizing:border-box;border:1px solid var(--ru
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
-<div class="top"><h1>Piano Basics</h1><div class="conn"><span class="dot" id="dot"></span><span id="connTxt">Not connected</span><button class="btn small" id="connBtn">Connect keyboard</button><button class="btn small" id="calBtn">Line up keys</button><button class="btn small" id="postBtn" title="Or press the lowest C♯">🧍 Posture</button><button class="btn small" id="freeBtn" title="Free-play listening: tap to turn on/off">👂 On</button></div></div>
+<div class="top"><h1>Piano Basics</h1><div class="conn"><span class="dot" id="dot"></span><span id="connTxt">Not connected</span><button class="btn small" id="connBtn">Connect keyboard</button><button class="btn small" id="calBtn">Line up keys</button><button class="btn small" id="postBtn" title="Or press the lowest C♯">🧍 Posture</button></div></div>
 <div class="wrap" id="app"></div>
 <div id="toast" hidden></div>
 
@@ -110,7 +110,7 @@ function onMidi(e){const d0=e.data;if(d0[0]>=0xF8){clockMsg(d0[0]);return}if(d0.
   if(t===0x90&&d[2]>0&&document.getElementById('postureBox')){postureClose();return}
   if(t===0x90&&d[2]>0){MIDI.held.add(d[1]);MIDI.ev={on:true,n:d[1],v:d[2]}}else if(t===0x80||t===0x90){MIDI.held.delete(d[1]);MIDI.ev={on:false,n:d[1]}}else return;
   MIDI.subs.forEach(f=>{try{f()}catch(x){}})}
-document.getElementById('connBtn').onclick=connect;document.getElementById('postBtn').onclick=()=>postureShow();document.getElementById('freeBtn').onclick=()=>{FREE.on=!FREE.on;store.set('free-on',FREE.on);if(!FREE.on){clearTimeout(FREE.timer);FREE.s=null}toast(FREE.on?'Free-play listening on: Claude gets a summary of what you play between exercises.':'Free-play listening off.');freeDot()};setTimeout(freeDot,0);document.getElementById('calBtn').onclick=()=>calStart();
+document.getElementById('connBtn').onclick=connect;document.getElementById('postBtn').onclick=()=>postureShow();document.getElementById('calBtn').onclick=()=>calStart();
 /* Line up keys: the Tyros can send some parts an octave off (e.g. the LEFT part's octave setting). Bernard presses two known keys; the app learns the offset for each MIDI channel. */
 function calShow(html){let b=document.getElementById('calBar');if(!b){b=document.createElement('div');b.id='calBar';b.className='card';b.style.cssText='margin:12px 16px;border:2px solid var(--accent)';document.getElementById('app').before(b)}b.innerHTML=html;b.hidden=!html}
 function calStart(){if(!MIDI.ok){toast('Tap Connect keyboard first.');return}calStep=1;calSeen={};
@@ -594,8 +594,8 @@ function listenMidi(){if(!LISTEN.on||!MIDI.ev||MIDI.ev===LISTEN.seen)return;LIST
 MIDI.subs.add(listenMidi);
 /* ---------- Free-play listening ("always on"): while the keyboard is connected, the app quietly notes what you play between exercises.
    After 45 s of silence it sends Claude one summary (chords, left-hand habits, key, tempo) plus the notes themselves (capped). No sound, no scoring. ---------- */
-const FREE={on:store.get('free-on',true),s:null,timer:null,seen:null};
-const FREE_IDLE=45000,FREE_MAX_CHUNKS=3;
+const FREE={on:true,s:null,timer:null,seen:null};
+const FREE_IDLE=45000,FREE_MAX_CHUNKS=2;
 function freeMidi(){if(!FREE.on||!MIDI.ev||MIDI.ev===FREE.seen)return;FREE.seen=MIDI.ev;const e=MIDI.ev,now=performance.now();
   if(!FREE.s)FREE.s={t0:now,last:now,ev:[],raw:[],screens:new Set()};const S=FREE.s;
   S.screens.add(cur);S.ev.push({t:now,n:e.n,on:e.on,v:e.v||0});S.raw.push((Math.round((now-S.last)/10)).toString(36)+(e.on?'+':'-')+e.n.toString(36));S.last=now;
@@ -625,8 +625,11 @@ function freeAnalyse(S){const ons=S.ev.filter(e=>e.on);if(!ons.length)return nul
     if(d===0)fitRoot++;else if(d===3||d===4)fit3++;else if(d===7)fit5++;else fitNo++});
   return {secs:Math.round((S.last-S.t0)/1000),notes:ons.length,key:best.k,outside:Math.round(outside/ons.length*100),chords:top,lh:lhShapes,lhN:lh.length,rhN:rh.length,
     rhRange:rh.length?nm(Math.min(...rh))+'–'+nm(Math.max(...rh)):'-',lhRange:lh.length?nm(Math.min(...lh))+'–'+nm(Math.max(...lh)):'-',bpm:med?Math.round(60000/med):0,mel:{root:fitRoot,third:fit3,fifth:fit5,other:fitNo},screens:[...S.screens]}}
-function freeSend(){const S=FREE.s;FREE.s=null;freeDot();if(!S)return;const A=freeAnalyse(S);if(!A||A.notes<20)return;
-  const id=Date.now().toString(36);const data=S.raw.join(' ');const chunks=[];for(let i=0;i<data.length&&chunks.length<FREE_MAX_CHUNKS;i+=6000)chunks.push(data.slice(i,i+6000));
+/* junk filter: tiny sessions are dropped; raw notes only for real playing (enough notes, mostly in one key); at most 12 sends a day */
+function freeSend(){const S=FREE.s;FREE.s=null;if(!S)return;const A=freeAnalyse(S);if(!A||A.notes<30||A.secs<20)return;
+  const day=new Date().toDateString();const q=store.get('free-day',{d:'',n:0});if(q.d!==day){q.d=day;q.n=0}if(q.n>=12)return;q.n++;store.set('free-day',q);
+  const keepRaw=A.notes>=60&&A.outside<=25;
+  const id=Date.now().toString(36);const data=S.raw.join(' ');const chunks=[];if(keepRaw)for(let i=0;i<data.length&&chunks.length<FREE_MAX_CHUNKS;i+=6000)chunks.push(data.slice(i,i+6000));
   sendReport(`FREE PLAY · id ${id} · ${A.secs} s · ${A.notes} notes · screens ${A.screens.join(',')} · key looks like ${A.key} (${A.outside}% outside it) · chords ${A.chords.map(([c,n])=>c+'×'+n).join(' ')} · left hand: open 5th ×${A.lh.o5}, triads ×${A.lh.triad}, octaves ×${A.lh.oct}, single ×${A.lh.single}, other ×${A.lh.other} · melody on left-hand landings: root ${A.mel.root}, 3rd ${A.mel.third}, 5th ${A.mel.fifth}, other ${A.mel.other} · LH ${A.lhRange}, RH ${A.rhRange} · tempo ~${A.bpm||'?'} bpm · raw parts ${chunks.length}${data.length>chunks.length*6000?' (capped)':''}`,true);
   chunks.forEach((c,i)=>setTimeout(()=>sendReport(`FREE PLAY RAW · id ${id} · part ${i+1}/${chunks.length} · format: centiseconds since last event (base36), + on / - off, MIDI note (base36) · ${c}`,true),(i+1)*800))}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&FREE.s){clearTimeout(FREE.timer);freeSend()}});
