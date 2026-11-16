@@ -1030,6 +1030,27 @@ function jamPaintLive(now){const el=document.getElementById('jamCard');if(!el)re
   el.querySelectorAll('[data-jbeats] i').forEach((x,j)=>x.classList.toggle('on',j===((p.beat%JAM_GROOVES[JAM.groove].beats)+JAM_GROOVES[JAM.groove].beats)%JAM_GROOVES[JAM.groove].beats))}
 MIDI.subs.add(jamMidi);
 
+/* Band output to the keyboard over MIDI (so the band plays from the Tyros speakers). Wraps the WebAudio sound makers. */
+try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}
+JAM.out=store.get('jam-out','kbd');JAM.mt=[];
+const jamKbd=()=>JAM.out==='kbd'&&outOK();
+const JCH={gtr:10,bass:11,str:12,drum:9}; /* MIDI channels 11, 12, 13 and 10 (drums) */
+function jSend(at,data){const ms=Math.max(0,(at-ctx.currentTime)*1000);JAM.mt.push(setTimeout(()=>{if(outOK())MIDI.acc.outputs.forEach(o=>{try{o.send(data)}catch(e){}})},ms))}
+function jNote(ch,k,at,vel,dur){const v=Math.max(1,Math.min(127,Math.round(vel*JAM.vol*100)));jSend(at,[0x90|ch,k,v]);jSend(at+dur,[0x80|ch,k,0])}
+function jAllOff(){JAM.mt.forEach(clearTimeout);JAM.mt=[];if(outOK())MIDI.acc.outputs.forEach(o=>{[JCH.gtr,JCH.bass,JCH.str,JCH.drum].forEach(ch=>{try{o.send([0xB0|ch,123,0]);o.send([0xB0|ch,120,0])}catch(e){}})})}
+const _jPluck=jPluck,_jNoise=jNoise,_jThump=jThump,_jClick=jClick,_jStart=jamStart,_jStop=jamStop,_jHTML=jamHTML;
+jPluck=function(a,k,at,vel,dur){if(!jamKbd())return _jPluck(a,k,at,vel,dur);jNote(JCH.gtr,k,at,.5+vel*.35,dur)};
+jNoise=function(a,at,dur,vol,type,freq){if(!jamKbd())return _jNoise(a,at,dur,vol,type,freq);const n=type==='highpass'?(JAM.groove==='kz44'?82:42):38;jNote(JCH.drum,n,at,Math.min(1,.35+vol*2),.08)};
+jThump=function(a,at,vol){if(!jamKbd())return _jThump(a,at,vol);jNote(JCH.drum,36,at,Math.min(1,.4+vol),.1)};
+jClick=function(a,at,acc){if(!jamKbd())return _jClick(a,at,acc);jNote(JCH.drum,acc?34:33,at,acc?.9:.6,.05)};
+jamStart=function(){if(jamKbd()){jAllOff();MIDI.acc.outputs.forEach(o=>{try{o.send([0xC0|JCH.gtr,25]);o.send([0xC0|JCH.bass,32]);o.send([0xC0|JCH.str,48]);[JCH.gtr,JCH.bass,JCH.str,JCH.drum].forEach(ch=>o.send([0xB0|ch,7,100]))}catch(e){}})}
+  _jStart();if(jamKbd()&&ctx&&JAM.P){const lat=(ctx.outputLatency||ctx.baseLatency||0)*1000;JAM.P.s0-=lat;JAM.P.end-=lat}};
+jamStop=function(silent){jAllOff();return _jStop(silent)};
+jamHTML=function(){const sel=v=>JAM.out===v;return _jHTML().replace('<p style="font-size:13px;color:var(--muted);margin:0">The band plays from the iPad\'s speaker. If the Tyros is much louder, turn the Tyros down a little or put the iPad on a speaker.</p>',
+  `<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Band plays on:</span><button class="btn small" data-jout="kbd" aria-pressed="${sel('kbd')}">The keyboard (MIDI)</button><button class="btn small" data-jout="ipad" aria-pressed="${sel('ipad')}">The iPad speaker</button></div>
+   <p style="font-size:13px;color:var(--muted);margin:0">${JAM.out==='kbd'?'The band is sent to the keyboard on MIDI channels 10 (drums), 11 (guitar), 12 (bass) and 13 (strings), so it plays through the Tyros with its own sounds. If you hear nothing, switch to the iPad speaker and tell Claude.':'On the iPad: if you hear nothing, turn the iPad volume up and make sure it isn\'t on silent.'}</p>`)};
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-jout]');if(!b)return;jamStop(true);JAM.state='idle';JAM.out=b.dataset.jout;store.set('jam-out',JAM.out);render()});
+
 const DS={};Object.entries(DRILLS).forEach(([id,D])=>{DS[id]={key:store.get(D.store+'-key','am'),lv:store.get(D.store+'-lv',D.levels[0].id),mem:store.get(D.store+'-mem',false),stats:store.get(D.store+'-stats',{}),queue:[],qi:0,res:[],done:false}});
 const PT=DS.pt; /* kept for older code paths */
 const dKey=(lv,pr)=>lv+'|'+pr.join('-');
