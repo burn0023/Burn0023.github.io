@@ -923,6 +923,17 @@ const JAM_GROOVES={
  kz68:{name:'Kumzitz 6/8 · picked guitar',beats:2,bpm:48,desc:'Slow 6/8 kumzitz: fingerpicked guitar (bass, 5th, octave, 10th…). Count <b>1-2-3 4-5-6</b>; the bpm counts the two big beats.'},
  carl:{name:'Carlebach 4/4 · guitar + cajon',beats:4,bpm:92,desc:'Lively Carlebach: busier strumming with a cajon (low hit on 1 and 3, slap on 2 and 4).'},
  click:{name:'Solo · soft click only',beats:4,bpm:66,desc:'No band, just a quiet click on each beat. You are the whole band: left hand flowing, right hand the tune.'}};
+Object.assign(JAM_GROOVES,{
+ chup:{name:'Chuppah · strings',beats:4,bpm:56,part:'drone',desc:'Chuppah walk-in: a held string pad on the chord and a soft low cello note, no drums. Gemini\'s live one-man-band chuppah had the style off, low strings/cello and a pad holding root–5th drones, and a solo lead on top.'},
+ frei:{name:'Freilach 2/4 · drums + bass',beats:2,bpm:132,part:'stab',desc:'Fast simcha in 2/4: kick on 1, snare on 2, hi-hats on every eighth, bass alternating root and 5th, off-beat rhythm-guitar chops. Gemini measured the real thing at about 148–166 bpm; it starts slower here for practice. Count <b>1 2</b>.'},
+ hora:{name:'Hora 2/4 · darbuka + bass',beats:2,bpm:128,part:'stab',desc:'Hora / Israeli circle-dance feel in 2/4: low "doum" on 1, high "tek" on 2 and the "and" of 2, a bass octave on 1, off-beat chord chops. (Two of Gemini\'s three hora videos weren\'t Jewish simchas, so treat this one as a rough guide.) Count <b>1 2</b>.'},
+ waltz:{name:'Shabbos table 3/4 · guitar',beats:3,bpm:84,part:'pad',desc:'Modzitz / Shabbos-table waltz: guitar bass note on 1, strums on 2 and 3. Matches Gemini\'s Modzitz study (bass on beat 1, light chords on 2 and 3). Count <b>1 2 3</b>.'}});
+JAM_GROOVES.kz44.part='pad';JAM_GROOVES.kz68.part='pad';JAM_GROOVES.carl.part='fill';JAM_GROOVES.click.part='solo';
+/* fast bands use the simcha progressions from the Inversion Trainer (same chords Gemini found in freilach/hora videos) */
+const JAM_SIMCHA_KEYS={gm:{name:'G minor',t:7,mode:'minor',pairs:INV_KEYS.gm.pairs},dm:{name:'D minor',t:2,mode:'minor',pairs:INV_KEYS.dm.pairs},am:{name:'A minor',t:9,mode:'minor',pairs:INV_KEYS.am.pairs},
+ em:{name:'E minor (hora)',t:4,mode:'minor',pairs:INV_KEYS.em.pairs},fr:{name:'Freygish (D)',t:2,mode:'fr',pairs:INV_KEYS.fr.pairs}};
+const jamK=()=>['frei','hora'].includes(JAM.groove)?JAM_SIMCHA_KEYS:KZ_KEYS;
+function jamFixKey(){if(!jamK()[JAM.key])JAM.key=Object.keys(jamK())[0]}
 const JAM_ROLES={
  pad:{name:'1 · Pad under the band',desc:'<b>Left hand:</b> open 5th (pinky + thumb), struck on beat 1 and held. <b>Right hand:</b> hold the chord. Change exactly when the guitar changes. Don\'t strum along: the guitar has the rhythm.',
   why:'With a guitar in the room, the guitar owns the rhythm. Gemini\'s kumzitz videos with guitar (Baruch Levine, Avrumy Straus) show the piano holding warm open 5ths and chords underneath and leaving the strumming alone. Two instruments strumming the same rhythm sound messy; a held pad under a strummed guitar sounds full.'},
@@ -932,6 +943,11 @@ const JAM_ROLES={
   why:'When nobody is singing yet (an intro, a niggun between songs), the keyboard plays the tune and the guitar backs it up. This is the dual-tasking you said is hard, made easier: the left hand job is tiny (one held open 5th per bar), so the right hand gets nearly all your attention.'},
  solo:{name:'4 · Solo piano kumzitz',desc:'Use with <b>Solo · soft click only</b>. <b>Left hand flows</b>: bass, 5th, octave or the Carlebach roll. <b>Right hand:</b> the tune, or hold the chord. Keep the flow going through the chord change.',
   why:'Alone, the piano has to be guitar, bass and singer at once. That\'s why the left hand flows (the rhythm and bass a guitar would give) while the right hand sings. The click only keeps you honest about the tempo; the score checks that your chord changes land on time.'}};
+Object.assign(JAM_ROLES,{
+ stab:{name:'5 · Simcha left hand: chord on 1, lift',desc:'<b>Left hand:</b> the 3-note chord in the <b>nearest shape</b> (the dots, at or below F♯ under middle C), struck short on <b>beat 1</b>, then <b>lift</b> the hand. <b>Right hand:</b> free: the tune, or rest. Use with <b>Freilach</b> or <b>Hora</b>.',
+  why:'In every fast simcha video Gemini studied (Isrolik Bash, Shaya Lloyd, the HillelKAPS one-man band), the left hand plays tight, short 3-note chords in the style\'s chord zone on beat 1 and lifts cleanly so the style doesn\'t blur, using the free moment to hit Fill or Variation. The nearest shape keeps the hand still. The app checks that your left hand has <b>lifted</b> by the middle of each bar.'},
+ drone:{name:'6 · Chuppah: open 5th held, no gap',desc:'<b>Left hand:</b> open 5th (pinky + thumb), held the whole bar. On the change, land the new 5th <b>as</b> the old one lifts: no silence. <b>Right hand:</b> free: a slow tune, or rest. Use with <b>Chuppah · strings</b>.',
+  why:'Gemini\'s live chuppah one-man band held long root–5th drones in the low strings with the style off, so the sound never stops while the chosson and kallah walk. A gap between chords is the thing everyone hears. The app measures the silence between letting go of one chord and striking the next; under 0.15 s counts as no gap.'}});
 const JAM={groove:store.get('jam-groove','kz44'),role:store.get('jam-role','pad'),key:store.get('jam-key','am'),bpm:store.get('jam-bpm',{}),vol:store.get('jam-vol',.8),
   loops:2,prog:null,state:'idle',ev:[],seen:null,master:null,iv:null,res:null,timer:null,hist:store.get('jam-hist',[]),
   mem:store.get('jam-mem',false),stats:store.get('jam-stats',{}),queue:[],qi:0,round:[],tries:0,fb:[],now:'',chk:{chg:0,hold:-1},cardRes:null,out:store.get('jam-out','kbd'),mt:[]};
@@ -949,7 +965,22 @@ function jThump(a,at,vol){const o=a.createOscillator(),g=a.createGain();o.freque
 function jClick(a,at,acc){const o=a.createOscillator(),g=a.createGain();o.frequency.value=acc?1500:1000;g.gain.setValueAtTime(acc?.25:.14,at);g.gain.exponentialRampToValueAtTime(.001,at+.04);o.connect(g);g.connect(JAM.master);o.start(at);o.stop(at+.05)}
 function gtrNotes(c){const ci=chordInfo(c);let b=40;while(b%12!==ci.root)b++;const th=(ci.pcs[1]-ci.root+12)%12;return [b,b+7,b+12,b+12+th,b+19,b+24].filter(k=>k<=77)}
 function jStrum(a,c,at,down,vel,dur){const G=gtrNotes(c);const ns=down?G:G.slice(-4).reverse();ns.forEach((k,i)=>jPluck(a,k,at+i*(down?.013:.009),vel*(down?1:.6),dur))}
-function jamSchedule(a,t0){const G=JAM_GROOVES[JAM.groove];const spb=60/jamBpm();const bar=spb*G.beats;const prog=JAM.prog;const bars=prog.length*JAM.loops;
+/* new band sounds: each one goes to the keyboard over MIDI when the band plays on the keyboard */
+function jPad(a,ks,at,dur,vol){if(jamKbd()){ks.forEach(k=>jNote(JCH.str,k,at,.45+vol*.3,dur));return}
+  ks.forEach(k=>{const f=440*Math.pow(2,(k-69)/12);const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1500;const g=a.createGain();
+    g.gain.setValueAtTime(0,at);g.gain.linearRampToValueAtTime(vol*.05,at+.45);g.gain.setValueAtTime(vol*.05,at+Math.max(.5,dur-.1));g.gain.linearRampToValueAtTime(0,at+dur+.5);lp.connect(g);g.connect(JAM.master);
+    [-8,8].forEach(c=>{const o=a.createOscillator();o.type='sawtooth';o.frequency.value=f;o.detune.value=c;o.connect(lp);o.start(at);o.stop(at+dur+.6)})})}
+function jBass(a,k,at,dur,vol,att){if(jamKbd()){jNote(JCH.bass,k,at,.5+vol*.4,dur);return}
+  const f=440*Math.pow(2,(k-69)/12);const o=a.createOscillator();o.type='triangle';o.frequency.value=f;const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=700;const g=a.createGain();const A=att||.01;
+  g.gain.setValueAtTime(0,at);g.gain.linearRampToValueAtTime(vol*.45,at+A);g.gain.setTargetAtTime(vol*.28,at+A,.15);g.gain.setValueAtTime(vol*.28,at+Math.max(A+.05,dur));g.gain.linearRampToValueAtTime(0,at+dur+.15);
+  o.connect(lp);lp.connect(g);g.connect(JAM.master);o.start(at);o.stop(at+dur+.2)}
+function jDrum(a,at,kind,vol){if(kind==='kick')return jThump(a,at,vol);if(kind==='snare')return jNoise(a,at,.12,vol*.4,'bandpass',1800);if(kind==='hat')return jNoise(a,at,.04,vol*.06,'highpass',7000);
+  if(jamKbd()){jNote(JCH.drum,kind==='doum'?64:63,at,Math.min(1,.4+vol*.6),.1);return}
+  if(kind==='doum'){const o=a.createOscillator(),g=a.createGain();o.frequency.setValueAtTime(150,at);o.frequency.exponentialRampToValueAtTime(70,at+.2);g.gain.setValueAtTime(vol*.7,at);g.gain.exponentialRampToValueAtTime(.001,at+.35);o.connect(g);g.connect(JAM.master);o.start(at);o.stop(at+.4)}
+  else{jNoise(a,at,.05,vol*.35,'bandpass',3500);const o=a.createOscillator(),g=a.createGain();o.frequency.value=900;g.gain.setValueAtTime(vol*.15,at);g.gain.exponentialRampToValueAtTime(.001,at+.05);o.connect(g);g.connect(JAM.master);o.start(at);o.stop(at+.06)}}
+const jBassRoot=c=>lowRoot(c); /* C2–B2 */
+function jamBassProg(a){if(!jamKbd())return;const pg=JAM.groove==='chup'?42:['frei','hora'].includes(JAM.groove)?33:32;jSend(a.currentTime,[0xC0|JCH.bass,pg])}
+function jamSchedule(a,t0){jamBassProg(a);const G=JAM_GROOVES[JAM.groove];const spb=60/jamBpm();const bar=spb*G.beats;const prog=JAM.prog;const bars=prog.length*JAM.loops;
   for(let i=0;i<G.beats;i++)jClick(a,t0+i*spb,i===0);
   const s0=t0+bar;
   for(let b=0;b<bars;b++){const c=prog[b%prog.length];const bt=s0+b*bar;
@@ -958,6 +989,12 @@ function jamSchedule(a,t0){const G=JAM_GROOVES[JAM.groove];const spb=60/jamBpm()
     else if(JAM.groove==='kz68'){const e=spb/3;const G6=gtrNotes(c);const th=G6[3]||G6[2];[G6[0],G6[1],G6[2],th,G6[2],G6[1]].forEach((k,x)=>jPluck(a,k,bt+x*e,x===0?1:.7,x===0?bar:e*3));jThump(a,bt,.25)}
     else if(JAM.groove==='carl'){const e=spb/2;[[0,1],[2,1],[3,0],[4,1],[5,0],[6,1],[7,0]].forEach(([x,d],j,A)=>{const nx=j<A.length-1?A[j+1][0]:8;jStrum(a,c,bt+x*e,d,d?.9:.65,(nx-x)*e+.04)});
       [0,4,7].forEach(x=>jThump(a,bt+x*e,x===7?.35:.6));[2,6].forEach(x=>jNoise(a,bt+x*e,.12,.35,'bandpass',1800));for(let x=0;x<8;x++)jNoise(a,bt+x*e,.04,.04,'highpass',7000)}
+    else if(JAM.groove==='chup'){const pad=CFG[c].r;jPad(a,pad,bt,bar+.12,.9);jBass(a,jBassRoot(c),bt,bar*.97,.55,.12)}
+    else if(JAM.groove==='frei'){const e=spb/2;const r=jBassRoot(c);jDrum(a,bt,'kick',.65);jDrum(a,bt+spb,'snare',.9);for(let x=0;x<4;x++)jDrum(a,bt+x*e,'hat',1);
+      jBass(a,r,bt,e*1.6,.8);jBass(a,r+7,bt+spb,e*1.6,.7);[1,3].forEach(x=>jStrum(a,c,bt+x*e,true,.6,e*.55))}
+    else if(JAM.groove==='hora'){const e=spb/2;const r=jBassRoot(c);jDrum(a,bt,'doum',.9);jDrum(a,bt+spb,'tek',.8);jDrum(a,bt+spb+e,'tek',.6);
+      jBass(a,r,bt,e*1.5,.8);jBass(a,r+12,bt,e*1.5,.45);[1,3].forEach(x=>jStrum(a,c,bt+x*e,true,.55,e*.45))}
+    else if(JAM.groove==='waltz'){const G6=gtrNotes(c);jPluck(a,G6[0],bt,1,spb*.95);[1,2].forEach(x=>jStrum(a,c,bt+x*spb,true,x===1?.75:.6,spb*.8))}
     else for(let i=0;i<G.beats;i++)jClick(a,bt+i*spb,i===0)}
   return {s0,bar,spb,bars,end:s0+bars*bar}}
 function jamStart(demo){const a=ac();if(!a){toast('No audio on this device.');return}if(a.state!=='running'){a.resume()}
@@ -965,9 +1002,9 @@ function jamStart(demo){const a=ac();if(!a){toast('No audio on this device.');re
   const t0=a.currentTime+.15;JAM.T=jamSchedule(a,t0);const lat=((a.outputLatency||a.baseLatency||0))*1000;
   JAM.pAt=at=>performance.now()+(at-a.currentTime)*1000+lat;JAM.P={s0:JAM.pAt(JAM.T.s0),bar:JAM.T.bar*1000,spb:JAM.T.spb*1000,end:JAM.pAt(JAM.T.end)};
   if(demo)jamDemoPart(a);
-  JAM.ev=[];JAM.fb=[];JAM.now='';JAM.chk={chg:0,hold:-1};JAM.state=demo?'demo':'play';clearInterval(JAM.iv);JAM.iv=setInterval(jamTick,50);jamPaint()}
+  JAM.ev=[];JAM.fb=[];JAM.now='';JAM.chk={chg:0,hold:-1,lift:{ok:0,n:0},gaps:[]};JAM.state=demo?'demo':'play';clearInterval(JAM.iv);JAM.iv=setInterval(jamTick,50);jamPaint()}
 /* Hear it: the band once round, with your part played on top (keyboard channel 1, or the iPad) */
-function jamDemoPart(a){const T=JAM.T;JAM.prog.forEach((c,b)=>{const ks=jamMarks(c).map(x=>x.k);const at=T.s0+b*T.bar;const d=T.bar*.95;
+function jamDemoPart(a){const T=JAM.T;JAM.prog.forEach((c,b)=>{const ks=jamMarks(c).map(x=>x.k);const at=T.s0+b*T.bar;const d=T.bar*(JAM.role==='stab'?.3:.95);
   if(outOK()){const ms=(at-a.currentTime)*1000;JAM.mt.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ks.forEach(k=>o.send([0x90,k,70]))),ms));JAM.mt.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ks.forEach(k=>o.send([0x80,k,0]))),ms+d*1000))}
   else ks.forEach(k=>tone(k,at,d,.08))})}
 function jamStop(silent){clearInterval(JAM.iv);clearTimeout(JAM.timer);if(JAM.master){const m=JAM.master;try{m.gain.setTargetAtTime(0,ctx.currentTime,.03);setTimeout(()=>{try{m.disconnect()}catch(e){}},300)}catch(e){}JAM.master=null}
@@ -976,19 +1013,23 @@ function jamPos(t){const P=JAM.P;if(t<P.s0)return {bar:-1,beat:Math.floor((t-(P.
 const jamChordAt=t=>{const P=JAM.P,prog=JAM.prog;const b=Math.floor((t+120-P.s0)/P.bar);return prog[((b%prog.length)+prog.length)%prog.length]};
 const pcNames=c=>chordInfo(c).pcs.map(p=>NAMES[p]).join(' ');
 /* what the picture shows for each part */
-function jamMarks(c){const [r,,t]=CFG[c].l;const lh=JAM.role==='solo'?[{k:r,f:5,h:'l'},{k:t,f:2,h:'l'},{k:r+12,f:1,h:'l'}]:[{k:r,f:5,h:'l'},{k:t,f:1,h:'l'}];
+function jamStabShape(c){const pr=JAM.prog||JAM.queue[JAM.qi]||[c];const P=invPath(pr.includes(c)?pr:[c]);return P[(pr.includes(c)?pr:[c]).indexOf(c)]}
+function jamMarks(c){if(JAM.role==='stab'){const sh=jamStabShape(c);const F=invFingers(sh);return sh.map((k,i)=>({k,f:F[i],h:'l'}))}const [r,,t]=CFG[c].l;const lh=JAM.role==='solo'?[{k:r,f:5,h:'l'},{k:t,f:2,h:'l'},{k:r+12,f:1,h:'l'}]:[{k:r,f:5,h:'l'},{k:t,f:1,h:'l'}];
   return [...lh,...(JAM.role==='pad'?CFG[c].r.map((k,i)=>({k,f:[1,3,5][i],h:'r'})):[])]}
 function jamSay(msg,bad){JAM.now=`<span style="color:${bad?'var(--bad,#b3261e)':'var(--ok)'};font-weight:600">${msg}</span>`;if(bad)JAM.fb.push(msg.replace(/<[^>]+>/g,''));jamFb()}
 /* live correction: every note is checked against the chord sounding now; every chord change is checked when it happens */
-function jamJudgeNote(e){const c=jamChordAt(e.t);const ci=chordInfo(c);const pc=e.n%12;const K=KZ_KEYS[JAM.key];
-  if(ci.pcs.includes(pc)){if(e.n<60&&JAM.role!=='solo'&&pc===ci.pcs[1])jamSay(`Left hand: leave out ${NAMES[pc]} (the middle note). Just ${NAMES[ci.root]} + ${NAMES[ci.pcs[2]]}, pinky and thumb.`,true);return}
+function jamJudgeNote(e){const c=jamChordAt(e.t);const ci=chordInfo(c);const pc=e.n%12;const K=jamK()[JAM.key];
+  if(ci.pcs.includes(pc)){if(e.n<60&&JAM.role==='stab'&&e.n>INV_ZONE[1])jamSay(`Left hand: keep the chord at or below F♯ under middle C, where the Tyros style reads chords. Use the shape with the dots.`,true);else if(e.n<60&&!['solo','stab'].includes(JAM.role)&&pc===ci.pcs[1])jamSay(`Left hand: leave out ${NAMES[pc]} (the middle note). Just ${NAMES[ci.root]} + ${NAMES[ci.pcs[2]]}, pinky and thumb.`,true);return}
   if(e.n>=60&&JAM.role!=='pad'&&chordScale(K,c).has(pc))return;
   jamSay(`✗ ${NAMES[pc]} doesn't fit <b>${c}</b>. ${c} is ${pcNames(c)}.`,true)}
 function jamCheckChange(b){const P=JAM.P,prog=JAM.prog;const c=prog[b%prog.length],pc=prog[(b-1+prog.length)%prog.length];if(b===0||c===pc)return;
   const T=P.s0+b*P.bar;const ci=chordInfo(c);const hit=JAM.ev.filter(e=>e.on&&e.t>=T-250&&e.t<=T+350&&ci.pcs.includes(e.n%12));
-  if(!hit.length)jamSay(`Missed the change to <b>${c}</b>. Have the left hand ready on ${NAMES[ci.root]} + ${NAMES[ci.pcs[2]]} during the last beat of ${pc}.`,true);
+  if(JAM.role==='drone'&&hit.some(e=>e.n<60)){const ton=hit.find(e=>e.n<60).t;const L=new Set();let empty=null;
+    JAM.ev.filter(e=>e.t<ton&&e.n<60).forEach(e=>{if(e.on){L.add(e.n);empty=null}else{L.delete(e.n);if(!L.size)empty=e.t}});
+    const g=L.size||empty===null?0:Math.round(ton-empty);JAM.chk.gaps.push(g);if(g>150)jamSay(`Gap of ${(g/1000).toFixed(2)} s before <b>${c}</b>: the strings went silent. Land the new 5th as the old one lifts.`,true)}
+  if(!hit.length)jamSay(`Missed the change to <b>${c}</b>. Have the left hand ready on ${jamMarks(c).filter(x=>x.h==='l').map(x=>nm(x.k)).join(' + ')} during the last beat of ${pc}.`,true);
   else{const off=Math.round(hit[0].t-T);if(off>150)jamSay(`${c}: a little late (${(off/1000).toFixed(2)} s). Move on the last beat of ${pc}.`,true);else if(off<-150)jamSay(`${c}: a little early. Wait for the guitar.`,true);else jamSay(`✓ ${c} right on the beat`)}}
-function jamCheckHold(b){if(JAM.role==='solo')return;const c=JAM.prog[b%JAM.prog.length];const ci=chordInfo(c);const held=[...MIDI.held];
+function jamCheckHold(b){if(JAM.role==='solo')return;if(JAM.role==='stab'){const down=[...MIDI.held].some(k=>k<60);JAM.chk.lift.n++;if(down)jamSay(`<b>Lift</b> the left hand after beat 1. That's the moment players reach for Fill or Variation.`,true);else JAM.chk.lift.ok++;return}const c=JAM.prog[b%JAM.prog.length];const ci=chordInfo(c);const held=[...MIDI.held];
   const L=held.filter(k=>k<60).map(k=>k%12),R=held.filter(k=>k>=60).map(k=>k%12);const need=[ci.root,ci.pcs[2]];
   if(!need.every(p=>L.includes(p)))jamSay(`Keep the left hand <b>holding</b> ${NAMES[ci.root]} + ${NAMES[ci.pcs[2]]} through the bar.`,true);
   else if(JAM.role==='pad'&&!ci.pcs.every(p=>R.includes(p)))jamSay(`Right hand: <b>hold</b> the whole ${c} chord (${pcNames(c)}).`,true)}
@@ -1004,20 +1045,21 @@ function jamMidi(){if(!MIDI.ev||MIDI.ev===JAM.seen)return;JAM.seen=MIDI.ev;if(!d
   if(e.n===JAM_KEY_GO||e.n===JAM_KEY_HEAR){if(!e.on)return;if(JAM.state==='play'||JAM.state==='demo'){jamStop();return}if(JAM.state==='armed'||JAM.state==='idle'){jamStart(e.n===JAM_KEY_HEAR)}return}
   if(JAM.state==='play'){const ev={t:performance.now(),n:e.n,on:e.on};JAM.ev.push(ev);if(e.on&&ev.t>=JAM.P.s0-150)jamJudgeNote(ev)}
   jamKb()}
-function jamScore(){const P=JAM.P,prog=JAM.prog,K=KZ_KEYS[JAM.key];const bars=JAM.T.bars;const ons=JAM.ev.filter(e=>e.on);
+function jamScore(){const P=JAM.P,prog=JAM.prog,K=jamK()[JAM.key];const bars=JAM.T.bars;const ons=JAM.ev.filter(e=>e.on);
   let land=0,landN=0,offs=[];for(let b=1;b<bars;b++){const c=prog[b%prog.length],pc=prog[(b-1)%prog.length];if(c===pc)continue;landN++;const T=P.s0+b*P.bar;const ci=chordInfo(c);
     const hit=ons.filter(e=>e.t>=T-250&&e.t<=T+350&&ci.pcs.includes(e.n%12));if(hit.length){land++;offs.push(hit[0].t-T)}}
   let ct=0,scl=0,cl=0;const clash={};ons.filter(e=>e.t>=P.s0-300&&e.t<=P.end).forEach(e=>{const c=jamChordAt(e.t);const ci=chordInfo(c);if(ci.pcs.includes(e.n%12))ct++;else if(e.n>=60&&JAM.role!=='pad'&&chordScale(K,c).has(e.n%12))scl++;else{cl++;const k=nm(e.n)+' on '+c;clash[k]=(clash[k]||0)+1}});
   const tot=ct+scl+cl||1;const rh=ons.filter(e=>e.n>=60&&e.t>=P.s0&&e.t<=P.end);const gap=rh.filter(e=>jamPos(e.t).frac>=.5).length;
   const avg=offs.length?Math.round(offs.reduce((x,y)=>x+y,0)/offs.length):0;
   const R={land,landN,avg,ct:Math.round(ct/tot*100),scl:Math.round(scl/tot*100),cl:Math.round(cl/tot*100),clash:Object.entries(clash).sort((a,b)=>b[1]-a[1]).slice(0,3),rhBar:+(rh.length/bars).toFixed(1),gap:rh.length?Math.round(gap/rh.length*100):null,n:ons.length,fb:JAM.fb.slice()};
-  R.green=R.n>0&&R.landN>0&&R.land/R.landN>=.9&&R.cl<=5&&(JAM.role!=='fill'||(R.gap||0)>=70);
+  const ch=JAM.chk||{};R.lift=JAM.role==='stab'&&ch.lift&&ch.lift.n?Math.round(ch.lift.ok/ch.lift.n*100):null;R.gapAvg=JAM.role==='drone'&&ch.gaps&&ch.gaps.length?Math.round(ch.gaps.reduce((x,y)=>x+y,0)/ch.gaps.length):null;
+  R.green=R.n>0&&R.landN>0&&R.land/R.landN>=.9&&R.cl<=5&&(JAM.role!=='fill'||(R.gap||0)>=70)&&(R.lift==null||R.lift>=80)&&(R.gapAvg==null||R.gapAvg<=150);
   const k=jamSK(prog);const st=JAM.stats[k]||{n:0,green:false};st.n++;if(R.green)st.green=true;JAM.stats[k]=st;store.set('jam-stats',JAM.stats);
   JAM.round.push({prog,R});JAM.cardRes=R;JAM.state='card';jamPaint();
   JAM.timer=setTimeout(()=>{if(!document.getElementById('jamCard')||JAM.state!=='card')return;JAM.tries++;
     if(R.green||JAM.tries>=2){JAM.qi++;JAM.tries=0}if(JAM.qi>=JAM.queue.length)jamFinish();else{JAM.prog=JAM.queue[JAM.qi];JAM.state='armed';JAM.now='';jamPaint()}},R.green?2500:6000)}
-function jamFinish(){const K=KZ_KEYS[JAM.key];
-  sendReport(`KUMZITZ JAM · ${JAM_GROOVES[JAM.groove].name} · ${JAM_ROLES[JAM.role].name} · ${K.name} · ${jamBpm()} bpm · `+JAM.round.map(({prog,R})=>`${prog.join('-')}: changes ${R.land}/${R.landN}, avg ${R.avg>=0?'+':''}${R.avg} ms, chord notes ${R.ct}%, clashing ${R.cl}%${R.clash.length?' ('+R.clash.map(([k,v])=>k+'×'+v).join(', ')+')':''}, RH/bar ${R.rhBar}${R.gap!=null?', gaps '+R.gap+'%':''}${R.green?' ✓':''}`).join(' · ')+` · part green ${KZ_KEYS[JAM.key].pairs.filter(jamGreen).length}/${KZ_KEYS[JAM.key].pairs.length}`);
+function jamFinish(){const K=jamK()[JAM.key];
+  sendReport(`KUMZITZ JAM · ${JAM_GROOVES[JAM.groove].name} · ${JAM_ROLES[JAM.role].name} · ${K.name} · ${jamBpm()} bpm · `+JAM.round.map(({prog,R})=>`${prog.join('-')}: changes ${R.land}/${R.landN}, avg ${R.avg>=0?'+':''}${R.avg} ms, chord notes ${R.ct}%, clashing ${R.cl}%${R.clash.length?' ('+R.clash.map(([k,v])=>k+'×'+v).join(', ')+')':''}, RH/bar ${R.rhBar}${R.gap!=null?', gaps '+R.gap+'%':''}${R.lift!=null?', lifted '+R.lift+'%':''}${R.gapAvg!=null?', chord gap '+R.gapAvg+' ms':''}${R.green?' ✓':''}`).join(' · ')+` · part green ${jamK()[JAM.key].pairs.filter(jamGreen).length}/${jamK()[JAM.key].pairs.length}`);
   JAM.hist.unshift({d:new Date().toLocaleDateString(),g:JAM.groove,r:JAM.role,k:JAM.key,ok:JAM.round.filter(x=>x.R.green).length,n:JAM.round.length});JAM.hist=JAM.hist.slice(0,12);store.set('jam-hist',JAM.hist);
   JAM.state='round';jamPaint()}
 function jamTips(R){const t=[];if(!R.n)return ['No notes came in. Is the keyboard connected (green dot)?'];
@@ -1025,24 +1067,27 @@ function jamTips(R){const t=[];if(!R.n)return ['No notes came in. Is the keyboar
   if(R.cl>5)t.push(`${R.cl}% of notes didn't fit: ${R.clash.map(([k,v])=>k+(v>1?' ×'+v:'')).join(', ')}. Stick to the chord's three notes for now.`);
   if(JAM.role==='fill'&&R.gap!=null&&R.gap<70)t.push(`Only ${R.gap}% of your right-hand notes were in the gap (beats 3–4). Let beats 1–2 belong to the singers.`);
   if(JAM.role==='pad'&&R.rhBar>4)t.push(`Your right hand played ${R.rhBar} notes a bar. As a pad, hold the chord: about one strike a bar.`);
+  if(R.lift!=null&&R.lift<80)t.push(`Your left hand was still down in the second half of ${100-R.lift}% of the bars. Strike on 1, then <b>lift</b>: short and crisp, so the style stays clean.`);
+  if(R.gapAvg!=null&&R.gapAvg>150)t.push(`Average gap between chords: ${R.gapAvg} ms. Keep the old 5th down until the new one lands, so the strings never stop.`);
   if(!t.length)t.push(R.green?'Every change landed and nothing clashed.':'Close. Same again.');return t}
 const jamSK=pr=>`${JAM.role}|${JAM.groove}|${JAM.key}|${pr.join('-')}`;
 const jamGreen=pr=>!!(JAM.stats[jamSK(pr)]||{}).green;
-function jamRoleGreen(r){const o=JAM.role;JAM.role=r;const g=KZ_KEYS[JAM.key].pairs.every(jamGreen);JAM.role=o;return g}
-function jamBuild(){const P=KZ_KEYS[JAM.key].pairs;const ng=P.filter(p=>!jamGreen(p)),g=P.filter(jamGreen).sort(()=>Math.random()-.5);
+function jamRoleGreen(r){const o=JAM.role;JAM.role=r;jamFixKey();const g=jamK()[JAM.key].pairs.every(jamGreen);JAM.role=o;return g}
+function jamBuild(){jamFixKey();const P=jamK()[JAM.key].pairs;const ng=P.filter(p=>!jamGreen(p)),g=P.filter(jamGreen).sort(()=>Math.random()-.5);
   JAM.queue=[...ng,...g].slice(0,5);JAM.qi=0;JAM.round=[];JAM.tries=0;JAM.prog=JAM.queue[0];JAM.now='';JAM.state=MIDI.ok?'armed':'idle'}
-function jamHTML(){const G=JAM_GROOVES[JAM.groove],Ro=JAM_ROLES[JAM.role];if(!JAM.queue.length||!KZ_KEYS[JAM.key].pairs.some(p=>p===JAM.queue[0]))jamBuild();
+function jamHTML(){const G=JAM_GROOVES[JAM.groove],Ro=JAM_ROLES[JAM.role];jamFixKey();if(!JAM.queue.length||!jamK()[JAM.key].pairs.some(p=>p===JAM.queue[0]))jamBuild();
   const btn=(attr,v,sel,n)=>`<button class="btn small" data-${attr}="${v}" aria-pressed="${sel===v}">${n}</button>`;
   const sug=Object.keys(JAM_ROLES).find(r=>!jamRoleGreen(r));
   return `<div class="head"><div class="eyebrow">Trainer</div><h2>Kumzitz Jam</h2><p>Play <b>with a band</b>. The band (guitar, soft percussion) plays each 4-chord card twice round while you play your part. The app checks every note and every chord change <b>as you play</b> and tells you straight away what to fix. Same flow as the other trainers: 5 cards a round, cards turn green, the next one comes by itself.</p></div>
   <div class="card" style="gap:8px">
-   <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Key:</span>${Object.entries(KZ_KEYS).map(([k,K])=>btn('jk',k,JAM.key,K.name)).join('')}</div>
+   <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Key:</span>${Object.entries(jamK()).map(([k,K])=>btn('jk',k,JAM.key,K.name)).join('')}</div>
    <div class="row" style="gap:6px">${Object.entries(JAM_ROLES).map(([k,r])=>`<button class="btn small" data-jr="${k}" aria-pressed="${JAM.role===k}">${jamRoleGreen(k)?'✓ ':''}${r.name}${k===sug?' <span style="font-size:11px;background:var(--gold);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">suggested</span>':''}</button>`).join('')}</div>
    <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Band:</span>${Object.entries(JAM_GROOVES).map(([k,g])=>btn('jg',k,JAM.groove,g.name)).join('')}</div>
+   ${G.part&&G.part!==JAM.role&&JAM_ROLES[G.part]?`<p style="margin:0;font-size:14px;color:var(--muted)">Matching part for this band: <b>${JAM_ROLES[G.part].name}</b> (tap it above). Any part works with any band.</p>`:''}
    <div class="row" style="gap:6px"><button class="btn small" data-jm="0" aria-pressed="${!JAM.mem}">Keys shown</button><button class="btn small" data-jm="1" aria-pressed="${JAM.mem}">From memory</button></div>
    <p style="margin:0">${Ro.desc}</p>
    <details style="border:1px solid var(--rule);border-radius:8px;padding:8px 12px"><summary style="cursor:pointer;font-weight:600">Why it's done this way</summary><p style="margin:8px 0 0">${Ro.why}</p><p style="margin:8px 0 0"><b>The band:</b> ${G.desc}</p></details>
-   <div class="row" style="gap:6px;font-size:14px">${KZ_KEYS[JAM.key].pairs.map(pr=>`<span style="padding:2px 8px;border-radius:12px;background:${jamGreen(pr)?'var(--ok)':'var(--rule)'};color:${jamGreen(pr)?'#fff':'inherit'}">${pr.join(' → ')}</span>`).join('')}</div>
+   <div class="row" style="gap:6px;font-size:14px">${jamK()[JAM.key].pairs.map(pr=>`<span style="padding:2px 8px;border-radius:12px;background:${jamGreen(pr)?'var(--ok)':'var(--rule)'};color:${jamGreen(pr)?'#fff':'inherit'}">${pr.join(' → ')}</span>`).join('')}</div>
    <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Band plays on:</span>${btn('jout','kbd',JAM.out,'The keyboard (MIDI)')}${btn('jout','ipad',JAM.out,'The iPad speaker')}
     <span style="font-weight:600;font-size:14px;margin-left:10px">Band volume:</span><button class="btn small" data-jv="-1" aria-label="Quieter">−</button><span class="bpm">${Math.round(JAM.vol*10)}</span><button class="btn small" data-jv="1" aria-label="Louder">+</button></div>
    <p style="font-size:13px;color:var(--muted);margin:0">${JAM.out==='kbd'?'The band goes to the keyboard on MIDI channels 10 (drums), 11 (guitar), 12 (bass) and 13 (strings). If you hear nothing, switch to the iPad speaker and tell Claude.':'On the iPad: if you hear nothing, turn the iPad volume up and make sure it isn\'t on silent.'} All parts are open. <b>Suggested</b> marks the first part that isn't all green yet.</p></div>
@@ -1058,7 +1103,7 @@ function jamPaint(){const el=document.getElementById('jamCard');if(!el)return;co
     const t=setTimeout(()=>{if(document.getElementById('jamCard')&&JAM.state==='round'&&cur==='jam'){jamBuild();render()}},6000);
     document.getElementById('jamPause').onclick=()=>{clearTimeout(t);el.querySelector('.now').textContent='Paused.';const b=document.getElementById('jamPause');b.textContent='Next round';b.classList.add('primary');b.onclick=()=>{jamBuild();render()}};return}
   if(JAM.state==='card'&&JAM.cardRes){const R=JAM.cardRes;const fb=[...new Set(R.fb)].slice(0,4);
-    el.innerHTML=head+`<p style="margin:0;font-size:18px">${R.green?'<b style="color:var(--ok)">✓ Locked in with the band.</b>':'<b>Not yet.</b>'} Changes on time: <b>${R.land} of ${R.landN}</b> · notes that fit: <b>${R.ct+R.scl}%</b>${R.gap!=null&&JAM.role==='fill'?` · right hand in the gaps: <b>${R.gap}%</b>`:''}</p>
+    el.innerHTML=head+`<p style="margin:0;font-size:18px">${R.green?'<b style="color:var(--ok)">✓ Locked in with the band.</b>':'<b>Not yet.</b>'} Changes on time: <b>${R.land} of ${R.landN}</b> · notes that fit: <b>${R.ct+R.scl}%</b>${R.gap!=null&&JAM.role==='fill'?` · right hand in the gaps: <b>${R.gap}%</b>`:''}${R.lift!=null?` · left hand lifted: <b>${R.lift}%</b>`:''}${R.gapAvg!=null?` · gap between chords: <b>${R.gapAvg} ms</b>`:''}</p>
      <ul style="margin:4px 0">${jamTips(R).map(x=>`<li>${x}</li>`).join('')}</ul>
      ${fb.length?`<p style="margin:0;font-size:14px"><b>What I heard:</b></p><ul style="margin:0;font-size:14px">${fb.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}
      <p class="now">${R.green?'Next card coming…':JAM.tries>=1?'Moving on to the next card…':'Same card again in a moment, slower if you need it.'}</p>`;return}
@@ -1266,14 +1311,14 @@ const SETUP_QUICK={
 function setupFor(sel){if(sel==='setups')return null;
   if(sel==='inv')return ['simcha','the Inversion Trainer'];
   if(sel==='pt'){const lv=DS.pt.lv;if(lv==='drone'||lv==='jump')return ['chuppah','this level'];return ['solo','the Pattern Trainer']}
-  if(sel==='jam'){const g=JAM.groove;if(g==='chup')return ['chuppah','this band'];if(g==='frei')return ['simcha','this band'];if(g==='hora')return ['hora','this band'];
+  if(sel==='jam'){const g=JAM.groove;if(g==='chup')return ['chuppah','this band'];if(g==='frei')return ['simcha','this band',1];if(g==='hora')return ['hora','this band',1];
     if(g==='click'||JAM.role==='solo')return ['solo','solo kumzitz'];return ['guitar','playing with the band']}
   if(sel==='th'||sel==='rh'||sel==='songs')return ['solo','this trainer'];
   return ['solo','this trainer (any piano sound works)']}
 function setupBox(sel){const f=setupFor(sel);if(!f||typeof SETUPS==='undefined')return '';const s=SETUPS.find(x=>x.id===f[0]);if(!s)return '';
   return `<div style="border:2px solid var(--ink);border-radius:10px;padding:8px 12px;margin:4px 0 10px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center">
    <span style="font-weight:700">🎹 Tyros for ${f[1]}: ${s.title.replace(/^\d+ · /,'Setup '+(SETUPS.indexOf(s)+1)+' · ')}</span>
-   <span style="flex:1 1 300px;font-size:14px">${SETUP_QUICK[s.id]||''}</span>
+   <span style="flex:1 1 300px;font-size:14px">${SETUP_QUICK[s.id]||''}${f[2]?' · <b>Don\'t press [START]</b> on the Tyros: here the app is the band':''}</span>
    <button class="btn small" data-l="setups" data-suo="${s.id}">All steps ▸</button></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-suo]');if(b)store.set('su-open',b.dataset.suo)},true);
 const tabsHTML=sel=>`<div class="lessons">${TRAINER_TABS.map(([id,n])=>`<button class="lchip" data-l="${id}" aria-pressed="${sel===id}">${n}</button>`).join('')}</div>`+setupBox(sel);
