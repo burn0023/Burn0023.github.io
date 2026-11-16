@@ -84,7 +84,7 @@ function paintConn(){document.getElementById('dot').classList.toggle('on',MIDI.o
 async function connect(){if(!navigator.requestMIDIAccess){toast('This browser has no MIDI. Open the page in the Web MIDI Browser app.');return}
   try{const acc=await navigator.requestMIDIAccess();MIDI.acc=acc;
     const hook=()=>{let n=0;acc.inputs.forEach(i=>{i.onmidimessage=onMidi;n++});MIDI.ok=n>0;paintConn();if(!MIDI.ok)toast('No keyboard found. Check the USB cable, then tap Connect again.')};
-    acc.onstatechange=hook;hook();if(MIDI.ok){toast('Keyboard connected.');if(['pt','th','sc','ear'].includes(cur))render();if(!localStorage.getItem('pb-cal'))setTimeout(calStart,600)}}catch(e){toast('Couldn\'t open MIDI. Tap Connect again.')}}
+    acc.onstatechange=hook;hook();if(MIDI.ok){toast('Keyboard connected.');if(['pt','th','sc','ear','inv'].includes(cur))render();if(!localStorage.getItem('pb-cal'))setTimeout(calStart,600)}}catch(e){toast('Couldn\'t open MIDI. Tap Connect again.')}}
 const CAL=store.get('pb-cal',{});let calStep=0,calSeen={};
 function onMidi(e){const d0=e.data;if(d0[0]>=0xF8){clockMsg(d0[0]);return}if(d0.length<3)return;const t=d0[0]&0xf0,ch=d0[0]&0x0f;
   if(calStep&&t===0x90&&d0[2]>0){calNote(ch,d0[1]);return}if(calStep)return;
@@ -820,11 +820,42 @@ DRILLS.sc={title:'Scale Trainer',tab:'Scale Trainer',store:'sc',intro:'Scales as
    const marks=[...(h!=='Left hand'?R.map(([k,f])=>({k,f,h:'r'})):[]),...(h!=='Right hand'?L.map(([k,f])=>({k,f,h:'l'})):[])];
    const seq=seqIdx.map(i=>({k:h==='Right hand'?[R[i][0]]:h==='Left hand'?[L[i][0]]:[R[i][0],L[i][0]],beats:1}));
    return {marks,seq}}};
+/* Inversion Trainer (one-man band): left-hand triads in the style's chord zone, moving to the NEAREST shape of the next chord
+   (smallest hand movement). This is how arranger players keep the left hand still while the right hand plays fast. */
+const INV_ZONE=[40,55]; /* E2..G3: below the Tyros split, where the style reads chords */
+function invShapes(c){const ci=chordInfo(c);const out=[];for(let lo=INV_ZONE[0];lo<=INV_ZONE[1];lo++){if(!ci.pcs.includes(lo%12))continue;
+  const sh=[lo];let k=lo;for(let n=0;n<2;n++){k++;while(!ci.pcs.includes(k%12))k++;sh.push(k)}if(sh[2]<=INV_ZONE[1]+2)out.push(sh)}return out}
+function invPath(prog){let prev=null;return prog.map((c,i)=>{const S=invShapes(c);let best;
+  if(!prev){const ci=chordInfo(c);best=S.filter(sh=>sh[0]%12===ci.root).sort((a,b)=>Math.abs(a[1]-48)-Math.abs(b[1]-48))[0]||S[0]}
+  else best=S.slice().sort((a,b)=>a.reduce((t,k,j)=>t+Math.abs(k-prev[j]),0)-b.reduce((t,k,j)=>t+Math.abs(k-prev[j]),0))[0];prev=best;return best})}
+function invFingers(sh){return (sh[1]-sh[0])>=5?[5,2,1]:[5,3,1]}
+function invName(c,sh){const ci=chordInfo(c);const b=sh[0]%12;return b===ci.root?'root position':b===ci.pcs[1]?'1st inversion (middle note at bottom)':'2nd inversion (top note at bottom)'}
+const INV_KEYS={
+ gm:{name:'G minor',pairs:[['Gm','Cm','D','Gm'],['Gm','E♭','Cm','D'],['Gm','F','E♭','D'],['Cm','Gm','D','Gm'],['Gm','D','Gm','Cm'],['B♭','F','Gm','D']]},
+ dm:{name:'D minor',pairs:[['Dm','Gm','A','Dm'],['Dm','C','B♭','A'],['Gm','C','F','B♭'],['Dm','B♭','Gm','A'],['F','C','Dm','A'],['Dm','A','Dm','Gm']]},
+ am:{name:'A minor',pairs:[['Am','Dm','E','Am'],['Am','G','F','E'],['Dm','G','C','F'],['Am','F','Dm','E'],['C','G','Am','E'],['Am','E','Am','Dm']]},
+ em:{name:'E minor (hora)',pairs:[['Em','Am','B','Em'],['Em','D','C','B'],['Em','C','Am','B'],['Am','D','G','B'],['Em','B','Em','Am'],['G','D','Em','B']]},
+ fr:{name:'Freygish (D)',pairs:[['D','Gm','Cm','D'],['D','E♭','D','Gm'],['Gm','Cm','D','D'],['D','Cm','B♭','D'],['E♭','D','Gm','D'],['D','Gm','D','Cm']]}};
+DRILLS.inv={title:'Inversion Trainer',tab:'Inversion Trainer',store:'inv',keys:INV_KEYS,
+ intro:'For one-man band: the left hand plays chords low on the keyboard (the style\'s chord zone) and moves to the <b>nearest</b> shape of each next chord, so it barely moves while the right hand plays fast. Four chords per card, the way fast simcha songs move.',
+ cardHint:(lv,pr)=>`${pr.join(' → ')}: the dots show the nearest shape of each chord.`,
+ levels:[
+  {id:'hold',name:'1 · Land and hold',ts:'4/4',desc:'Play each chord once and hold it, then move to the next. The dots show the <b>nearest</b> shape: only one or two fingers should move.',
+   why:'In every fast simcha video Gemini studied (Shaya Lloyd, Meni Dubrawsky, Yisroel Erps on a Tyros 2), the left hand plays compact 3-note chords low on the keyboard, in root position or inversions, and barely moves. The style plays the bass and rhythm; your left hand only tells it which chord. Moving to the nearest shape keeps the hand quiet and accurate at 160 BPM.'},
+  {id:'beat1',name:'2 · Strike on beat 1, lift',ts:'4/4',desc:'Strike the chord <b>cleanly once</b>, lift the hand (that\'s when players reach for Fill or Variation buttons), then land the next chord.',
+   why:'Players strike beat 1 so the style locks onto the chord, then use beats 2–3 to hit Fill-In or Variation on the panel, and land back on the next beat 1. Lifting and landing in the nearest shape without looking is the skill.'},
+  {id:'push',name:'3 · Re-strike 1 and 3',ts:'4/4',desc:'Each chord twice: on beat 1 and beat 3. This tightens the groove with the drums.',
+   why:'Re-striking on 1 and 3 (instead of holding across the bar) locks your timing to the drummer and gives the style a fresh chord signal each half bar. Meni Dubrawsky does this in the Hey Tzoma chorus.'}],
+ make:(lv,pr)=>{const P=invPath(pr);const marks=P[0].map((k,i)=>({k,f:invFingers(P[0])[i],h:'l'}));const seq=[];
+   pr.forEach((c,i)=>{const sh=P[i];const mk=sh.map((k,j)=>({k,f:invFingers(sh)[j],h:'l'}));const say=`<b>${c}</b> · ${invName(c,sh)}`;
+     if(lv==='push'){seq.push({k:sh,beats:2,marks:mk,say});seq.push({k:sh,beats:2,say:say+' · again on 3'})}else seq.push({k:sh,beats:lv==='hold'?4:4,short:lv==='beat1'?.35:.95,marks:mk,say})});
+   return {marks,seq}}};
 const DS={};Object.entries(DRILLS).forEach(([id,D])=>{DS[id]={key:store.get(D.store+'-key','am'),lv:store.get(D.store+'-lv',D.levels[0].id),mem:store.get(D.store+'-mem',false),stats:store.get(D.store+'-stats',{}),queue:[],qi:0,res:[],done:false}});
 const PT=DS.pt; /* kept for older code paths */
 const dKey=(lv,pr)=>lv+'|'+pr.join('-');
 const dGreen=(id,lv,pr)=>!!(DS[id].stats[dKey(lv,pr)]||{}).green;
-const dCards=id=>DRILLS[id].cards||DRILL_KEYS[DS[id].key||'am'].pairs;
+const dKeys=id=>DRILLS[id].keys||DRILL_KEYS;
+const dCards=id=>DRILLS[id].cards||(()=>{const K=dKeys(id);const k=K[DS[id].key]?DS[id].key:Object.keys(K)[0];return K[k].pairs})();
 const dLevelGreen=(id,lv)=>dCards(id).every(pr=>dGreen(id,lv,pr));
 const dOpenDrill=id=>true;const dReady=id=>{const n=DRILLS[id].needs;return !n||dLevelGreen(n.drill,n.level)};
 const dOpen=(id,lv)=>true;const dSuggested=id=>{const L=DRILLS[id].levels.find(x=>!dLevelGreen(id,x.id));return L?L.id:null};
@@ -851,7 +882,7 @@ function dHTML(id){const D=DRILLS[id],S=DS[id];
   const levels=D.levels.map(L=>`<button class="btn small" data-dlv="${L.id}" aria-pressed="${S.lv===L.id}">${dLevelGreen(id,L.id)?'✓ ':''}${L.name}${L.id===sug?' <span style="font-size:11px;background:var(--gold);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">suggested</span>':''}</button>`).join('');
   const L=D.levels.find(x=>x.id===S.lv);
   return `<div class="head"><div class="eyebrow">Trainer</div><h2>${D.title}</h2><p>${D.intro}</p>${!dReady(id)?`<p style="font-size:14px;color:var(--muted);margin:0">Suggested after ${D.needsMsg}. Jump in anytime.</p>`:''}</div>
-  <div class="card" style="gap:8px">${D.cards?'':`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Key:</span>${Object.entries(DRILL_KEYS).map(([k,K])=>`<button class="btn small" data-dkey="${k}" aria-pressed="${(S.key||'am')===k}">${K.name}</button>`).join('')}</div>`}<div class="row" style="gap:6px">${levels}</div>
+  <div class="card" style="gap:8px">${D.cards?'':`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Key:</span>${Object.entries(dKeys(id)).map(([k,K],j)=>`<button class="btn small" data-dkey="${k}" aria-pressed="${(dKeys(id)[S.key]?S.key:Object.keys(dKeys(id))[0])===k}">${K.name}</button>`).join('')}</div>`}<div class="row" style="gap:6px">${levels}</div>
    <div class="row" style="gap:6px"><button class="btn small" data-dmem="0" aria-pressed="${!S.mem}">Keys shown</button><button class="btn small" data-dmem="1" aria-pressed="${S.mem}">From memory</button></div>
    <p style="margin:0">${L.desc}</p>
    ${L.why?`<details style="border:1px solid var(--rule);border-radius:8px;padding:8px 12px;background:var(--paper,transparent)"><summary style="cursor:pointer;font-weight:600">Why it's done this way</summary><p style="margin:8px 0 0">${L.why}</p></details>`:''}
@@ -926,11 +957,11 @@ function earHTML(){const levels=EAR_LEVELS.map(L=>`<button class="btn small" dat
 /* ---------- render ---------- */
 let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','trainer');
 const P=id=>prog[id]||(prog[id]={step:0,done:[]});const save=()=>{store.set('pb-prog',prog);store.set('pb-cur',cur)};
-const TRAINER_TABS=[['trainer','Chord Trainer'],['pt','Pattern Trainer'],['th','Two-Hand Trainer'],['sc','Scale Trainer'],['ear','Ear Trainer'],['songs','Song Trainer']];
+const TRAINER_TABS=[['trainer','Chord Trainer'],['pt','Pattern Trainer'],['th','Two-Hand Trainer'],['inv','Inversion Trainer'],['sc','Scale Trainer'],['ear','Ear Trainer'],['songs','Song Trainer']];
 const songsOpen=()=>true;const songsReady=()=>dLevelGreen('th','hb');
 const tabsHTML=sel=>`<div class="lessons">${TRAINER_TABS.map(([id,n])=>`<button class="lchip" data-l="${id}" aria-pressed="${sel===id}">${n}</button>`).join('')}</div>`;
 function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
-  if(cur==='patterns')cur='pt';if(!['trainer','pt','th','sc','ear','songs'].includes(cur))cur='trainer';
+  if(cur==='patterns')cur='pt';if(!['trainer','pt','th','inv','sc','ear','songs'].includes(cur))cur='trainer';
   if(cur==='ear'){const app=document.getElementById('app');app.innerHTML=tabsHTML('ear')+earHTML();
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{EAR.stop();cur=b.dataset.l;save();render();scrollTo(0,0)});
     app.querySelectorAll('[data-earlv]').forEach(b=>b.onclick=()=>{EAR.lv=b.dataset.earlv;store.set('ear-lv',EAR.lv);EAR.stop();EAR.newRound();render()});
@@ -941,7 +972,7 @@ function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
     app.querySelectorAll('[data-srsong]').forEach(b=>b.onclick=()=>{SR.song=b.dataset.srsong;store.set('sr-song',SR.song);render()});
     srPaint();return}
-  if(cur==='pt'||cur==='th'||cur==='sc'){const id=cur;const app=document.getElementById('app');
+  if(cur==='pt'||cur==='th'||cur==='sc'||cur==='inv'){const id=cur;const app=document.getElementById('app');
     app.innerHTML=tabsHTML(id)+dHTML(id);
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
     app.querySelectorAll('[data-dlv]').forEach(b=>b.onclick=()=>{DS[id].lv=b.dataset.dlv;store.set(DRILLS[id].store+'-lv',DS[id].lv);dBuild(id);render()});
