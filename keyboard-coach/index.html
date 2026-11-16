@@ -776,7 +776,10 @@ const DRILLS={
     bar:c=>{const lo=lowRoot(c);const L=CFG[c].l;return [{k:[lo,lo+12],lab:'low octave'},{k:L,lab:'chord'},{k:L,lab:'chord'},{k:L,lab:'chord'}]}},
    {id:'drone',name:'10 · Chuppah drone (open 5th, held)',ts:'4/4',lm:O5M,desc:'Pinky and thumb on the bottom and 5th, pressed once and <b>held for the whole bar</b>. Change only when the chord changes, with no gap.',
     why:'In the live one-man-band chuppah Gemini studied (style off, strings on the left), the left hand just holds long open 5ths so the string bed never stops while the chosson and kallah walk. The skill is changing chords with <b>no gap</b> in the sound: lift and land in one motion.',
-    bar:c=>{const [r,,t]=CFG[c].l;return [{k:[r,t],beats:4,lab:'open 5th, hold 4 beats'}]}}]},
+    bar:c=>{const [r,,t]=CFG[c].l;return [{k:[r,t],beats:4,lab:'open 5th, hold 4 beats'}]}},
+   {id:'waltz',name:'11 · Modzitz waltz (3/4)',ts:'3/4',desc:'Count <b>1 2 3</b>. Beat 1: the <b>bass</b> (pinky). Beats 2 and 3: a short <b>chord</b> with fingers 3 and 1, kept light. <b>Bass, chord, chord.</b>',
+    why:'Gemini\'s Modzitz study (an overhead view, rated "sure") shows exactly this: a single bass note on beat 1, then compact two- or three-note chords on beats 2 and 3 in the middle of the keyboard, so the waltz stays clear and not muddy. Many Modzitz and Chabad tish niggunim are in 3/4.',
+    bar:c=>{const [r,m,t]=CFG[c].l;return [{k:[r],lab:'bass'},{k:[m,t],lab:'chord'},{k:[m,t],lab:'chord'}]}}]},
  th:{title:'Two-Hand Trainer',tab:'Two-Hand Trainer',store:'th',needs:{drill:'pt',level:'bc'},needsMsg:'Pattern Trainer level 2 (Bass, chord) is all green',
   intro:'Both hands, one small job each, building to kumzitz-style piano: left hand flowing, right hand singing. Make one hand automatic, then the other hand gets your attention. Same chords and checking as the Pattern Trainer.',
   levels:[
