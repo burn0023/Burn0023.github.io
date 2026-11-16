@@ -108,7 +108,7 @@ function onMidi(e){const d0=e.data;if(d0[0]>=0xF8){clockMsg(d0[0]);return}if(d0.
   /* remote keys only count when pressed ALONE (no other key held), so a high melody note or chord never triggers them */
   if((t===0x90||t===0x80)&&(d[1]===95||d[1]===96||d[1]===POSTURE_KEY)){if(t===0x90&&d[2]>0&&MIDI.held.size===0){if(d[1]===POSTURE_KEY)postureShow();else{toast(d[1]===96?'Top C → Your turn / Stop':'Top B → Hear it');remoteKey(d[1])}return}if(t===0x80||d[2]===0)return}
   if(t===0x90&&d[2]>0&&document.getElementById('postureBox')){postureClose();return}
-  if(t===0x90&&d[2]>0){MIDI.held.add(d[1]);MIDI.ev={on:true,n:d[1]}}else if(t===0x80||t===0x90){MIDI.held.delete(d[1]);MIDI.ev={on:false,n:d[1]}}else return;
+  if(t===0x90&&d[2]>0){MIDI.held.add(d[1]);MIDI.ev={on:true,n:d[1],v:d[2]}}else if(t===0x80||t===0x90){MIDI.held.delete(d[1]);MIDI.ev={on:false,n:d[1]}}else return;
   MIDI.subs.forEach(f=>{try{f()}catch(x){}})}
 document.getElementById('connBtn').onclick=connect;document.getElementById('postBtn').onclick=()=>postureShow();document.getElementById('calBtn').onclick=()=>calStart();
 /* Line up keys: the Tyros can send some parts an octave off (e.g. the LEFT part's octave setting). Bernard presses two known keys; the app learns the offset for each MIDI channel. */
@@ -1034,7 +1034,7 @@ function jamStart(demo){const a=ac();if(!a){toast('No audio on this device.');re
   const t0=a.currentTime+.15;JAM.T=jamSchedule(a,t0);const lat=((a.outputLatency||a.baseLatency||0))*1000;
   JAM.pAt=at=>performance.now()+(at-a.currentTime)*1000+lat;JAM.P={s0:JAM.pAt(JAM.T.s0),bar:JAM.T.bar*1000,spb:JAM.T.spb*1000,end:JAM.pAt(JAM.T.end)};
   if(demo)jamDemoPart(a);
-  JAM.ev=[];JAM.fb=[];JAM.now='';JAM.oldHits=0;JAM.chk={chg:0,hold:-1,lift:{ok:0,n:0},gaps:[]};JAM.state=demo?'demo':'play';clearInterval(JAM.iv);JAM.iv=setInterval(jamTick,50);jamPaint()}
+  JAM.ev=[];JAM.fb=[];JAM.now='';JAM.oldHits=0;JAM.oldLog=[];JAM.chk={chg:0,hold:-1,lift:{ok:0,n:0},gaps:[]};JAM.state=demo?'demo':'play';clearInterval(JAM.iv);JAM.iv=setInterval(jamTick,50);jamPaint()}
 /* Hear it: the band once round, with your part played on top (keyboard channel 1, or the iPad) */
 function jamDemoPart(a){const T=JAM.T;JAM.prog.forEach((c,b)=>{const ks=jamMarks(c).map(x=>x.k);const at=T.s0+b*T.bar;const d=T.bar*(JAM.role==='stab'?.3:.95);
   if(outOK()){const ms=(at-a.currentTime)*1000;JAM.mt.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ks.forEach(k=>o.send([0x90,k,70]))),ms));JAM.mt.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ks.forEach(k=>o.send([0x80,k,0]))),ms+d*1000))}
@@ -1063,7 +1063,7 @@ function jamJudgeNote(e){const c=jamChordAt(e.t);const ci=chordInfo(c);const pc=
   if(e.n>=60&&!jamIsPad()&&chordScale(K,c).has(pc))return;
   /* a note left over from the chord before: the hand changed late (or re-struck the old shape) */
   const P=JAM.P,prog=JAM.prog;const b=Math.floor((e.t+120-P.s0)/P.bar);const prev=prog[((b-1)%prog.length+prog.length)%prog.length];
-  if(prev!==c&&chordInfo(prev).pcs.includes(pc)&&e.t-(P.s0+b*P.bar)<P.bar*.5){JAM.oldHits=(JAM.oldHits||0)+1;jamSay(`✗ ${NAMES[pc]} is still from <b>${prev}</b> (the old chord) while the band is on <b>${c}</b>. ${e.n>=60?'Right':'Left'} hand: let go of ${prev} and land ${c} (${pcNames(c)}) together with the other hand, on the beat.`,true);return}
+  if(prev!==c&&chordInfo(prev).pcs.includes(pc)&&e.t-(P.s0+b*P.bar)<P.bar*.5){JAM.oldHits=(JAM.oldHits||0)+1;(JAM.oldLog=JAM.oldLog||[]).push(`${NAMES[pc]}${e.n<60?'(L)':'(R)'} ${Math.round(e.t-(P.s0+b*P.bar))}ms v${e.v||'?'}`);jamSay(`✗ ${NAMES[pc]} is still from <b>${prev}</b> (the old chord) while the band is on <b>${c}</b>. ${e.n>=60?'Right':'Left'} hand: let go of ${prev} and land ${c} (${pcNames(c)}) together with the other hand, on the beat.`,true);return}
   jamSay(`✗ ${NAMES[pc]} doesn't fit <b>${c}</b>. ${c} is ${pcNames(c)}.`,true)}
 function jamCheckChange(b){const P=JAM.P,prog=JAM.prog;const c=prog[b%prog.length],pc=prog[(b-1+prog.length)%prog.length];if(b===0||c===pc)return;
   const T=P.s0+b*P.bar;const ci=chordInfo(c);const hit=JAM.ev.filter(e=>e.on&&e.t>=T-250&&e.t<=T+350&&ci.pcs.includes(e.n%12));
@@ -1086,7 +1086,7 @@ const JAM_KEY_GO=96,JAM_KEY_HEAR=95;
 
 function jamMidi(){if(!MIDI.ev||MIDI.ev===JAM.seen)return;JAM.seen=MIDI.ev;if(!document.getElementById('jamCard'))return;const e=MIDI.ev;
 
-  if(JAM.state==='play'){const ev={t:performance.now(),n:e.n,on:e.on};JAM.ev.push(ev);if(e.on&&ev.t>=JAM.P.s0-150)jamJudgeNote(ev)}
+  if(JAM.state==='play'){const ev={t:performance.now(),n:e.n,on:e.on,v:e.v||0};JAM.ev.push(ev);if(e.on&&ev.t>=JAM.P.s0-150)jamJudgeNote(ev)}
   jamKb()}
 function jamScore(){const P=JAM.P,prog=JAM.prog,K=jamK()[JAM.key];const bars=JAM.T.bars;const ons=JAM.ev.filter(e=>e.on);
   let land=0,landN=0,offs=[];for(let b=1;b<bars;b++){const c=prog[b%prog.length],pc=prog[(b-1)%prog.length];if(c===pc)continue;landN++;const T=P.s0+b*P.bar;const ci=chordInfo(c);
@@ -1094,7 +1094,7 @@ function jamScore(){const P=JAM.P,prog=JAM.prog,K=jamK()[JAM.key];const bars=JAM
   let ct=0,scl=0,cl=0;const clash={};ons.filter(e=>e.t>=P.s0-300&&e.t<=P.end).forEach(e=>{const c=jamChordAt(e.t);const ci=chordInfo(c);if(ci.pcs.includes(e.n%12))ct++;else if(e.n>=60&&!jamIsPad()&&chordScale(K,c).has(e.n%12))scl++;else{cl++;const k=nm(e.n)+' on '+c;clash[k]=(clash[k]||0)+1}});
   const tot=ct+scl+cl||1;const rh=ons.filter(e=>e.n>=60&&e.t>=P.s0&&e.t<=P.end);const gap=rh.filter(e=>jamPos(e.t).frac>=.5).length;
   const avg=offs.length?Math.round(offs.reduce((x,y)=>x+y,0)/offs.length):0;
-  const R={old:JAM.oldHits||0,land,landN,avg,ct:Math.round(ct/tot*100),scl:Math.round(scl/tot*100),cl:Math.round(cl/tot*100),clash:Object.entries(clash).sort((a,b)=>b[1]-a[1]).slice(0,3),rhBar:+(rh.length/bars).toFixed(1),gap:rh.length?Math.round(gap/rh.length*100):null,n:ons.length,fb:JAM.fb.slice()};
+  const R={oldLog:(JAM.oldLog||[]).slice(0,8),old:JAM.oldHits||0,land,landN,avg,ct:Math.round(ct/tot*100),scl:Math.round(scl/tot*100),cl:Math.round(cl/tot*100),clash:Object.entries(clash).sort((a,b)=>b[1]-a[1]).slice(0,3),rhBar:+(rh.length/bars).toFixed(1),gap:rh.length?Math.round(gap/rh.length*100):null,n:ons.length,fb:JAM.fb.slice()};
   const ch=JAM.chk||{};R.lift=JAM.role==='stab'&&ch.lift&&ch.lift.n?Math.round(ch.lift.ok/ch.lift.n*100):null;R.gapAvg=JAM.role==='drone'&&ch.gaps&&ch.gaps.length?Math.round(ch.gaps.reduce((x,y)=>x+y,0)/ch.gaps.length):null;
   R.green=R.n>0&&R.landN>0&&R.land/R.landN>=.9&&R.cl<=5&&(JAM.role!=='fill'||(R.gap||0)>=70)&&(R.lift==null||R.lift>=80)&&(R.gapAvg==null||R.gapAvg<=150);
   const k=jamSK(prog);const st=JAM.stats[k]||{n:0,green:false};st.n++;st.last=Date.now();st.R={land:R.land,landN:R.landN,avg:R.avg,cl:R.cl,rhBar:R.rhBar,gap:R.gap,gapAvg:R.gapAvg,lift:R.lift};if(R.green)st.green=true;JAM.stats[k]=st;store.set('jam-stats',JAM.stats);
@@ -1105,7 +1105,7 @@ function jamScore(){const P=JAM.P,prog=JAM.prog,K=jamK()[JAM.key];const bars=JAM
     else if(R.green&&JAM.round.slice(-3).length===3&&JAM.round.slice(-3).every(x=>x.R.green)&&!JAM.autoMsg)JAM.autoMsg=`3 cards in a row locked in: try + 4 bpm when you're ready.`;
     if(R.green||JAM.tries>=2){JAM.qi++;JAM.tries=0}if(JAM.qi>=JAM.queue.length)jamFinish();else{JAM.prog=JAM.queue[JAM.qi];JAM.state='armed';JAM.now=JAM.autoMsg?`<span style="color:var(--ok);font-weight:600">${JAM.autoMsg}</span>`:'';JAM.autoMsg='';jamPaint()}},R.green?2500:6000)}
 function jamFinish(){const K=jamK()[JAM.key];
-  sendReport(`KUMZITZ JAM · ${JAM_GROOVES[JAM.groove].name} · ${JAM_ROLES[JAM.role].name} · ${K.name} · ${jamBpm()} bpm · `+JAM.round.map(({prog,R})=>`${prog.join('-')}: changes ${R.land}/${R.landN}, avg ${R.avg>=0?'+':''}${R.avg} ms, chord notes ${R.ct}%, clashing ${R.cl}%${R.old?` (${R.old} left over from the old chord)`:''}${R.clash.length?' ('+R.clash.map(([k,v])=>k+'×'+v).join(', ')+')':''}, RH/bar ${R.rhBar}${R.gap!=null?', gaps '+R.gap+'%':''}${R.lift!=null?', lifted '+R.lift+'%':''}${R.gapAvg!=null?', chord gap '+R.gapAvg+' ms':''}${R.green?' ✓':''}`).join(' · ')+` · part green ${jamK()[JAM.key].pairs.filter(jamGreen).length}/${jamK()[JAM.key].pairs.length}`);
+  sendReport(`KUMZITZ JAM · ${JAM_GROOVES[JAM.groove].name} · ${JAM_ROLES[JAM.role].name} · ${K.name} · ${jamBpm()} bpm · `+JAM.round.map(({prog,R})=>`${prog.join('-')}: changes ${R.land}/${R.landN}, avg ${R.avg>=0?'+':''}${R.avg} ms, chord notes ${R.ct}%, clashing ${R.cl}%${R.old?` (${R.old} left over from the old chord: ${R.oldLog.join(', ')})`:''}${R.clash.length?' ('+R.clash.map(([k,v])=>k+'×'+v).join(', ')+')':''}, RH/bar ${R.rhBar}${R.gap!=null?', gaps '+R.gap+'%':''}${R.lift!=null?', lifted '+R.lift+'%':''}${R.gapAvg!=null?', chord gap '+R.gapAvg+' ms':''}${R.green?' ✓':''}`).join(' · ')+` · part green ${jamK()[JAM.key].pairs.filter(jamGreen).length}/${jamK()[JAM.key].pairs.length}`);
   JAM.hist.unshift({d:new Date().toLocaleDateString(),g:JAM.groove,r:JAM.role,k:JAM.key,ok:JAM.round.filter(x=>x.R.green).length,n:JAM.round.length});JAM.hist=JAM.hist.slice(0,12);store.set('jam-hist',JAM.hist);
   JAM.state='round';jamPaint()}
 function jamTips(R){const t=[];if(!R.n)return ['No notes came in. Is the keyboard connected (green dot)?'];
