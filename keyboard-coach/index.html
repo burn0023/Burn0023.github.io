@@ -62,7 +62,7 @@ textarea{font:inherit;width:100%;box-sizing:border-box;border:1px solid var(--ru
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
-<div class="top"><h1>Piano Basics</h1><div class="conn"><span class="dot" id="dot"></span><span id="connTxt">Not connected</span><button class="btn small" id="connBtn">Connect keyboard</button><button class="btn small" id="calBtn">Line up keys</button><button class="btn small" id="postBtn" title="Or press the lowest C♯">🧍 Posture</button></div></div>
+<div class="top"><h1>Piano Basics</h1><div class="conn"><span class="dot" id="dot"></span><span id="connTxt">Not connected</span><button class="btn small" id="connBtn">Connect keyboard</button><button class="btn small" id="calBtn">Line up keys</button><button class="btn small" id="postBtn" title="Or press the lowest C♯">🧍 Posture</button><button class="btn small" id="freeBtn" title="Free-play listening: tap to turn on/off">👂 On</button></div></div>
 <div class="wrap" id="app"></div>
 <div id="toast" hidden></div>
 
@@ -110,7 +110,7 @@ function onMidi(e){const d0=e.data;if(d0[0]>=0xF8){clockMsg(d0[0]);return}if(d0.
   if(t===0x90&&d[2]>0&&document.getElementById('postureBox')){postureClose();return}
   if(t===0x90&&d[2]>0){MIDI.held.add(d[1]);MIDI.ev={on:true,n:d[1],v:d[2]}}else if(t===0x80||t===0x90){MIDI.held.delete(d[1]);MIDI.ev={on:false,n:d[1]}}else return;
   MIDI.subs.forEach(f=>{try{f()}catch(x){}})}
-document.getElementById('connBtn').onclick=connect;document.getElementById('postBtn').onclick=()=>postureShow();document.getElementById('calBtn').onclick=()=>calStart();
+document.getElementById('connBtn').onclick=connect;document.getElementById('postBtn').onclick=()=>postureShow();document.getElementById('freeBtn').onclick=()=>{FREE.on=!FREE.on;store.set('free-on',FREE.on);if(!FREE.on){clearTimeout(FREE.timer);FREE.s=null}toast(FREE.on?'Free-play listening on: Claude gets a summary of what you play between exercises.':'Free-play listening off.');freeDot()};setTimeout(freeDot,0);document.getElementById('calBtn').onclick=()=>calStart();
 /* Line up keys: the Tyros can send some parts an octave off (e.g. the LEFT part's octave setting). Bernard presses two known keys; the app learns the offset for each MIDI channel. */
 function calShow(html){let b=document.getElementById('calBar');if(!b){b=document.createElement('div');b.id='calBar';b.className='card';b.style.cssText='margin:12px 16px;border:2px solid var(--accent)';document.getElementById('app').before(b)}b.innerHTML=html;b.hidden=!html}
 function calStart(){if(!MIDI.ok){toast('Tap Connect keyboard first.');return}calStep=1;calSeen={};
@@ -268,8 +268,8 @@ function metroWidget(){const id='m'+Math.random().toString(36).slice(2,7);const 
 
 /* ---------- sending notes to Claude (Google Form → Sheet) ---------- */
 const RESULTS_FORM='https://docs.google.com/forms/d/e/1FAIpQLSc7CSx01Q0O9oh9Z8YW8e2uvHYoxbwKWfM-mtAawrR-P4lW5g/formResponse';
-function sendReport(txt){if(navigator.webdriver)return; /* automated tests never post to the results sheet */try{const body=new URLSearchParams();body.append('entry.1619048076',`${new Date().toLocaleString()} · PIANO BASICS · ${txt}`);
-  fetch(RESULTS_FORM,{method:'POST',mode:'no-cors',body}).then(()=>toast('Sent to Claude.'),()=>toast('Couldn\'t send. Check the internet and try again.'))}catch(e){toast('Couldn\'t send.')}}
+function sendReport(txt,quiet){if(navigator.webdriver)return; /* automated tests never post to the results sheet */try{const body=new URLSearchParams();body.append('entry.1619048076',`${new Date().toLocaleString()} · PIANO BASICS · ${txt}`);
+  fetch(RESULTS_FORM,{method:'POST',mode:'no-cors',body}).then(()=>{if(!quiet)toast('Sent to Claude.')},()=>{if(!quiet)toast('Couldn\'t send. Check the internet and try again.')})}catch(e){toast('Couldn\'t send.')}}
 
 /* ---------- exercises ---------- */
 const R=(n,f)=>({k:m(n),f,h:'r'}),L=(n,f)=>({k:m(n),f,h:'l'});
@@ -592,6 +592,44 @@ function listenMidi(){if(!LISTEN.on||!MIDI.ev||MIDI.ev===LISTEN.seen)return;LIST
   LISTEN.ev.push((Math.round((now-LISTEN.last)/10)).toString(36)+(MIDI.ev.on?'+':'-')+MIDI.ev.n.toString(36));LISTEN.last=now;
   const st=document.getElementById('lsStat');if(st)st.textContent=`Listening · ${Math.round((now-LISTEN.t0)/1000)} s · ${LISTEN.ev.filter(x=>x.includes('+')).length} notes`}
 MIDI.subs.add(listenMidi);
+/* ---------- Free-play listening ("always on"): while the keyboard is connected, the app quietly notes what you play between exercises.
+   After 45 s of silence it sends Claude one summary (chords, left-hand habits, key, tempo) plus the notes themselves (capped). No sound, no scoring. ---------- */
+const FREE={on:store.get('free-on',true),s:null,timer:null,seen:null};
+const FREE_IDLE=45000,FREE_MAX_CHUNKS=3;
+function freeMidi(){if(!FREE.on||!MIDI.ev||MIDI.ev===FREE.seen)return;FREE.seen=MIDI.ev;const e=MIDI.ev,now=performance.now();
+  if(!FREE.s)FREE.s={t0:now,last:now,ev:[],raw:[],screens:new Set()};const S=FREE.s;
+  S.screens.add(cur);S.ev.push({t:now,n:e.n,on:e.on,v:e.v||0});S.raw.push((Math.round((now-S.last)/10)).toString(36)+(e.on?'+':'-')+e.n.toString(36));S.last=now;
+  clearTimeout(FREE.timer);FREE.timer=setTimeout(freeSend,FREE_IDLE);freeDot()}
+MIDI.subs.add(freeMidi);
+function freeDot(){const d=document.getElementById('freeBtn');if(d)d.textContent=FREE.on?(FREE.s?'👂 Listening':'👂 On'):'👂 Off'}
+const TRI={'':[0,4,7],m:[0,3,7]};
+function chordOfPcs(pcs){for(let r=0;r<12;r++)for(const q of ['','m']){const want=TRI[q].map(i=>(r+i)%12);if(want.every(p=>pcs.has(p))&&[...pcs].every(p=>want.includes(p)))return NAMES[r]+q}return null}
+function freeAnalyse(S){const ons=S.ev.filter(e=>e.on);if(!ons.length)return null;
+  /* chords: notes that start within 70 ms of each other */
+  const groups=[];let g=null;ons.forEach(e=>{if(g&&e.t-g.t0<70)g.ns.push(e.n);else{g={t0:e.t,ns:[e.n]};groups.push(g)}});
+  const chords={},lhShapes={o5:0,triad:0,oct:0,single:0,other:0};let lhStarts=[];
+  groups.forEach(gr=>{const L=gr.ns.filter(n=>n<60).sort((a,b)=>a-b),R=gr.ns.filter(n=>n>=60);
+    const all=new Set(gr.ns.map(n=>n%12));const c=all.size>=3?chordOfPcs(all):null;if(c)chords[c]=(chords[c]||0)+1;
+    if(L.length){lhStarts.push(gr.t0);const iv=L[L.length-1]-L[0];
+      if(L.length===1)lhShapes.single++;else if(L.length===2&&iv===7)lhShapes.o5++;else if(L.length===2&&iv===12)lhShapes.oct++;else if(L.length>=3&&chordOfPcs(new Set(L.map(n=>n%12))))lhShapes.triad++;else lhShapes.other++}});
+  /* key: the major/minor scale that covers most of the notes played */
+  const hist=new Array(12).fill(0);ons.forEach(e=>hist[e.n%12]++);let best=null;
+  for(let r=0;r<12;r++)for(const [q,sc] of [['m',[0,2,3,5,7,8,10,11]],['',[0,2,4,5,7,9,11]]]){const fit=sc.reduce((s,i)=>s+hist[(r+i)%12],0)+hist[r]*.5;if(!best||fit>best.fit)best={k:NAMES[r]+(q?' minor':' major'),fit,sc:sc.map(i=>(r+i)%12)}}
+  const outside=ons.filter(e=>!best.sc.includes(e.n%12)).length;
+  /* tempo: typical gap between left-hand starts */
+  const gaps=[];for(let i=1;i<lhStarts.length;i++){const d=lhStarts[i]-lhStarts[i-1];if(d>200&&d<3000)gaps.push(d)}gaps.sort((a,b)=>a-b);const med=gaps.length?gaps[Math.floor(gaps.length/2)]:0;
+  const rh=ons.filter(e=>e.n>=60).map(e=>e.n),lh=ons.filter(e=>e.n<60).map(e=>e.n);
+  const top=Object.entries(chords).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  /* melody note on each left-hand landing: is it the root, 3rd or 5th of the chord the left hand plays? */
+  let fitRoot=0,fit3=0,fit5=0,fitNo=0;groups.forEach(gr=>{const L=gr.ns.filter(n=>n<60),R=gr.ns.filter(n=>n>=60);if(!L.length||!R.length)return;const root=Math.min(...L)%12;const m=Math.max(...R)%12;const d=(m-root+12)%12;
+    if(d===0)fitRoot++;else if(d===3||d===4)fit3++;else if(d===7)fit5++;else fitNo++});
+  return {secs:Math.round((S.last-S.t0)/1000),notes:ons.length,key:best.k,outside:Math.round(outside/ons.length*100),chords:top,lh:lhShapes,lhN:lh.length,rhN:rh.length,
+    rhRange:rh.length?nm(Math.min(...rh))+'–'+nm(Math.max(...rh)):'-',lhRange:lh.length?nm(Math.min(...lh))+'–'+nm(Math.max(...lh)):'-',bpm:med?Math.round(60000/med):0,mel:{root:fitRoot,third:fit3,fifth:fit5,other:fitNo},screens:[...S.screens]}}
+function freeSend(){const S=FREE.s;FREE.s=null;freeDot();if(!S)return;const A=freeAnalyse(S);if(!A||A.notes<20)return;
+  const id=Date.now().toString(36);const data=S.raw.join(' ');const chunks=[];for(let i=0;i<data.length&&chunks.length<FREE_MAX_CHUNKS;i+=6000)chunks.push(data.slice(i,i+6000));
+  sendReport(`FREE PLAY · id ${id} · ${A.secs} s · ${A.notes} notes · screens ${A.screens.join(',')} · key looks like ${A.key} (${A.outside}% outside it) · chords ${A.chords.map(([c,n])=>c+'×'+n).join(' ')} · left hand: open 5th ×${A.lh.o5}, triads ×${A.lh.triad}, octaves ×${A.lh.oct}, single ×${A.lh.single}, other ×${A.lh.other} · melody on left-hand landings: root ${A.mel.root}, 3rd ${A.mel.third}, 5th ${A.mel.fifth}, other ${A.mel.other} · LH ${A.lhRange}, RH ${A.rhRange} · tempo ~${A.bpm||'?'} bpm · raw parts ${chunks.length}${data.length>chunks.length*6000?' (capped)':''}`,true);
+  chunks.forEach((c,i)=>setTimeout(()=>sendReport(`FREE PLAY RAW · id ${id} · part ${i+1}/${chunks.length} · format: centiseconds since last event (base36), + on / - off, MIDI note (base36) · ${c}`,true),(i+1)*800))}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&FREE.s){clearTimeout(FREE.timer);freeSend()}});
 function listenToggle(){const btn=document.getElementById('lsBtn');
   if(!LISTEN.on){if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}Object.assign(LISTEN,{on:true,t0:performance.now(),last:performance.now(),ev:[],song:SR.song,seen:null});
     btn.querySelector('[data-lab]').textContent='■ Stop and send to Claude';btn.classList.remove('primary');document.getElementById('lsStat').textContent='Listening… play the song.';return}
