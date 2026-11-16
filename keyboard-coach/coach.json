@@ -1,9 +1,36 @@
 {
  "date": "16 Nov 2026",
- "note": "From your results sheet: Pattern Trainer levels 1 and 2 are all green (14 Nov). The E → Am and Dm → E cards were the hardest on the way there. In the Chord Trainer, <b>D vs Dm</b>, <b>E</b> and <b>Em</b> were your slowest chords, and in G minor <b>B♭</b> and <b>E♭</b> were much slower than the rest. Your first real Kumzitz Jam (Dm G C F, 66 bpm): 13 of 15 changes landed, which is good. But as the pad your right hand played about 11 notes a bar; a pad should hold the chord. Next step for kumzitz: the right hand on top of a steady left hand. (Rows from my own app tests on 16 Nov are ignored.)",
+ "note": "From your results sheet: Pattern Trainer levels 1 and 2 are all green (14 Nov). The E → Am and Dm → E cards were the hardest on the way there. In the Chord Trainer, <b>D vs Dm</b>, <b>E</b> and <b>Em</b> were your slowest chords, and in G minor <b>B♭</b> and <b>E♭</b> were much slower than the rest. Today's (16 Nov) rows were test runs, so they're not counted. Next step for kumzitz: the right hand on top of a steady left hand.",
  "items": [
-  {"title": "Right-Hand Trainer · 1 · Melody note on each chord", "why": "Your left-hand patterns are green, so add the right hand: one melody note per chord with the left hand holding the open 5th. This is the core kumzitz two-hand skill.", "go": {"tab": "rh", "lv": "mel", "key": "am", "lh": "o5"}},
-  {"title": "Kumzitz Jam · Pad under the band, slower", "why": "Changes were good (13/15). Now hold the right-hand chord for the whole bar instead of playing through it. Try 60 bpm.", "go": {"tab": "jam", "role": "pad", "groove": "kz44", "key": "am", "bpm": 60}},
-  {"title": "Pattern Trainer · 5 · Open 5th", "why": "The open 5th (pinky + thumb) is the left hand in the Jam and the Right-Hand Trainer. Make it automatic in A minor first.", "go": {"tab": "pt", "lv": "o5", "key": "am"}}
+  {
+   "title": "Right-Hand Trainer · 1 · Melody note on each chord",
+   "why": "Your left-hand patterns are green, so add the right hand: one melody note per chord with the left hand holding the open 5th. This is the core kumzitz two-hand skill.",
+   "go": {
+    "tab": "rh",
+    "lv": "mel",
+    "key": "am",
+    "lh": "o5"
+   }
+  },
+  {
+   "title": "Kumzitz Jam · Pad under the band",
+   "why": "Your first real try with the band: hold the open 5th in the left hand and the chord in the right hand for the whole bar, changing exactly with the guitar. Start slow, around 60 bpm.",
+   "go": {
+    "tab": "jam",
+    "role": "pad",
+    "groove": "kz44",
+    "key": "am",
+    "bpm": 60
+   }
+  },
+  {
+   "title": "Pattern Trainer · 5 · Open 5th",
+   "why": "The open 5th (pinky + thumb) is the left hand in the Jam and the Right-Hand Trainer. Make it automatic in A minor first.",
+   "go": {
+    "tab": "pt",
+    "lv": "o5",
+    "key": "am"
+   }
+  }
  ]
 }
