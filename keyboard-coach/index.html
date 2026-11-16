@@ -993,13 +993,15 @@ function jamCheckHold(b){if(JAM.role==='solo')return;const c=JAM.prog[b%JAM.prog
   if(!need.every(p=>L.includes(p)))jamSay(`Keep the left hand <b>holding</b> ${NAMES[ci.root]} + ${NAMES[ci.pcs[2]]} through the bar.`,true);
   else if(JAM.role==='pad'&&!ci.pcs.every(p=>R.includes(p)))jamSay(`Right hand: <b>hold</b> the whole ${c} chord (${pcNames(c)}).`,true)}
 function jamTick(){if(!document.getElementById('jamCard')){jamStop(true);JAM.state='idle';return}const now=performance.now();
-  if(now>JAM.P.end+400){clearInterval(JAM.iv);if(JAM.state==='demo'){JAM.state=MIDI.ok?'armed':'idle';JAM.now='Your turn: play the first chord and the band starts.';jamPaint()}else jamScore();return}
+  if(now>JAM.P.end+400){clearInterval(JAM.iv);if(JAM.state==='demo'){JAM.state=MIDI.ok?'armed':'idle';JAM.now='Your turn when you\'re ready: tap Your turn or press the top C.';jamPaint()}else jamScore();return}
   if(JAM.state==='play'){const p=jamPos(now);const P=JAM.P;
     while(JAM.chk.chg<JAM.T.bars&&now>P.s0+JAM.chk.chg*P.bar+360){jamCheckChange(JAM.chk.chg);JAM.chk.chg++}
     if(p.bar>=0&&p.frac>.55&&JAM.chk.hold<p.bar){JAM.chk.hold=p.bar;jamCheckHold(p.bar)}}
   jamPaintLive(now)}
+const JAM_KEY_GO=96,JAM_KEY_HEAR=95;
 function jamMidi(){if(!MIDI.ev||MIDI.ev===JAM.seen)return;JAM.seen=MIDI.ev;if(!document.getElementById('jamCard'))return;const e=MIDI.ev;
-  if(JAM.state==='armed'&&e.on){const c=JAM.queue[JAM.qi][0];if(chordInfo(c).pcs.includes(e.n%12)){jamStart();return}JAM.now=`<span style="color:var(--bad,#b3261e);font-weight:600">Start with ${c} (${pcNames(c)}).</span>`;jamFb();jamKb();return}
+  /* remote buttons on the keyboard: top C = Your turn (or Stop), the B just below it = Hear it */
+  if(e.n===JAM_KEY_GO||e.n===JAM_KEY_HEAR){if(!e.on)return;if(JAM.state==='play'||JAM.state==='demo'){jamStop();return}if(JAM.state==='armed'||JAM.state==='idle'){jamStart(e.n===JAM_KEY_HEAR)}return}
   if(JAM.state==='play'){const ev={t:performance.now(),n:e.n,on:e.on};JAM.ev.push(ev);if(e.on&&ev.t>=JAM.P.s0-150)jamJudgeNote(ev)}
   jamKb()}
 function jamScore(){const P=JAM.P,prog=JAM.prog,K=KZ_KEYS[JAM.key];const bars=JAM.T.bars;const ons=JAM.ev.filter(e=>e.on);
@@ -1066,7 +1068,7 @@ function jamPaint(){const el=document.getElementById('jamCard');if(!el)return;co
      <div class="kb" data-jkb>${jamKbHTML(JAM.prog[0])}</div>${LEGEND}<p class="now" data-jfb>${JAM.state==='demo'?'Listen: the band, with your part on top.':JAM.now||'&nbsp;'}</p>
      <div class="row"><button class="btn" id="jamStop">■ Stop</button></div>`;
     document.getElementById('jamStop').onclick=()=>{jamStop();};return}
-  if(JAM.state==='idle'&&MIDI.ok)JAM.state='armed';const c0=prog[0];el.innerHTML=head+`<p style="margin:0">${JAM.state==='armed'?`The app is listening: <b>play ${c0}</b> and the band starts (one bar of count-in). <b>Hear it</b> if you want a demo.`:'Tap <b>Connect keyboard</b> at the top, or tap Your turn to start the band.'}</p>
+  if(JAM.state==='idle'&&MIDI.ok)JAM.state='armed';const c0=prog[0];el.innerHTML=head+`<p style="margin:0">${JAM.state==='armed'?`Tap <b>Your turn</b> when you're ready: one bar of count-in, then the band. Or use the keyboard as the buttons: the <b>top C</b> = Your turn (press it again to stop), the <b>B just below it</b> = Hear it.`:'Tap <b>Connect keyboard</b> at the top, then <b>Your turn</b> when you\'re ready.'}</p>
    <div class="kb" data-jkb>${jamKbHTML(c0)}</div>${LEGEND}<p class="now" data-jfb>${JAM.now||'&nbsp;'}</p>
    <div class="row"><button class="btn" id="jamHear">▶ Hear it</button><button class="btn primary" id="jamGo">🎯 Your turn</button>${spd}</div>`;
   document.getElementById('jamHear').onclick=()=>jamStart(true);document.getElementById('jamGo').onclick=()=>jamStart();wire()}
