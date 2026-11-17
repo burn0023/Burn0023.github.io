@@ -200,24 +200,37 @@ const PASS=store.get('pb-pass',{});
 /* Steps Bernard has passed, confirmed from his results sheet; survive the browser losing its storage */
 const CONFIRMED_PASS={chC:1,tuneC:1,chG:1,chCG:1,chF:1,chCFG:1,thR:1,hiR:1,scR:1,thL:1,scL:1,scCh:1,chAm:1,chCAm:1,chDm:1,chE:1,chMin:1,tuneAm:1,kdCsr:1,kdCsl:1,kdCch:1,kdC145:1,kdAmsr:1,kdAmsl:1,kdAmch:1}; /* Lessons 2-4 and Key Drill parts, passed 5 and 8 Nov 2026 */
 const isPassed=k=>!!(PASS[k]||CONFIRMED_PASS[k]);
+/* ---------- Beat mode (every trainer's Your turn): a click with a count-in, so you know exactly when to change. Plays on the keyboard (drum channel) or the iPad, like the Jam band. ---------- */
+const beatOn=()=>store.get('pb-beat',false);
+function beatClick(atMs,acc){const a=ac();if(typeof JAM!=='undefined'&&JAM.out==='kbd'&&outOK()){return setTimeout(()=>MIDI.acc.outputs.forEach(o=>{try{o.send([0x99,acc?34:33,acc?110:85]);o.send([0x89,acc?34:33,0])}catch(e){}}),Math.max(0,atMs-performance.now()))}
+  if(a)click(a.currentTime+Math.max(0,atMs-performance.now())/1000,acc);return null}
 function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let timers=[],playing=false,lit=new Set(),nowTxt='',held=new Set(),cm=ex.marks,hf=null;
   const mem=()=>typeof ex.memory==='function'&&ex.memory();const allMarks=[...ex.marks,...ex.seq.flatMap(st=>st.marks||[])];
-  const need=ex.need||2;const T={on:false,idx:0,fresh:new Set(),miss:0,clean:0,msg:''};
+  const need=ex.need||2;const T={on:false,idx:0,fresh:new Set(),miss:0,clean:0,msg:''};const B={timers:[],t0:0,spb:0,due:[],offs:[],per:4};
   let lastMk=null;const steps=ex.seq.map(st=>{if(st.marks)lastMk=st.marks;return {exp:new Set([...st.k,...(st.hold?st.hold.k:[])]),hold:st.hold?st.hold.k:null,mk:lastMk}}).filter(x=>x.exp.size);
   const expMarks=(e,sm)=>[...e].map(k=>(sm&&sm.find(x=>x.k===k))||ex.marks.find(x=>x.k===k)||(ex.seq.flatMap(st=>st.marks||[]).find(x=>x.k===k))||{k,h:k<60?'l':'r'});
   const nameList=e=>[...e].sort((a,b)=>a-b).map(nm).join(' ');
   const turnTxt=()=>{const st=steps[T.idx];return (T.msg?T.msg+'<br>':'')+(mem()?`<b>From memory:</b> note ${T.idx+1} of ${steps.length}`:`<b>Your turn:</b> play <b>${nameList(st.exp)}</b> (the keys with dots) · ${T.idx+1} of ${steps.length}`)+` · clean run${need>1?'s':''} ${T.clean} of ${need}`};
-  const startTurn=()=>{if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}if(playing)stop();hf=null;T.on=true;T.times=[];T.idx=0;T.fresh=new Set();T.miss=0;T.msg='';cm=expMarks(steps[0].exp,steps[0].mk);nowTxt=turnTxt();draw()};
-  const endTurn=()=>{T.on=false;cm=ex.marks;nowTxt='';draw()};
+  const beatStop=()=>{B.timers.forEach(clearTimeout);B.timers=[];B.t0=0;const el=document.getElementById(id);if(el)el.querySelectorAll('[data-bt] i').forEach(x=>x.classList.remove('on'))};
+  /* count-in of one bar, then a click on every beat until the run ends; each step is due on its beat */
+  const beatStart=()=>{beatStop();const spb=60000/bpm();B.spb=spb;B.per=ex.ts==='6/8'||ex.ts==='3/4'?3:4;const start=performance.now()+400;B.t0=start+B.per*spb;B.offs=[];
+    const sb=ex.seq.filter(st=>st.k.length||(st.hold&&st.hold.k.length));let acc=0;B.due=sb.map(st=>{const d=B.t0+acc*spb;acc+=st.beats;return d});
+    const total=B.per+Math.ceil(acc)+1;for(let i=0;i<total;i++){const at=start+i*spb;const t1=beatClick(at,i%B.per===0);if(t1)B.timers.push(t1);
+      B.timers.push(setTimeout(()=>{const el=document.getElementById(id);if(!el)return beatStop();el.querySelectorAll('[data-bt] i').forEach((x,j)=>x.classList.toggle('on',j===i%B.per));
+        if(i<B.per&&T.on){T.msg=`Count-in… <b>${B.per-i}</b>`;nowTxt=turnTxt();draw()}else if(i===B.per&&T.on){T.msg='';nowTxt=turnTxt();draw()}},Math.max(0,at-performance.now())))}};
+  const startTurn=()=>{if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}if(playing)stop();hf=null;T.on=true;T.times=[];T.idx=0;T.fresh=new Set();T.miss=0;T.msg='';cm=expMarks(steps[0].exp,steps[0].mk);if(beatOn())beatStart();nowTxt=turnTxt();draw()};
+  const endTurn=()=>{T.on=false;beatStop();cm=ex.marks;nowTxt='';draw()};
   const allowed=()=>{const a=new Set();for(let j=T.idx;j>=0;j--){if(steps[j].hold){steps[j].hold.forEach(k=>a.add(k));break}}if(T.idx>0)steps[T.idx-1].exp.forEach(k=>a.add(k));return a};
   let lastEv=null;const judge=()=>{if(!document.getElementById(id)){MIDI.subs.delete(judge);MIDI.subs.delete(draw);return}if(!T.on||playing||!MIDI.ev||MIDI.ev===lastEv)return;const ev=MIDI.ev;lastEv=ev;const st=steps[T.idx];if(ex.only==='l'&&ev.n>=60)return;
     if(ev.on){if(st.exp.has(ev.n))T.fresh.add(ev.n);else if(!allowed().has(ev.n)){T.miss++;
       T.msg=st.exp.has(ev.n-12)?`✗ ${nm(ev.n)} is one octave too <b>high</b>. Move the hand down.`:st.exp.has(ev.n+12)?`✗ ${nm(ev.n)} is one octave too <b>low</b>. Move the hand up.`:`✗ That was <b>${nm(ev.n)}</b>. Wanted <b>${nameList(st.exp)}</b>.`}}
-    if([...st.exp].every(k=>T.fresh.has(k)&&MIDI.held.has(k))){T.idx++;T.fresh=new Set();(T.times=T.times||[]).push(performance.now());if(!ev.on||st.exp.has(ev.n))T.msg='';
+    if([...st.exp].every(k=>T.fresh.has(k)&&MIDI.held.has(k))){const now=performance.now();let tmsg='';
+      if(B.t0&&B.due[T.idx]!=null){const off=Math.round(now-B.due[T.idx]);B.offs.push(off);const big=Math.max(120,B.spb*.2);tmsg=Math.abs(off)<=big?'✓ on the beat':off>0?`late ${(off/1000).toFixed(2)} s: change on the click`:`early ${(-off/1000).toFixed(2)} s: wait for the click`}
+      T.idx++;T.fresh=new Set();(T.times=T.times||[]).push(now);if(!ev.on||st.exp.has(ev.n))T.msg='';if(tmsg)T.msg=tmsg;
       if(T.idx>=steps.length){if(T.miss===0)T.clean++;
-        if(ex.onDone){T.on=false;cm=ex.marks;const r=ex.onDone({miss:T.miss,times:T.times});nowTxt=r||'';draw();return}
+        if(ex.onDone){T.on=false;const offs=B.t0?B.offs.slice():null;setTimeout(beatStop,B.spb||0);cm=ex.marks;const r=ex.onDone({miss:T.miss,times:T.times,offs,bpm:offs?bpm():null});nowTxt=r||'';draw();return}
         if(T.clean>=need&&!isPassed(ex.key)){PASS[ex.key]=true;store.set('pb-pass',PASS);sendReport(`STEP PASSED · ${ex.key} · ${need} clean runs`);document.dispatchEvent(new Event('ex-pass'))}
-        const done=isPassed(ex.key);T.on=false;cm=ex.marks;
+        const done=isPassed(ex.key);T.on=false;beatStop();cm=ex.marks;
         nowTxt=T.miss===0?(done?`<b style="color:var(--ok)">✓ Passed.</b> ${T.clean>=need?'Clean run'+(need>1?'s':'')+' done.':''} You can go on, or keep practising.`:`<b style="color:var(--ok)">✓ Clean run.</b> ${need-T.clean} more to pass. Tap <b>Your turn</b> again.`):`Finished with ${T.miss} wrong note${T.miss>1?'s':''}. A run counts when it has none. Tap <b>Your turn</b> to go again, slowly.`;
         draw();return}
       cm=expMarks(steps[T.idx].exp,steps[T.idx].mk)}
@@ -227,9 +240,11 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
     el.querySelector('[data-kbs]').innerHTML=keyboardSVG(36,96,(T.on&&mem())?[]:cm,new Set([...lit,...held]),MIDI.held);
     const hl=el.querySelector('[data-handsvg]');if(T.on&&!mem())hf=handFrame([...steps[T.idx].exp],allMarks,hf);paintHands(hl,hf,(playing||T.on)&&!(T.on&&mem()));
     el.querySelector('[data-now]').innerHTML=nowTxt||(isPassed(ex.key)?'<b style="color:var(--ok)">✓ Passed.</b> Practise it any time.':MIDI.ok?`Tap <b>Hear it</b> to watch, then <b>Your turn</b>. Pass = ${need} run${need>1?'s':''} with no wrong notes.`:'Tap <b>Connect keyboard</b> at the top, then <b>Hear it</b>.');
-    el.querySelector('[data-a=hear] [data-lab]').textContent=playing?'■ Stop':'▶ Hear it';const fb=el.querySelector('[data-a=fast]');if(fb)fb.textContent=playing?'■ Stop':`▶ Song speed`;el.querySelector('[data-bpm]').textContent=bpm()+' bpm'};
+    el.querySelector('[data-a=hear] [data-lab]').textContent=playing?'■ Stop':'▶ Hear it';const fb=el.querySelector('[data-a=fast]');if(fb)fb.textContent=playing?'■ Stop':`▶ Song speed`;el.querySelector('[data-bpm]').textContent=bpm()+' bpm';const bb=el.querySelector('[data-a=beat]');if(bb){bb.setAttribute('aria-pressed',beatOn());bb.textContent=beatOn()?'🥁 Beat: on':'🥁 Beat: off'}
+    const per=ex.ts==='6/8'||ex.ts==='3/4'?3:4;el.querySelectorAll('[data-bt] i').forEach((x,j)=>x.style.display=beatOn()&&j<per?'':'none');
+    el.querySelector('[data-bnote]').innerHTML=beatOn()?`<b>Beat on:</b> Your turn (or the top C) gives a one-bar count-in, then a click on every beat at this speed. Play each chord <b>on its click</b>; the app says if you were early or late. Without the beat it waits for you.`:`Speed changes <b>Hear it</b>${'' }. In <b>Your turn</b> the app waits for you. Turn on <b>🥁 Beat</b> to play along with a click and know exactly when to change.`};
   let voices=[];const outN=(ns,at,d,v)=>{timers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x90,n,v||80]))),at));timers.push(setTimeout(()=>MIDI.acc.outputs.forEach(o=>ns.forEach(n=>o.send([0x80,n,0]))),at+d))};
-  const stop=()=>{timers.forEach(clearTimeout);timers=[];voices.forEach(o=>{try{o.stop()}catch(e){}});voices=[];playing=false;hf=null;lit=new Set();held=new Set();cm=ex.marks;nowTxt='';if(outOK())MIDI.acc.outputs.forEach(o=>{for(let n=24;n<100;n++)o.send([0x80,n,0])});draw()};
+  const stop=()=>{timers.forEach(clearTimeout);timers=[];beatStop();voices.forEach(o=>{try{o.stop()}catch(e){}});voices=[];playing=false;hf=null;lit=new Set();held=new Set();cm=ex.marks;nowTxt='';if(outOK())MIDI.acc.outputs.forEach(o=>{for(let n=24;n<100;n++)o.send([0x80,n,0])});draw()};
   const hear=(fast)=>{if(playing){stop();if(ex.auto)startTurn();return}if(T.on)endTurn();playing=true;const spb=60000/(fast||bpm());let t=300;const a=ac();const viaOut=outOK();
     let pf=null,prevSingle=null,prevDur=0;
     ex.seq.forEach(st=>{const dur=st.beats*spb;const at=t;
@@ -246,14 +261,15 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
       if(st.hold){const hd=st.hold.beats*spb;timers.push(setTimeout(()=>{st.hold.k.forEach(k=>held.add(k));draw()},at));timers.push(setTimeout(()=>{st.hold.k.forEach(k=>held.delete(k));draw()},at+hd*.95));
         if(viaOut)outN(st.hold.k,at,hd*.95,90);else if(a)st.hold.k.forEach(k=>voices.push(tone(k,a.currentTime+at/1000,hd/1000*.95)))}
       const sd=dur*(st.short||.9);if(viaOut)outN(st.k,at,sd,st.vel||80);else if(a)st.k.forEach(k=>voices.push(tone(k,a.currentTime+at/1000,sd/1000)));t+=dur});
-    timers.push(setTimeout(()=>{stop();nowTxt='Your turn: same notes, same fingers, same speed.';draw();if(ex.auto)startTurn()},t+200));draw()};
+    timers.push(setTimeout(()=>{stop();nowTxt=beatOn()?'Your turn: press <b>Your turn</b> (or the top C) for the count-in.':'Your turn: same notes, same fingers, same speed.';draw();if(ex.auto&&!beatOn())startTurn()},t+200));draw()};
   setTimeout(()=>{const el=document.getElementById(id);if(!el)return;MIDI.subs.add(judge);MIDI.subs.add(draw);el.querySelector('[data-a=turn]').onclick=()=>T.on?endTurn():startTurn();
     el.querySelector('[data-a=hear]').onclick=()=>hear();const fb=el.querySelector('[data-a=fast]');if(fb)fb.onclick=()=>hear(ex.fast);
     el.querySelector('[data-a="s-"]').onclick=()=>{store.set(bk,Math.max(40,bpm()-5));draw()};
-    el.querySelector('[data-a="s+"]').onclick=()=>{store.set(bk,Math.min(180,bpm()+5));draw()};draw();if(ex.auto&&MIDI.ok)startTurn()});
+    el.querySelector('[data-a="s+"]').onclick=()=>{store.set(bk,Math.min(180,bpm()+5));draw()};el.querySelector('[data-a=beat]').onclick=()=>{store.set('pb-beat',!beatOn());if(T.on)endTurn();draw()};
+    draw();if(ex.auto&&MIDI.ok&&!beatOn())startTurn()});
   return `${ex.title?`<h4 style="margin:6px 0 0">${ex.title}</h4>`:''}<div id="${id}" class="check"><div class="kb" data-kb><div data-kbs></div>${SHOW_HANDS?`<svg data-handsvg viewBox="-1 0 938 160" style="display:block;width:100%;height:auto;margin-top:calc(-100% * ${HY} / 938);pointer-events:none;position:relative">${handLayer()}</svg>`:''}</div>${LEGEND}<p class="now" data-now></p>
-   <div class="row"><button class="btn" data-a="hear" data-remote="hear" style="${KEYBTN_CSS}">${keyBtnInner('hear','▶ Hear it')}</button><button class="btn primary" data-a="turn" data-remote="go" style="${KEYBTN_CSS}">${keyBtnInner('go','🎯 Your turn')}</button>${ex.fast?`<button class="btn" data-a="fast">▶ Song speed</button>`:''}<span class="row"><button class="btn small" data-a="s-" aria-label="Slower">−</button><span class="bpm" data-bpm></span><button class="btn small" data-a="s+" aria-label="Faster">+</button></span></div>
-   <p class="note" style="font-size:13px;color:var(--muted);margin:0">Speed only changes <b>Hear it</b>. In <b>Your turn</b> the app waits for you, so go at your own pace.</p></div>`}
+   <div class="row"><button class="btn" data-a="hear" data-remote="hear" style="${KEYBTN_CSS}">${keyBtnInner('hear','▶ Hear it')}</button><button class="btn primary" data-a="turn" data-remote="go" style="${KEYBTN_CSS}">${keyBtnInner('go','🎯 Your turn')}</button>${ex.fast?`<button class="btn" data-a="fast">▶ Song speed</button>`:''}<span class="row"><button class="btn small" data-a="s-" aria-label="Slower">−</button><span class="bpm" data-bpm></span><button class="btn small" data-a="s+" aria-label="Faster">+</button></span><button class="btn small" data-a="beat" aria-pressed="false">🥁 Beat</button><span class="beats" data-bt><i></i><i></i><i></i><i></i></span></div>
+   <p class="note" data-bnote style="font-size:13px;color:var(--muted);margin:0"></p></div>`}
 
 /* ---------- metronome ---------- */
 const metro={on:false,next:0,beat:0,iv:null};
@@ -1265,21 +1281,23 @@ const dOpen=(id,lv)=>!lockedBy(id,lv).length;const dSuggested=id=>{const L=DRILL
 function dBuild(id){const S=DS[id];const notG=dCards(id).filter(pr=>!dGreen(id,S.lv,pr)),G=dCards(id).filter(pr=>dGreen(id,S.lv,pr));
   S.queue=[...notG.slice(0,5),...G.sort(()=>Math.random()-.5).slice(0,Math.max(0,5-notG.length))].slice(0,5);S.qi=0;S.res=[];S.done=false}
 function dExercise(id,pr){const S=DS[id];const L=DRILLS[id].levels.find(x=>x.id===S.lv);
-  const LV=DRILLS[id].levels.find(x=>x.id===S.lv);if(LV&&LV.make){const m=LV.make(pr);return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,...m,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r,m.seq.map(x=>x.beats))})}
-  if(DRILLS[id].make){const m=DRILLS[id].make(S.lv,pr);const bt=m.seq.map(x=>x.beats);return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,...m,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r,bt)})}
+  const LV=DRILLS[id].levels.find(x=>x.id===S.lv);if(LV&&LV.make){const m=LV.make(pr);return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,ts:LV.ts,...m,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r,m.seq.map(x=>x.beats))})}
+  if(DRILLS[id].make){const m=DRILLS[id].make(S.lv,pr);const bt=m.seq.map(x=>x.beats);return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,ts:(LV||{}).ts,...m,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r,bt)})}
   const chords=pr.length===1?[pr[0],pr[0]]:[...pr,...pr];const seq=[];
   chords.forEach(c=>L.bar(c).forEach((x,i)=>seq.push({k:x.k,hold:x.hold||null,beats:x.beats||(L.ts==='6/8'?.5:1),marks:i===0?[...(L.lm?L.lm(c):LM(c)),...(id==='th'?RM(c):[])]:null,say:`<b>${c}</b> · ${x.lab}`})));
-  const both=id==='th';return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,marks:[...(L.lm?L.lm(pr[0]):LM(pr[0])),...(both?RM(pr[0]):[])],seq,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r)})}
-function dDone(id,pr,r,bt){const S=DS[id];const {cv,avg}=ptEven(r.times,bt);const even=cv<.3;const ok=r.miss===0&&even;const k=dSKey(id,S.lv,pr);
+  const both=id==='th';return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,ts:L.ts,marks:[...(L.lm?L.lm(pr[0]):LM(pr[0])),...(both?RM(pr[0]):[])],seq,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r)})}
+function dDone(id,pr,r,bt){const S=DS[id];const {cv,avg}=ptEven(r.times,bt);let even=cv<.3;
+  /* with the beat on, "even" means on the click: at least 80% of the changes within 0.2 beat (min 0.12 s) */
+  let beat=null;if(r.offs&&r.offs.length){const tol=Math.max(120,60000/(r.bpm||60)*.2);const on=r.offs.filter(o=>Math.abs(o)<=tol).length;const late=r.offs.reduce((s,o)=>s+o,0)/r.offs.length;beat={pct:Math.round(on/r.offs.length*100),avg:Math.round(late),bpm:r.bpm};even=beat.pct>=80}const ok=r.miss===0&&even;const k=dSKey(id,S.lv,pr);
   const st=S.stats[k]||{n:0,green:false};st.n++;st.last=Date.now();st.cv=cv;st.avg=avg;st.miss=r.miss;if(ok)st.green=true;S.stats[k]=st;store.set(DRILLS[id].store+'-stats',S.stats);
-  S.res.push({pr,miss:r.miss,cv,avg,ok});
-  const msg=r.miss?`${r.miss} wrong note${r.miss>1?'s':''}. Again, slower.`:!even?`Right notes, but uneven: some notes waited longer than others (${Math.round(cv*100)}% wobble). Go slower and keep it steady.`:`<b style="color:var(--ok)">✓ Clean and even.</b> ${pr.join(' → ')} is green.`;
+  S.res.push({pr,miss:r.miss,cv,avg,ok,beat});
+  const msg=r.miss?`${r.miss} wrong note${r.miss>1?'s':''}. Again, slower.`:!even?(beat?`Right notes, but only ${beat.pct}% landed on the click (${beat.avg>0?'mostly late':'mostly early'}). Look at the next chord during the last beat and change <b>on</b> the click. Slower if you need it.`:`Right notes, but uneven: some notes waited longer than others (${Math.round(cv*100)}% wobble). Go slower and keep it steady.`):`<b style="color:var(--ok)">✓ Clean and ${beat?'on the beat ('+beat.pct+'%)':'even'}.</b> ${pr.join(' → ')} is green.`;
   setTimeout(()=>{if(ok||S.res.filter(x=>x.pr===pr).length>=3){S.qi++;if(S.qi>=S.queue.length)dFinish(id);else dPaint(id)}else dPaint(id,msg)},ok?900:2200);
   return msg}
 function ptEven(times,bt){const iv=[];for(let i=2;i<times.length;i++){if(bt){const b=bt[i-1];if(!b||b<.5)continue;iv.push((times[i]-times[i-1])/b)}else iv.push(times[i]-times[i-1])}if(iv.length<3)return {cv:0,avg:0};
   const avg=iv.reduce((a,b)=>a+b,0)/iv.length;const sd=Math.sqrt(iv.reduce((a,b)=>a+(b-avg)**2,0)/iv.length);return {cv:sd/avg,avg}}
 function dFinish(id){const S=DS[id],D=DRILLS[id];const L=D.levels.find(x=>x.id===S.lv);const g=dCards(id).filter(pr=>dGreen(id,S.lv,pr)).length;
-  sendReport(`${D.title.toUpperCase()} · ${L.name} · ${S.mem?'from memory':'keys shown'} · ${S.res.map(x=>`${x.pr.join('-')}: ${x.miss?x.miss+' wrong':'ok'}, wobble ${Math.round(x.cv*100)}%, ${(x.avg/1000).toFixed(2)} s/note`).join(' · ')} · level green ${g}/${dCards(id).length}`);
+  sendReport(`${D.title.toUpperCase()} · ${L.name} · ${S.mem?'from memory':'keys shown'} · ${S.res.map(x=>`${x.pr.join('-')}: ${x.miss?x.miss+' wrong':'ok'}, wobble ${Math.round(x.cv*100)}%, ${(x.avg/1000).toFixed(2)} s/note${x.beat?`, with beat ${x.beat.bpm} bpm: ${x.beat.pct}% on the click, avg ${x.beat.avg>=0?'+':''}${x.beat.avg} ms`:''}`).join(' · ')} · level green ${g}/${dCards(id).length}`);
   S.done=true;dPaint(id)}
 function dHTML(id){const D=DRILLS[id],S=DS[id];
   const sug=dSuggested(id);
@@ -1300,7 +1318,7 @@ function dPaint(id,msg){const el=document.getElementById('dCard');if(!el)return;
     document.getElementById('dPause').onclick=()=>{clearTimeout(t);el.querySelector('.now').textContent='Paused.';const b=document.getElementById('dPause');b.textContent='Next round';b.classList.add('primary');b.onclick=()=>{dBuild(id);render()}};return}
   if(!S.queue.length)dBuild(id);const pr=S.queue[S.qi];
   el.innerHTML=`<div class="step">Card ${S.qi+1} of ${S.queue.length}</div><h3 style="font-size:28px;margin:0">${pr.join(' → ')}</h3>
-   <p style="margin:0">${DRILLS[id].cardHint?DRILLS[id].cardHint(S.lv,pr):pr.length===1?'One chord, the pattern twice.':'The pattern on each chord, then again.'} The app is already listening: just play. <b>Hear it</b> if you want a demo.</p>
+   <p style="margin:0">${DRILLS[id].cardHint?DRILLS[id].cardHint(S.lv,pr):pr.length===1?'One chord, the pattern twice.':'The pattern on each chord, then again.'} ${beatOn()?'Beat is on: press <b>Your turn</b> (or the top C) for the count-in, then change on the clicks.':'The app is already listening: just play.'} <b>Hear it</b> if you want a demo.</p>
    ${msg?`<p class="now">${msg}</p>`:''}${dExercise(id,pr)}`}
 /* Pattern Trainer greens earned before the rename keep counting */
 (()=>{const old=store.get('pt-stats',null);if(old)DS.pt.stats=old})();
