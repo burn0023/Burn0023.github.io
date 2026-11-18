@@ -1493,7 +1493,8 @@ function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag
   return out.sort((a,b)=>b.pri-a.pri)}
 const coachAt=g=>{if(DRILLS[g.tab])return (!g.lv||DS[g.tab].lv===g.lv)&&(!g.key||DS[g.tab].key===g.key);if(g.tab==='jam')return (!g.role||JAM.role===g.role)&&(!g.groove||JAM.groove===g.groove);if(g.tab==='trainer')return !g.set||TR.set===g.set;return true};
 function coachStrip(sel){if(sel==='coach'||sel==='setups')return '';const L=coachList();if(!L.length)return '';
-  const here=x=>x.go&&x.go.tab===sel;const top=[...L.filter(here).slice(0,1),...L.filter(x=>!here(x)).slice(0,1)].slice(0,2);
+  /* only when it points somewhere else (another trainer, level or key); nothing to show = no box */
+  const here=x=>x.go&&x.go.tab===sel;const top=L.filter(x=>x.go&&!(here(x)&&coachAt(x.go))).slice(0,2);if(!top.length)return '';
   window.__coachTop=top;
   return `<div id="coachStrip" style="border:1px solid var(--rule);border-left:4px solid var(--gold);border-radius:10px;padding:8px 12px;margin:0 0 10px;display:flex;flex-direction:column;gap:6px">
    ${top.map((x,i)=>`<div style="display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center"><span style="font-weight:700">${x.tag==='claude'?'💬 Claude':'🧭 Coach'}${here(x)?' (this trainer)':''}: ${x.title}</span><span style="flex:1 1 280px;font-size:14px">${x.why}</span>${x.go&&!(here(x)&&coachAt(x.go))?`<button class="btn small" data-coach="${i}">${here(x)?'Do it':'Go'} ▸</button>`:''}</div>`).join('')}
