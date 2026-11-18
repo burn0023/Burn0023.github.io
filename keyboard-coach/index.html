@@ -1255,6 +1255,9 @@ jamStart=function(){if(jamKbd()){jAllOff();MIDI.acc.outputs.forEach(o=>{try{o.se
 jamStop=function(silent){jAllOff();return _jStop(silent)};
 
 const DS={};Object.entries(DRILLS).forEach(([id,D])=>{DS[id]={key:store.get(D.store+'-key','am'),lv:store.get(D.store+'-lv',D.levels[0].id),mem:store.get(D.store+'-mem',false),stats:store.get(D.store+'-stats',{}),queue:[],qi:0,res:[],done:false}});
+/* cards Claude passed from the results sheet (he played them clean again and again; only the wobble kept them grey) */
+const CONFIRMED_DRILL={th:{'tog|E-Am':'18 Nov: 6 clean runs in a row'}};
+Object.entries(CONFIRMED_DRILL).forEach(([id,m])=>Object.keys(m).forEach(k=>{const st=DS[id].stats[k]||{n:1};if(!st.green){st.green=true;st.confirmed=true;DS[id].stats[k]=st;store.set(DRILLS[id].store+'-stats',DS[id].stats)}}));
 const PT=DS.pt; /* kept for older code paths */
 const dKey=(lv,pr)=>lv+'|'+pr.join('-');
 const dSKey=(id,lv,pr)=>DRILLS[id].skey?DRILLS[id].skey(lv,pr):dKey(lv,pr);
@@ -1294,12 +1297,12 @@ function dExercise(id,pr){const S=DS[id];const L=DRILLS[id].levels.find(x=>x.id=
   const chords=pr.length===1?[pr[0],pr[0]]:[...pr,...pr];const seq=[];
   chords.forEach(c=>L.bar(c).forEach((x,i)=>seq.push({k:x.k,hold:x.hold||null,beats:x.beats||(L.ts==='6/8'?.5:1),marks:i===0?[...(L.lm?L.lm(c):LM(c)),...(id==='th'?RM(c):[])]:null,say:`<b>${c}</b> · ${x.lab}`})));
   const both=id==='th';return exercise({key:`${id}-${dKey(S.lv,pr)}`,lo:36,hi:96,bpm:60,ts:L.ts,chords,marks:[...(L.lm?L.lm(pr[0]):LM(pr[0])),...(both?RM(pr[0]):[])],seq,need:1,auto:true,memory:()=>S.mem,onDone:r=>dDone(id,pr,r)})}
-function dDone(id,pr,r,bt){const S=DS[id];const {cv,avg}=ptEven(r.times,bt);let even=cv<.3;
+function dDone(id,pr,r,bt){const S=DS[id];const {cv,avg}=ptEven(r.times,bt);let even=cv<.3;const prevSt=S.stats[dSKey(id,S.lv,pr)]||{};const cleanRow=r.miss===0?(prevSt.cleanRow||0)+1:0;
   /* with the beat on, "even" means on the click: at least 80% of the changes within 0.2 beat (min 0.12 s) */
-  let beat=null;if(r.offs&&r.offs.length){const tol=Math.max(120,60000/(r.bpm||60)*.2);const on=r.offs.filter(o=>Math.abs(o)<=tol).length;const late=r.offs.reduce((s,o)=>s+o,0)/r.offs.length;beat={pct:Math.round(on/r.offs.length*100),avg:Math.round(late),bpm:r.bpm};even=beat.pct>=80}const ok=r.miss===0&&even;const k=dSKey(id,S.lv,pr);
-  const st=S.stats[k]||{n:0,green:false};st.n++;st.last=Date.now();st.cv=cv;st.avg=avg;st.miss=r.miss;if(ok)st.green=true;S.stats[k]=st;store.set(DRILLS[id].store+'-stats',S.stats);
+  let beat=null;if(r.offs&&r.offs.length){const tol=Math.max(120,60000/(r.bpm||60)*.2);const on=r.offs.filter(o=>Math.abs(o)<=tol).length;const late=r.offs.reduce((s,o)=>s+o,0)/r.offs.length;beat={pct:Math.round(on/r.offs.length*100),avg:Math.round(late),bpm:r.bpm};even=beat.pct>=80}const ok=r.miss===0&&(even||cleanRow>=2);const k=dSKey(id,S.lv,pr);
+  const st=S.stats[k]||{n:0,green:false};st.n++;st.last=Date.now();st.cv=cv;st.avg=avg;st.miss=r.miss;st.cleanRow=cleanRow;if(ok)st.green=true;S.stats[k]=st;store.set(DRILLS[id].store+'-stats',S.stats);
   S.res.push({pr,miss:r.miss,cv,avg,ok,beat});
-  const msg=r.miss?`${r.miss} wrong note${r.miss>1?'s':''}. Again, slower.`:!even?(beat?`Right notes, but only ${beat.pct}% landed on the click (${beat.avg>0?'mostly late':'mostly early'}). Look at the next chord during the last beat and change <b>on</b> the click. Slower if you need it.`:`Right notes, but uneven: some notes waited longer than others (${Math.round(cv*100)}% wobble). Go slower and keep it steady.`):`<b style="color:var(--ok)">✓ Clean and ${beat?'on the beat ('+beat.pct+'%)':'even'}.</b> ${pr.join(' → ')} is green.`;
+  const msg=r.miss?`${r.miss} wrong note${r.miss>1?'s':''}. Again, slower.`:(ok&&!even)?`<b style="color:var(--ok)">✓ Two clean runs in a row.</b> ${pr.join(' → ')} is green. (It was a bit uneven; the 🥁 beat trains steadiness when you want it.)`:!even?(beat?`Right notes, but only ${beat.pct}% landed on the click (${beat.avg>0?'mostly late':'mostly early'}). Look at the next chord during the last beat and change <b>on</b> the click. Slower if you need it.`:`Right notes, but uneven: some notes waited longer than others (${Math.round(cv*100)}% wobble). Go slower and keep it steady.`):`<b style="color:var(--ok)">✓ Clean and ${beat?'on the beat ('+beat.pct+'%)':'even'}.</b> ${pr.join(' → ')} is green.`;
   setTimeout(()=>{if(ok||S.res.filter(x=>x.pr===pr).length>=3){S.qi++;if(S.qi>=S.queue.length)dFinish(id);else dPaint(id)}else dPaint(id,msg)},ok?900:2200);
   return msg}
 function ptEven(times,bt){const iv=[];for(let i=2;i<times.length;i++){if(bt){const b=bt[i-1];if(!b||b<.5)continue;iv.push((times[i]-times[i-1])/b)}else iv.push(times[i]-times[i-1])}if(iv.length<3)return {cv:0,avg:0};
