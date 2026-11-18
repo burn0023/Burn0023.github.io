@@ -512,7 +512,7 @@ function trDone(){const L=TR.log;const first=L.filter(x=>!x.miss).length;const a
   trPaint()}
 function trainerHTML(){if(!TR.queue.length)trBuild();const view='cards';
   const viewRow=`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Practice:</span><button class="btn small" data-trview="cards" aria-pressed="${view==='cards'}">Chord cards</button><button class="btn small" data-trview="songs" aria-pressed="${view==='songs'}">Song rounds</button></div>`;
-  const sets=Object.entries(SETS).map(([k,s])=>`<button class="btn small" data-set="${k}" aria-pressed="${TR.set===k}">${s.name}</button>`).join('');
+  const sets=Object.entries(SETS).map(([k,s])=>`<button class="btn small" data-set="${k}" aria-pressed="${TR.set===k}">${s.name}</button>`).join('')+whyBtn('trainer');
   const hands=[['l','Left hand'],['r','Right hand'],['both','Both hands']].map(([k,t])=>`<button class="btn small" data-hand="${k}" aria-pressed="${TR.hand===k}">${t}</button>`).join('');
   const modes=[['learn','Keys shown'],['recall','From memory']].map(([k,t])=>`<button class="btn small" data-mode="${k}" aria-pressed="${TR.mode===k}">${t}</button>`).join('');
   return `<div class="head"><div class="eyebrow">Trainer</div><h2>Chord Trainer</h2><p>A chord name appears. Play it in the right place, and the next one comes up. Do a round of 12 a few times a day until every chord comes up instantly, without thinking.</p></div>
@@ -1204,7 +1204,7 @@ function jamHTML(){const G=JAM_GROOVES[JAM.groove],Ro=JAM_ROLES[JAM.role];jamFix
   const sug=Object.keys(JAM_ROLES).find(r=>!jamRoleGreen(r)&&!lockedBy('jam',r).length);
   return `<div class="head"><div class="eyebrow">Trainer</div><h2>Kumzitz Jam</h2><p>Play <b>with a band</b>. The band (guitar, soft percussion) plays each 4-chord card twice round while you play your part. The app checks every note and every chord change <b>as you play</b> and tells you straight away what to fix. Same flow as the other trainers: 5 cards a round, cards turn green, the next one comes by itself.</p></div>
   <div class="card" style="gap:8px">
-   <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Key:</span>${Object.entries(jamK()).map(([k,K])=>btn('jk',k,JAM.key,K.name)).join('')}</div>
+   <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Key:</span>${Object.entries(jamK()).map(([k,K])=>btn('jk',k,JAM.key,K.name)).join('')}${whyBtn('jam')}</div>
    <div class="row" style="gap:6px">${Object.entries(JAM_ROLES).map(([k,r])=>`<button class="btn small" data-jr="${k}" aria-pressed="${JAM.role===k}"${lockedBy('jam',k).length?' style="opacity:.6"':''}>${jamRoleGreen(k)?'✓ ':lockedBy('jam',k).length?'🔒 ':''}${r.name}${k===sug?' <span style="font-size:11px;background:var(--gold);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">suggested</span>':''}</button>`).join('')}</div>
    <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Band:</span>${Object.entries(JAM_GROOVES).map(([k,g])=>btn('jg',k,JAM.groove,g.name)).join('')}</div>
    ${G.part&&G.part!==JAM.role&&JAM_ROLES[G.part]?`<p style="margin:0;font-size:14px;color:var(--muted)">Matching part for this band: <b>${JAM_ROLES[G.part].name}</b> (tap it above). Any part works with any band.</p>`:''}
@@ -1327,7 +1327,7 @@ function dHTML(id){const D=DRILLS[id],S=DS[id];
   const levels=D.levels.map(L=>`<button class="btn small" data-dlv="${L.id}" aria-pressed="${S.lv===L.id}"${dOpen(id,L.id)?'':' style="opacity:.6"'}>${dLevelGreen(id,L.id)?'✓ ':dOpen(id,L.id)?'':'🔒 '}${L.name}${L.id===sug?' <span style="font-size:11px;background:var(--gold);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px">suggested</span>':''}</button>`).join('');
   const L=D.levels.find(x=>x.id===S.lv);
   return `<div class="head"><div class="eyebrow">Trainer</div><h2>${D.title}</h2><p>${D.intro}</p>${!dReady(id)?`<p style="font-size:14px;color:var(--muted);margin:0">Suggested after ${D.needsMsg}. Jump in anytime.</p>`:''}</div>
-  <div class="card" style="gap:8px">${D.cards?'':`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Key:</span>${Object.entries(dKeys(id)).map(([k,K],j)=>`<button class="btn small" data-dkey="${k}" aria-pressed="${(dKeys(id)[S.key]?S.key:Object.keys(dKeys(id))[0])===k}">${K.name}</button>`).join('')}</div>`}<div class="row" style="gap:6px">${levels}</div>
+  <div class="card" style="gap:8px">${D.cards?'':`<div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Key:</span>${Object.entries(dKeys(id)).map(([k,K],j)=>`<button class="btn small" data-dkey="${k}" aria-pressed="${(dKeys(id)[S.key]?S.key:Object.keys(dKeys(id))[0])===k}">${K.name}</button>`).join('')}${whyBtn(id)}</div>`}<div class="row" style="gap:6px">${levels}</div>
    ${D.extra?D.extra():''}<div class="row" style="gap:6px"><button class="btn small" data-dmem="0" aria-pressed="${!S.mem}">Keys shown</button><button class="btn small" data-dmem="1" aria-pressed="${S.mem}">From memory</button></div>
    <p style="margin:0">${L.desc}</p>
    ${L.why?`<details style="border:1px solid var(--rule);border-radius:8px;padding:8px 12px;background:var(--paper,transparent)"><summary style="cursor:pointer;font-weight:600">Why it's done this way</summary><p style="margin:8px 0 0">${L.why}</p></details>`:''}
@@ -1452,7 +1452,7 @@ function setupsHTML(){const pick=store.get('su-open','solo');
 
 let prog=store.get('pb-prog',{}),cur=store.get('pb-cur','trainer');
 const P=id=>prog[id]||(prog[id]={step:0,done:[]});const save=()=>{store.set('pb-prog',prog);store.set('pb-cur',cur)};
-const TRAINER_TABS=[['coach','🧭 Coach'],['trainer','Chord Trainer'],['pt','Pattern Trainer'],['th','Two-Hand Trainer'],['rh','Right-Hand Trainer'],['jam','Kumzitz Jam'],['inv','Inversion Trainer'],['sc','Scale Trainer'],['ear','Ear Trainer'],['songs','Song Trainer'],['setups','Tyros Setups']];
+const TRAINER_TABS=[['coach','🧭 Coach'],['why','📖 Why'],['trainer','Chord Trainer'],['pt','Pattern Trainer'],['th','Two-Hand Trainer'],['rh','Right-Hand Trainer'],['jam','Kumzitz Jam'],['inv','Inversion Trainer'],['sc','Scale Trainer'],['ear','Ear Trainer'],['songs','Song Trainer'],['setups','Tyros Setups']];
 const songsOpen=()=>true;const songsReady=()=>dLevelGreen('th','hb');
 /* ---------- Coach: reads the results stored on this iPad from every trainer and suggests what to practise next.
    Plus Claude's notes (coach.json next to the app), written after Claude reads the results sheet. ---------- */
@@ -1514,7 +1514,7 @@ function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag
     if(seen.has(k)){const y=seen.get(k);if(x.why&&!y.why.includes(x.why))y.also=(y.also||[]).concat(x.why.replace(/^It unlocks <b>/,'This also unlocks <b>'));if(x.tag==='claude')y.tag='claude';return}seen.set(k,x);res.push(x)});
   return res}
 const coachAt=g=>{if(DRILLS[g.tab])return (!g.lv||DS[g.tab].lv===g.lv)&&(!g.key||DS[g.tab].key===g.key);if(g.tab==='jam')return (!g.role||JAM.role===g.role)&&(!g.groove||JAM.groove===g.groove);if(g.tab==='trainer')return !g.set||TR.set===g.set;return true};
-function coachStrip(sel){if(sel==='coach'||sel==='setups')return '';const L=coachList();if(!L.length)return '';
+function coachStrip(sel){if(sel==='coach'||sel==='setups'||sel==='why')return '';const L=coachList();if(!L.length)return '';
   /* only when it points somewhere else (another trainer, level or key); nothing to show = no box */
   const here=x=>x.go&&x.go.tab===sel;const top=L.filter(x=>x.go&&!(here(x)&&coachAt(x.go))).slice(0,2);if(!top.length)return '';
   window.__coachTop=top;
@@ -1575,6 +1575,69 @@ async function camTest(){const m=document.getElementById('camMsg'),v=document.ge
     const tr=st.getVideoTracks()[0];const s=tr.getSettings?tr.getSettings():{};m.innerHTML=`<b style="color:var(--ok)">✓ Camera works</b> (${s.width||'?'}×${s.height||'?'}). Can you see your shoulders and hands? Tell Claude.`;sendReport(`CAMERA TEST · works · ${s.width||'?'}x${s.height||'?'} · ${navigator.userAgent}`)}
   catch(e){m.textContent=`The camera didn't open (${e.name}). Sent to Claude.`;sendReport(`CAMERA TEST · failed · ${e.name}: ${e.message} · ${navigator.userAgent}`)}}
 
+/* ---------- 📖 Why: the reasoning behind keys and chords, worked out from the notes themselves (so it is always right for any key or chord) ---------- */
+const TK={
+ am:{t:9,m:'minor',name:'A minor'},em:{t:4,m:'minor',name:'E minor'},dm:{t:2,m:'minor',name:'D minor'},gm:{t:7,m:'minor',name:'G minor'},cm:{t:0,m:'minor',name:'C minor'},
+ cM:{t:0,m:'major',name:'C major'},gM:{t:7,m:'major',name:'G major'},fM:{t:5,m:'major',name:'F major'},dM:{t:2,m:'major',name:'D major'},
+ frE:{t:4,m:'fr',name:'E freygish'},frD:{t:2,m:'fr',name:'D freygish'}};
+const TK_MODES={minor:[0,2,3,5,7,8,10],major:[0,2,4,5,7,9,11],fr:[0,1,4,5,7,8,10]};
+const STEP_NAME={1:'half',2:'whole',3:'step-and-a-half'};
+/* which theory key matches what you're practising */
+function whyKeyFor(sel){const m={am:'am',circ:'am',walk:'am',gm:'gm',dm:'dm',em:'em',c:'cM',circc:'cm',dM:'dM'};
+  if(sel==='trainer')return m[TR.set]||'am';if(sel==='jam')return JAM.key==='fr'?'frE':m[JAM.key]||'am';
+  if(DRILLS[sel]){const k=DS[sel].key;if(k==='fr')return sel==='inv'?'frD':'frE';return m[k]||'am'}return store.get('why-key','am')}
+const nn=p=>NAMES[(p%12+12)%12];
+/* proper note spelling: every note of a key/chord uses its own letter (B♭ not A♯, A♭ not G♯ in Fm) */
+const LET='CDEFGAB',NAT={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+function sp(pc,letter){const d=((pc-NAT[letter])%12+12)%12;return letter+({0:'',1:'♯',2:'𝄪',11:'♭',10:'𝄫'}[d]??'?')}
+const letterAt=(l0,steps)=>LET[(LET.indexOf(l0)+steps)%7];
+const tonicLetter=K=>K.name[0];
+function scaleNames(K){const sc=TK_MODES[K.m].map(x=>(K.t+x)%12);return sc.map((p,i)=>sp(p,letterAt(tonicLetter(K),i)))}
+function chordNames(name){const ci=chordInfo(name);const l=name[0];return ci.pcs.map((p,i)=>sp(p,letterAt(l,i*2)))}
+function triadOn(sc,i,SN){const r=sc[i],t=sc[(i+2)%7],f=sc[(i+4)%7];const a=(t-r+12)%12,b=(f-r+12)%12;const q=a===4&&b===7?'':a===3&&b===7?'m':a===3&&b===6?'dim':a===4&&b===8?'aug':'?';const rn=SN?SN[i]:nn(r);return {r,t,f,q,rn,tn:SN?SN[(i+2)%7]:nn(t),fn:SN?SN[(i+4)%7]:nn(f),name:rn+(q==='dim'?'°':q==='aug'?'+':q)}}
+function keyChords(K){const sc=TK_MODES[K.m].map(x=>(K.t+x)%12);const SN=scaleNames(K);return sc.map((_,i)=>triadOn(sc,i,SN))}
+const ROLE_MIN=['<b>Home.</b> The chord the song starts and ends on; everything comes back here.','Rarely used: a tense "diminished" chord (two small 3rds stacked).','<b>The bright one.</b> A major chord inside the minor key: a moment of light (it is the home chord of the matching major key).','<b>The "away" chord.</b> The sigh, the yearning move away from home.','<b>The pull back home.</b> On paper it is minor, but Jewish (and most) music raises one note to make it <b>major</b>, so it pulls strongly back to the home chord.','<b>Warm and big.</b> A major chord a step above the "pull" chord; very common in Carlebach and kumzitz songs.','<b>One step below home</b> (major): it leads back up, and it is the bridge to the bright chord.'];
+const ROLE_MAJ=['<b>Home.</b> The song starts and ends here.','<b>Soft "away" chord</b> (minor).','Rare (minor).','<b>The lift / "away" chord.</b> Opens the music up.','<b>The pull back home.</b> Wants to resolve to the home chord.','<b>The sad one</b> (minor): the home chord of the matching minor key.','Rare: tense diminished chord.'];
+const ROLE_FR=['<b>Home</b>: a <b>major</b> chord, but the scale above it has the "crying" half step, so it sounds Jewish and minor-ish at the same time.','<b>The step above home</b>: the half step up and back is THE freygish sound (the classic chassidish and klezmer ending).','Rare.','<b>The minor "away" chord</b> (freygish is built on the 5th note of a harmonic minor key, so this is that key\'s home chord).','Rare.','Rare.','<b>Leads down to home</b>, often as the last chord before the end.'];
+function whyKeyHTML(id){const K=TK[id];const sc=TK_MODES[K.m].map(x=>(K.t+x)%12);const SN=scaleNames(K);const ch=keyChords(K);
+  const steps=TK_MODES[K.m].map((x,i,a)=>STEP_NAME[((i<6?a[i+1]:12)-x)]);const home=SN[0];
+  const used=(Object.values(SETS).find(s=>s.name.startsWith(K.name))||{}).chords||[];
+  const roles=K.m==='minor'?ROLE_MIN:K.m==='major'?ROLE_MAJ:ROLE_FR;
+  const s7=K.m==='minor'?sp((K.t+11)%12,letterAt(tonicLetter(K),6)):null;const v=ch[4];
+  const raised=K.m==='minor'?`<p><b>Why ${v.rn} (major) and not ${v.rn}m?</b> Built strictly from the ${K.name} notes, the chord on ${v.rn} is ${v.rn} ${v.tn} ${v.fn}, which is minor. Musicians raise ${v.tn} by a half step to <b>${s7}</b>, making <b>${v.rn} ${s7} ${v.fn}</b>, a major chord. ${s7} is only a half step below ${home} (home), so it "leans" into home and pulls the music back. That raised note also gives Jewish minor tunes their Middle Eastern colour (it's called "harmonic minor").</p>`:'';
+  const blacks=SN.filter(n=>n.length>1);
+  const notThese=[];SN.forEach((rn,i)=>{const r=sc[i];['','m'].forEach(q=>{const nm2=rn+q;if(ch.some(c=>c.name===nm2))return;if(K.m==='minor'&&i===4&&q==='')return;
+    const ivs=q?[0,3,7]:[0,4,7];const names=ivs.map((x,j)=>sp((r+x)%12,letterAt(rn[0],j*2)));const pcs=ivs.map(x=>(r+x)%12);
+    const out=names.filter((n,j)=>!sc.includes(pcs[j])&&!(K.m==='minor'&&pcs[j]===(K.t+11)%12));if(out.length)notThese.push(`<b>${nm2}</b> needs ${out.join(' and ')}, which ${out.length>1?'are':'is'} not in ${K.name}`)})});
+  const isUsed=(c,i)=>used.includes(c.name)||(K.m==='minor'&&i===4&&used.includes(c.rn));
+  return `<div class="card" style="gap:8px"><h3 style="margin:0">${K.name}: what it is</h3>
+   <p><b>A key is a family of 7 notes</b> that sound right together, with one of them as "home". ${K.name} is the family that starts on <b>${home}</b>: <b>${SN.join(' · ')}</b>.</p>
+   <p><b>Why these 7?</b> Every key follows a fixed pattern of steps (a <i>half step</i> = the very next key, black or white; a <i>whole step</i> = skip one key). ${K.m==='major'?'Major':K.m==='minor'?'Minor':'Freygish'}: <b>${steps.join(', ')}</b>. Start that pattern on ${home} and you land on exactly these notes. That's why ${K.name} ${blacks.length?`uses ${blacks.join(', ')}`:'uses only white keys'}.</p>
+   ${K.m==='minor'?`<p><b>Why "minor"?</b> Its home chord, ${SN[0]} ${SN[2]} ${SN[4]}, has a <b>small</b> 3rd: from ${SN[0]} up to ${SN[2]} is only 3 half steps. "Minor" is Latin for <i>smaller</i>. A major chord has the bigger 3rd (4 half steps). That small 3rd is what makes minor sound darker and yearning, which is why most niggunim are minor.</p>`:K.m==='major'?`<p><b>Why "major"?</b> Its home chord ${SN[0]} ${SN[2]} ${SN[4]} has a <b>big</b> 3rd: 4 half steps from ${SN[0]} to ${SN[2]}. "Major" is Latin for <i>bigger</i>. That sounds bright and settled.</p>`:`<p><b>Why "freygish"?</b> It's the Yiddish name for the scale chazzanim call <i>Ahava Rabba</i>. The home chord ${home} is major, but the very next note is only a <b>half step</b> up (${SN[1]}), followed by a step-and-a-half gap (${SN[1]} → ${SN[2]}). That half step and gap are the "krechtz" sound of Jewish music.</p>`}
+   <h3 style="margin:8px 0 0">The chords of ${K.name}, and why</h3>
+   <p><b>A chord is every other note of the key, stacked:</b> take a note of the family, skip one, take one, skip one, take one. The gaps between the notes aren't all the same size, so some chords come out major and some minor. Nobody chooses that; the 7 notes decide it.</p>
+   <div style="display:flex;flex-direction:column;gap:6px">${ch.map((c,i)=>`<div style="border:1px solid var(--rule);border-radius:8px;padding:6px 10px${isUsed(c,i)?';border-left:4px solid var(--ok)':''}"><b style="font-size:18px">${K.m==='minor'&&i===4?`${c.rn} <span style="font-size:13px;font-weight:400">(from the scale: ${c.name})</span>`:c.name}</b> = ${K.m==='minor'&&i===4?`${c.rn} <b>${s7}</b> ${c.fn}`:`${c.rn} ${c.tn} ${c.fn}`} · ${roles[i]}${isUsed(c,i)?' <span style="color:var(--ok);font-size:13px">· in your trainers</span>':''}</div>`).join('')}</div>
+   ${raised}
+   ${notThese.length?`<p><b>Why not other chords?</b> A chord only fits if all three of its notes are in the family: ${notThese.slice(0,7).join('; ')}. In this key they'd clash with the tune (unless a song borrows one on purpose for a special colour).</p>`:''}
+   ${K.m==='minor'?`<p><b>Its twin:</b> ${K.name} has exactly the same 7 notes as <b>${SN[2]} major</b>. Same family, different home note. That's why ${ch[2].name} feels like a bright moment inside a ${K.name} song.</p>`:K.m==='major'?`<p><b>Its twin:</b> ${K.name} has exactly the same 7 notes as <b>${SN[5]} minor</b>. Same family, different home note.</p>`:''}</div>`}
+function whyChordHTML(name){const ci=chordInfo(name);const third=ci.minor?3:4;const CN=chordNames(name);
+  const hits=Object.entries(TK).map(([id,K])=>{const ch=keyChords(K);const i=ch.findIndex((c,j)=>c.name===name||(K.m==='minor'&&j===4&&c.rn===name));return i<0?null:{K,i}}).filter(Boolean);
+  const ks=hits.map(({K,i})=>{const roles=K.m==='minor'?ROLE_MIN:K.m==='major'?ROLE_MAJ:ROLE_FR;return `<li><b>${K.name}</b>: ${roles[i]}</li>`}).join('');
+  const other=ci.minor?`${CN[0]} major (${CN[0]} ${sp(ci.pcs[1]+1,CN[1][0])} ${CN[2]})`:`${CN[0]}m (${CN[0]} ${sp(ci.pcs[1]+11,CN[1][0])} ${CN[2]})`;
+  const marks=ci.pcs.map((p,i)=>({k:60+ci.root+((p-ci.root+12)%12),f:[1,3,5][i],h:'r'}));
+  return `<div class="card" style="gap:8px"><h3 style="margin:0">The ${name} chord</h3><div class="kb">${keyboardSVG(48,84,marks,new Set(),new Set())}</div>
+   <p><b>Notes:</b> ${CN.join(' · ')}. <b>How it's built:</b> start on ${CN[0]} (the <i>root</i>, which gives the chord its letter), count <b>${third} half steps</b> up to ${CN[1]} (the <i>3rd</i>), and <b>7 half steps</b> from the root to ${CN[2]} (the <i>5th</i>).</p>
+   <p><b>Why "${name}"?</b> "${CN[0]}" because it's built on ${CN[0]}. ${ci.minor?`The little "m" means <b>minor</b>: the 3rd is the small one (3 half steps), so it sounds darker, sad or yearning.`:`No "m" means <b>major</b>: the 3rd is the big one (4 half steps), so it sounds bright and settled.`} Move just that middle note by one half step and you get ${other}: same letter, opposite mood.</p>
+   <p><b>Thumb and pinky:</b> the root and the 5th (${CN[0]} + ${CN[2]}) are the same in ${CN[0]} and ${CN[0]}m. That's why the open 5th sounds right under either one, and why the middle note (or the tune in your right hand) decides major or minor.</p>
+   ${ks?`<p><b>Which keys use it, and its job in each:</b></p><ul style="margin:0">${ks}</ul><p style="margin:0;font-size:14px">One chord can belong to several key-families; it just has a different job in each.</p>`:''}</div>`}
+function whyHTML(){const k=store.get('why-key','am');const c=store.get('why-chord','');const K=TK[k]||TK.am;const ch=keyChords(K).map((x,i)=>K.m==='minor'&&i===4?x.rn:x.name).filter(n=>!n.includes('°'));
+  return `<div class="head"><div class="eyebrow">Why</div><h2>Why it's done this way</h2><p>The reasons behind keys and chords: what a key is, why its chords are major or minor, why some chords belong and others don't, and what each chord's job is. Pick a key, then tap any chord.</p></div>
+  <div class="card" style="gap:8px"><div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Key:</span>${Object.entries(TK).map(([id,X])=>`<button class="btn small" data-wk="${id}" aria-pressed="${id===k}">${X.name}</button>`).join('')}</div>
+   <div class="row" style="gap:6px"><span style="font-weight:600;font-size:14px">Chord:</span>${ch.map(n=>`<button class="btn small" data-wc="${n}" aria-pressed="${n===c}">${n}</button>`).join('')}</div></div>
+  ${c?whyChordHTML(c):''}${whyKeyHTML(TK[k]?k:'am')}`}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-why]');if(!b)return;store.set('why-key',b.dataset.why);store.set('why-chord',b.dataset.whyc||'');cur='why';save();render();scrollTo(0,0)});
+const whyBtn=(sel,chord)=>`<button class="btn small" data-why="${whyKeyFor(sel)}" data-whyc="${chord||''}">📖 Why these chords?</button>`;
+
 const SETUP_QUICK={
  solo:'Style <b>off</b> ([ACMP] off) · RIGHT 1 <b>ConcertGrand</b> + RIGHT 2 <b>WarmStrings</b> (quieter) · LEFT <b>off</b> (both hands piano + strings) · sustain pedal',
  guitar:'Same voices as Setup 1: <b>ConcertGrand</b> + <b>WarmStrings</b>, LEFT off, style off. Strings a little louder; keep the Tyros under the band',
@@ -1582,7 +1645,7 @@ const SETUP_QUICK={
  simcha:'Style <b>on</b>: [ACMP] on, chord fingering <b>FINGERED</b> · left-hand chords at or below the F♯ under middle C · RIGHT 1 a lead voice · Fill-In / Variation on beat 4',
  hora:'Style <b>on</b> ([ACMP] on) · same left hand as the simcha setup · see Setup 5 for the lead and rhythm',
  carl:'See Setup 6 · Carlebach upbeat'};
-function setupFor(sel){if(sel==='setups'||sel==='coach')return null;
+function setupFor(sel){if(sel==='setups'||sel==='coach'||sel==='why')return null;
   if(sel==='inv')return ['simcha','the Inversion Trainer'];
   if(sel==='pt'){const lv=DS.pt.lv;if(lv==='drone'||lv==='jump')return ['chuppah','this level'];return ['solo','the Pattern Trainer']}
   if(sel==='jam'){const g=JAM.groove;if(g==='chup')return ['chuppah','this band'];if(g==='frei')return ['simcha','this band',1];if(g==='hora')return ['hora','this band',1];
@@ -1597,7 +1660,9 @@ function setupBox(sel){const f=setupFor(sel);if(!f||typeof SETUPS==='undefined')
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-suo]');if(b)store.set('su-open',b.dataset.suo)},true);
 const tabsHTML=sel=>`<div class="lessons">${TRAINER_TABS.map(([id,n])=>`<button class="lchip" data-l="${id}" aria-pressed="${sel===id}">${n}</button>`).join('')}</div>`+setupBox(sel)+coachStrip(sel);
 function render(){if(metro.on){clearInterval(metro.iv);metro.on=false}
-  if(cur==='patterns')cur='pt';if(cur==='coach'){const app=document.getElementById('app');app.innerHTML=tabsHTML('coach')+coachHTML();app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});return}
+  if(cur==='patterns')cur='pt';if(cur==='why'){const app=document.getElementById('app');app.innerHTML=tabsHTML('why')+whyHTML();app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
+    app.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{store.set('why-key',b.dataset.wk);store.set('why-chord','');render()});app.querySelectorAll('[data-wc]').forEach(b=>b.onclick=()=>{store.set('why-chord',b.dataset.wc===store.get('why-chord','')?'':b.dataset.wc);render()});return}
+  if(cur==='coach'){const app=document.getElementById('app');app.innerHTML=tabsHTML('coach')+coachHTML();app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});return}
   if(!['trainer','pt','th','rh','jam','inv','sc','ear','songs','setups'].includes(cur))cur='trainer';
   if(cur==='setups'){const app=document.getElementById('app');app.innerHTML=tabsHTML('setups')+setupsHTML();
     app.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{cur=b.dataset.l;save();render();scrollTo(0,0)});
