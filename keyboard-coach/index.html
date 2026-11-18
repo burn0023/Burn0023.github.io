@@ -231,6 +231,12 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
   const endTurn=()=>{T.on=false;EX_LISTEN.delete(id);beatStop();cm=ex.marks;nowTxt='';draw()};
   const allowed=()=>{const a=new Set();for(let j=T.idx;j>=0;j--){if(steps[j].hold){steps[j].hold.forEach(k=>a.add(k));break}}if(T.idx>0)steps[T.idx-1].exp.forEach(k=>a.add(k));return a};
   let lastEv=null;const judge=()=>{if(!document.getElementById(id)){EX_LISTEN.delete(id);MIDI.subs.delete(judge);MIDI.subs.delete(draw);return}if(!T.on||playing||!MIDI.ev||MIDI.ev===lastEv)return;const ev=MIDI.ev;lastEv=ev;const st=steps[T.idx];if(ex.only==='l'&&ev.n>=60)return;
+    /* playing around: 10 wrong notes in a row means you're noodling, not doing the card. The card waits; nothing counts until you start it again */
+    if(ev.on&&T.noodle){if(steps[0].exp.has(ev.n)){T.noodle=false;T.wr=0;T.idx=0;T.fresh=new Set();T.times=[];T.miss=0;T.msg=''}else{ev.free=true;return}}
+    if(ev.on&&!st.exp.has(ev.n)&&!allowed().has(ev.n)){T.wr=(T.wr||0)+1;if(T.wr>=10){T.noodle=true;T.idx=0;T.fresh=new Set();T.times=[];T.miss=0;ev.free=true;
+      T.msg=`Playing around? No problem: the card waits and none of that counts. Start again with <b>${nameList(steps[0].exp)}</b> whenever you're ready.`;cm=expMarks(steps[0].exp,steps[0].mk);nowTxt=turnTxt();draw();return}}
+    else if(ev.on)T.wr=0;
+    if(ev.on)ev.ex=true;
     if(ev.on){if(st.exp.has(ev.n))T.fresh.add(ev.n);else if(!allowed().has(ev.n)){T.miss++;
       T.msg=st.exp.has(ev.n-12)?`✗ ${nm(ev.n)} is one octave too <b>high</b>. Move the hand down.`:st.exp.has(ev.n+12)?`✗ ${nm(ev.n)} is one octave too <b>low</b>. Move the hand up.`:`✗ That was <b>${nm(ev.n)}</b>. Wanted <b>${nameList(st.exp)}</b>.`}}
     if([...st.exp].every(k=>T.fresh.has(k)&&MIDI.held.has(k))){const now=performance.now();let tmsg='';
@@ -623,9 +629,11 @@ const FREE={on:true,s:null,timer:null,seen:null};
 const FREE_IDLE=45000,FREE_MAX_CHUNKS=2;
 function freeMidi(){if(!FREE.on||!MIDI.ev||MIDI.ev===FREE.seen)return;FREE.seen=MIDI.ev;
   /* only true free play: skip while a trainer is judging, the Jam band is playing, a song is being recorded, or the Chord Trainer round is live */
-  [...EX_LISTEN].forEach(x=>{if(!document.getElementById(x))EX_LISTEN.delete(x)});
-  if(EX_LISTEN.size||(typeof JAM!=='undefined'&&(JAM.state==='play'||JAM.state==='demo'))||(typeof LISTEN!=='undefined'&&LISTEN.on)||(cur==='trainer'&&document.getElementById('trCard')))return;const e=MIDI.ev,now=performance.now();
-  if(!FREE.s)FREE.s={t0:now,last:now,ev:[],raw:[],screens:new Set()};const S=FREE.s;
+  if((typeof JAM!=='undefined'&&(JAM.state==='play'||JAM.state==='demo'))||(typeof LISTEN!=='undefined'&&LISTEN.on)||(cur==='trainer'&&document.getElementById('trCard')))return;
+  const ev=MIDI.ev;setTimeout(()=>freeRecord(ev),0)}
+/* a note the trainer used (right note, or a wrong note while doing the card) isn't free play; noodling between or during cards is */
+function freeRecord(e){[...EX_LISTEN].forEach(x=>{if(!document.getElementById(x))EX_LISTEN.delete(x)});if(e.ex)return;if(!e.on&&EX_LISTEN.size&&!(FREE.s&&FREE.s.open&&FREE.s.open.has(e.n)))return;
+  const now=performance.now();if(!FREE.s)FREE.s={t0:now,last:now,ev:[],raw:[],screens:new Set(),open:new Set()};const S=FREE.s;if(e.on)S.open.add(e.n);else S.open.delete(e.n);
   S.screens.add(cur);S.ev.push({t:now,n:e.n,on:e.on,v:e.v||0});S.raw.push((Math.round((now-S.last)/10)).toString(36)+(e.on?'+':'-')+e.n.toString(36));S.last=now;
   clearTimeout(FREE.timer);FREE.timer=setTimeout(freeSend,FREE_IDLE);freeDot()}
 MIDI.subs.add(freeMidi);
