@@ -1,6 +1,6 @@
 {
  "date": "18 Nov 2026, 13:57",
- "note": "<b>Two-Hand level 1 (Together) is green.</b> Every card is right; E → Am was played clean 6 times in a row. Your free play shows you mostly use full 3-note chords in the left hand and land the melody on the chord's 5th. Next on the path to smooth changes: Two-Hand level 2 (right holds, left steady) and Pattern level 5 (open 5th).",
+ "note": "<b>Two-Hand level 1 (Together) is green.</b> Every card is right; E → Am was played clean 6 times in a row. Next on the path to smooth changes: Two-Hand level 2 (right holds, left steady) and Pattern level 5 (open 5th).",
  "items": [
   {
    "title": "Two-Hand Trainer · 2 · Right holds, left steady",
@@ -12,7 +12,7 @@
   },
   {
    "title": "Pattern Trainer · 5 · Open 5th",
-   "why": "Your free play shows mostly full 3-note chords in the left hand. The open 5th (pinky + thumb) is the kumzitz sound, and it unlocks the Right-Hand Trainer and the smooth changes.",
+   "why": "The open 5th (pinky + thumb) is the kumzitz left-hand sound. It unlocks the Right-Hand Trainer and the smooth changes.",
    "go": {
     "tab": "pt",
     "lv": "o5",

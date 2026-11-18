@@ -209,6 +209,7 @@ function beatBand(atMs,chord,beatInBar,per){const a=ac();if(!a||!chord)return;if
   try{jStrum(a,chord,at,true,beatInBar===0?.95:.75,spb*.5+.05);jStrum(a,chord,at+spb*.5,false,.5,spb*.5);jNoise(a,at,.05,.08,'highpass',6500);jNoise(a,at+spb*.5,.05,.05,'highpass',6500)}catch(e){}}
 function beatClick(atMs,acc){const a=ac();if(typeof JAM!=='undefined'&&JAM.out==='kbd'&&outOK()){return setTimeout(()=>MIDI.acc.outputs.forEach(o=>{try{o.send([0x99,acc?34:33,acc?110:85]);o.send([0x89,acc?34:33,0])}catch(e){}}),Math.max(0,atMs-performance.now()))}
   if(a)click(a.currentTime+Math.max(0,atMs-performance.now())/1000,acc);return null}
+const EX_LISTEN=new Set(); /* exercises currently judging notes: that playing is reported by the trainer, not as free play */
 function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let timers=[],playing=false,lit=new Set(),nowTxt='',held=new Set(),cm=ex.marks,hf=null;
   const mem=()=>typeof ex.memory==='function'&&ex.memory();const allMarks=[...ex.marks,...ex.seq.flatMap(st=>st.marks||[])];
   const need=ex.need||2;const T={on:false,idx:0,fresh:new Set(),miss:0,clean:0,msg:''};const B={timers:[],t0:0,spb:0,due:[],offs:[],per:4};
@@ -226,19 +227,19 @@ function exercise(ex){const id='x'+Math.random().toString(36).slice(2,7);let tim
       else{const t1=beatClick(at,i%B.per===0);if(t1)B.timers.push(t1)}
       B.timers.push(setTimeout(()=>{const el=document.getElementById(id);if(!el)return beatStop();el.querySelectorAll('[data-bt] i').forEach((x,j)=>x.classList.toggle('on',j===i%B.per));
         if(i<B.per&&T.on){T.msg=`Count-in… <b>${B.per-i}</b>`;nowTxt=turnTxt();draw()}else if(i===B.per&&T.on){T.msg='';nowTxt=turnTxt();draw()}},Math.max(0,at-performance.now())))}};
-  const startTurn=()=>{if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}if(playing)stop();hf=null;T.on=true;T.times=[];T.idx=0;T.fresh=new Set();T.miss=0;T.msg='';cm=expMarks(steps[0].exp,steps[0].mk);if(beatOn())beatStart();nowTxt=turnTxt();draw()};
-  const endTurn=()=>{T.on=false;beatStop();cm=ex.marks;nowTxt='';draw()};
+  const startTurn=()=>{if(!MIDI.ok){toast('Tap Connect keyboard at the top first.');return}if(playing)stop();hf=null;T.on=true;EX_LISTEN.add(id);T.times=[];T.idx=0;T.fresh=new Set();T.miss=0;T.msg='';cm=expMarks(steps[0].exp,steps[0].mk);if(beatOn())beatStart();nowTxt=turnTxt();draw()};
+  const endTurn=()=>{T.on=false;EX_LISTEN.delete(id);beatStop();cm=ex.marks;nowTxt='';draw()};
   const allowed=()=>{const a=new Set();for(let j=T.idx;j>=0;j--){if(steps[j].hold){steps[j].hold.forEach(k=>a.add(k));break}}if(T.idx>0)steps[T.idx-1].exp.forEach(k=>a.add(k));return a};
-  let lastEv=null;const judge=()=>{if(!document.getElementById(id)){MIDI.subs.delete(judge);MIDI.subs.delete(draw);return}if(!T.on||playing||!MIDI.ev||MIDI.ev===lastEv)return;const ev=MIDI.ev;lastEv=ev;const st=steps[T.idx];if(ex.only==='l'&&ev.n>=60)return;
+  let lastEv=null;const judge=()=>{if(!document.getElementById(id)){EX_LISTEN.delete(id);MIDI.subs.delete(judge);MIDI.subs.delete(draw);return}if(!T.on||playing||!MIDI.ev||MIDI.ev===lastEv)return;const ev=MIDI.ev;lastEv=ev;const st=steps[T.idx];if(ex.only==='l'&&ev.n>=60)return;
     if(ev.on){if(st.exp.has(ev.n))T.fresh.add(ev.n);else if(!allowed().has(ev.n)){T.miss++;
       T.msg=st.exp.has(ev.n-12)?`✗ ${nm(ev.n)} is one octave too <b>high</b>. Move the hand down.`:st.exp.has(ev.n+12)?`✗ ${nm(ev.n)} is one octave too <b>low</b>. Move the hand up.`:`✗ That was <b>${nm(ev.n)}</b>. Wanted <b>${nameList(st.exp)}</b>.`}}
     if([...st.exp].every(k=>T.fresh.has(k)&&MIDI.held.has(k))){const now=performance.now();let tmsg='';
       if(B.t0&&B.due[T.idx]!=null){const off=Math.round(now-B.due[T.idx]);B.offs.push(off);const big=Math.max(120,B.spb*.2);tmsg=Math.abs(off)<=big?'✓ on the beat':off>0?`late ${(off/1000).toFixed(2)} s: change on the click`:`early ${(-off/1000).toFixed(2)} s: wait for the click`}
       T.idx++;T.fresh=new Set();(T.times=T.times||[]).push(now);if(!ev.on||st.exp.has(ev.n))T.msg='';if(tmsg)T.msg=tmsg;
       if(T.idx>=steps.length){if(T.miss===0)T.clean++;
-        if(ex.onDone){T.on=false;const offs=B.t0?B.offs.slice():null;setTimeout(beatStop,B.spb||0);cm=ex.marks;const r=ex.onDone({miss:T.miss,times:T.times,offs,bpm:offs?bpm():null});nowTxt=r||'';draw();return}
+        if(ex.onDone){T.on=false;EX_LISTEN.delete(id);const offs=B.t0?B.offs.slice():null;setTimeout(beatStop,B.spb||0);cm=ex.marks;const r=ex.onDone({miss:T.miss,times:T.times,offs,bpm:offs?bpm():null});nowTxt=r||'';draw();return}
         if(T.clean>=need&&!isPassed(ex.key)){PASS[ex.key]=true;store.set('pb-pass',PASS);sendReport(`STEP PASSED · ${ex.key} · ${need} clean runs`);document.dispatchEvent(new Event('ex-pass'))}
-        const done=isPassed(ex.key);T.on=false;beatStop();cm=ex.marks;
+        const done=isPassed(ex.key);T.on=false;EX_LISTEN.delete(id);beatStop();cm=ex.marks;
         nowTxt=T.miss===0?(done?`<b style="color:var(--ok)">✓ Passed.</b> ${T.clean>=need?'Clean run'+(need>1?'s':'')+' done.':''} You can go on, or keep practising.`:`<b style="color:var(--ok)">✓ Clean run.</b> ${need-T.clean} more to pass. Tap <b>Your turn</b> again.`):`Finished with ${T.miss} wrong note${T.miss>1?'s':''}. A run counts when it has none. Tap <b>Your turn</b> to go again, slowly.`;
         draw();return}
       cm=expMarks(steps[T.idx].exp,steps[T.idx].mk)}
@@ -620,7 +621,10 @@ MIDI.subs.add(listenMidi);
    After 45 s of silence it sends Claude one summary (chords, left-hand habits, key, tempo) plus the notes themselves (capped). No sound, no scoring. ---------- */
 const FREE={on:true,s:null,timer:null,seen:null};
 const FREE_IDLE=45000,FREE_MAX_CHUNKS=2;
-function freeMidi(){if(!FREE.on||!MIDI.ev||MIDI.ev===FREE.seen)return;FREE.seen=MIDI.ev;const e=MIDI.ev,now=performance.now();
+function freeMidi(){if(!FREE.on||!MIDI.ev||MIDI.ev===FREE.seen)return;FREE.seen=MIDI.ev;
+  /* only true free play: skip while a trainer is judging, the Jam band is playing, a song is being recorded, or the Chord Trainer round is live */
+  [...EX_LISTEN].forEach(x=>{if(!document.getElementById(x))EX_LISTEN.delete(x)});
+  if(EX_LISTEN.size||(typeof JAM!=='undefined'&&(JAM.state==='play'||JAM.state==='demo'))||(typeof LISTEN!=='undefined'&&LISTEN.on)||(cur==='trainer'&&document.getElementById('trCard')))return;const e=MIDI.ev,now=performance.now();
   if(!FREE.s)FREE.s={t0:now,last:now,ev:[],raw:[],screens:new Set()};const S=FREE.s;
   S.screens.add(cur);S.ev.push({t:now,n:e.n,on:e.on,v:e.v||0});S.raw.push((Math.round((now-S.last)/10)).toString(36)+(e.on?'+':'-')+e.n.toString(36));S.last=now;
   clearTimeout(FREE.timer);FREE.timer=setTimeout(freeSend,FREE_IDLE);freeDot()}
