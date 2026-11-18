@@ -1456,7 +1456,10 @@ function coachGo(a){if(!a)return;
 const keyOfProg=(id,prog)=>{const K=dKeys(id);return Object.keys(K).find(k=>K[k].pairs.some(p=>p.join('-')===prog))};
 function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag)=>out.push({pri,title,why,go,tag:tag||'coach'});
   /* 1. Claude's notes from the results sheet */
-  const P=COACH.plan;if(P&&Array.isArray(P.items))P.items.forEach((it,i)=>add(100-i,it.title,it.why||'',it.go||null,'claude'));
+  const P=COACH.plan;if(P&&Array.isArray(P.items))P.items.forEach((it,i)=>{const g=it.go;
+    /* Claude's suggestion drops off by itself once that skill is green */
+    if(g&&DRILLS[g.tab]&&g.lv&&skillGreen(g.tab,g.lv))return;if(g&&g.tab==='jam'&&g.role&&typeof jamRoleGreen==='function'&&(g.key?(()=>{const o=JAM.key;JAM.key=g.key;const r=jamRoleGreen(g.role);JAM.key=o;return r})():jamRoleGreen(g.role))&&!g.bpm)return;
+    add(100-i,it.title,it.why||'',g||null,'claude')});
   /* 2. chords that are slow or missed in the Chord Trainer */
   const weak={};Object.entries(TR.stats).forEach(([k,s])=>{if(!s||s.n<3)return;const c=k.split(':').pop();const mr=(s.miss||0)/s.n;if(s.avg>2500||mr>.25){const w=weak[c]||(weak[c]={c,avg:0,mr:0,n:0});w.avg=Math.max(w.avg,s.avg);w.mr=Math.max(w.mr,mr);w.n++}});
   /* 3. drill cards that keep failing */

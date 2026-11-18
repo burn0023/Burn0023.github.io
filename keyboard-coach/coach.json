@@ -1,33 +1,22 @@
 {
- "date": "16 Nov 2026, 14:09",
- "note": "<b>Pad under the band is all green (6 of 6)</b> after two rounds at 66 bpm. Chord changes are almost exactly on the beat. The left-over notes were brushes: soft (velocity 27–59) and 10–80 ms after the beat, as your hand moved over an old key. They went from about 12% to 3%. Next on the path to smooth shapes: Two-Hand 1 → 2 and Pattern 5 unlock Two-Hand 7 (smooth changes), which unlocks the smooth-shapes pad. Earlier results: E, D/Dm and Em are your slowest chords, and B♭/E♭ in G minor.",
+ "date": "18 Nov 2026, 13:57",
+ "note": "<b>Two-Hand level 1 (Together) is green.</b> Every card is right; E → Am was played clean 6 times in a row. Your free play shows you mostly use full 3-note chords in the left hand and land the melody on the chord's 5th. Next on the path to smooth changes: Two-Hand level 2 (right holds, left steady) and Pattern level 5 (open 5th).",
  "items": [
   {
-   "title": "Two-Hand Trainer · 1 · Together",
-   "why": "Both hands landing at the same instant. Quick, and it unlocks level 2 (right holds, left steady).",
+   "title": "Two-Hand Trainer · 2 · Right holds, left steady",
+   "why": "Level 1 is done. Now the right hand holds the chord while the left hand plays its pattern: the start of real two-hand independence.",
    "go": {
     "tab": "th",
-    "lv": "tog"
+    "lv": "hs"
    }
   },
   {
    "title": "Pattern Trainer · 5 · Open 5th",
-   "why": "With Two-Hand 2, it unlocks Two-Hand 7 (smooth changes) and the Right-Hand Trainer.",
+   "why": "Your free play shows mostly full 3-note chords in the left hand. The open 5th (pinky + thumb) is the kumzitz sound, and it unlocks the Right-Hand Trainer and the smooth changes.",
    "go": {
     "tab": "pt",
     "lv": "o5",
     "key": "am"
-   }
-  },
-  {
-   "title": "Kumzitz Jam · Pad, +4 bpm",
-   "why": "Green at 66 bpm. Try 70 and keep the brushes away: lift the fingers straight up before moving.",
-   "go": {
-    "tab": "jam",
-    "role": "pad",
-    "groove": "kz44",
-    "key": "am",
-    "bpm": 70
    }
   }
  ]
