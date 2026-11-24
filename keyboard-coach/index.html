@@ -1481,7 +1481,7 @@ const COACH={plan:null,loaded:false};
 (function(){try{fetch('coach.json?'+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{COACH.plan=j;COACH.loaded=true;const s=document.getElementById('coachStrip');if(s||cur==='coach')render()}).catch(()=>{COACH.loaded=true})}catch(e){}})();
 const DAY=86400000;
 function coachGo(a){if(!a)return;if(a.beat)store.set('pb-beat',store.get('pb-beat',false)||'click');
-  if(a.tab==='trainer'){if(a.set&&SETS[a.set]){TR.set=a.set;store.set('tr-set',a.set)}if(a.hand){TR.hand=a.hand;store.set('tr-hand',a.hand)}if(a.mode){TR.mode=a.mode;store.set('tr-mode',a.mode)}TR.focus=a.focus||null;TR.summary=null;trBuild()}
+  if(a.tab==='trainer'){if(a.set&&SETS[a.set]){TR.set=a.set;store.set('tr-set',a.set)}if(a.hand){TR.hand=a.hand;store.set('tr-hand',a.hand)}if(a.mode){TR.mode=a.mode;store.set('tr-mode',a.mode)}TR.focus=a.focus||null;TR.summary=null;trBuild();if(a.focus)setTimeout(()=>toast(`Focus round: ${a.focus.join(', ')} come${a.focus.length>1?'':'s'} up far more often.`),300)}
   else if(DRILLS[a.tab]){const S=DS[a.tab],D=DRILLS[a.tab];if(a.lv&&D.levels.some(x=>x.id===a.lv)){S.lv=a.lv;store.set(D.store+'-lv',a.lv)}if(a.key&&dKeys(a.tab)[a.key]){S.key=a.key;store.set(D.store+'-key',a.key)}if(a.lh&&a.tab==='rh')store.set('rh-lh',a.lh);if(a.mem!=null){S.mem=a.mem;store.set(D.store+'-mem',a.mem)}dBuild(a.tab)}
   else if(a.tab==='jam'){['role','groove','key'].forEach(k=>{if(a[k]){JAM[k]=a[k];store.set('jam-'+k,a[k])}});if(a.bpm){JAM.bpm[JAM.groove]=a.bpm;store.set('jam-bpm',JAM.bpm)}jamStop(true);jamBuild()}
   else if(a.tab==='ear'&&a.lv){EAR.lv=a.lv;store.set('ear-lv',a.lv);EAR.stop();EAR.newRound()}
@@ -1491,8 +1491,6 @@ function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag
   /* 1. Claude's notes from the results sheet */
   /* Claude's board is shown separately (see boardItems) */
   /* 2. chords that are slow or missed in the Chord Trainer */
-  /* a chord is weak only while it is slow or missed NOW: recent average over 2.5 s, or recent misses; once it's fast again it drops off */
-  const weak={};Object.entries(TR.stats).forEach(([k,s])=>{if(!s||s.n<3)return;const c=k.split(':').pop();const mr=s.rm!=null?s.rm:(s.miss||0)/s.n;if(s.avg<2000&&(s.rm==null||s.rm<.3))return;if(s.avg>2500||mr>.3){const w=weak[c]||(weak[c]={c,avg:0,mr:0,n:0});if(s.avg>=w.avg){const kp=k.split(':');w.mode=kp[0]==='R'?'recall':'learn';w.hand=kp[kp.length-2]}w.avg=Math.max(w.avg,s.avg);w.mr=Math.max(w.mr,mr);w.n++}});
   /* 3. drill cards that keep failing */
   const chordHits={};const drillWeak=[];
   Object.entries(DRILLS).forEach(([id,D])=>{const S=DS[id];const live=new Set((D.cards?[D.cards]:Object.values(dKeys(id)).map(K=>K.pairs)).flat().map(pr=>pr.join('-')));
@@ -1504,12 +1502,17 @@ function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag
     const cards=arr.map(a=>a.prog.replace(/-/g,' → ')).slice(0,3).join(', ');
     add(60+Math.min(20,tries),`${D.title} · ${x.L.name}`,`Not green yet after ${tries} tries: ${cards}.${uneven?` ${uneven===arr.length?'Mostly':'Partly'} <b>uneven</b> (some notes wait longer than others): go slower and steadier.`:' Mostly wrong notes: use <b>Keys shown</b> for a round, then From memory.'}`,
       {tab:x.id,lv:x.lv,key:x.id==='sc'?null:keyOfProg(x.id,x.prog),lh:x.id==='rh'?(x.st&&x.k?x.k.split('|')[1]:null):null,mem:uneven===arr.length?null:false})});
-  /* chords that show up in many failing cards count as weak too */
-  Object.entries(chordHits).forEach(([c,n])=>{if(n>=2){const w=weak[c]||(weak[c]={c,avg:0,mr:0,n:0});w.cards=n}});
-  const wl=Object.values(weak).sort((a,b)=>(b.avg+(b.cards||0)*800)-(a.avg+(a.cards||0)*800));
-  if(wl.length){const names=wl.slice(0,3).map(w=>w.c);/* the set must contain the slowest chord; among those, the one with the most of the others */const set=Object.keys(SETS).filter(k=>SETS[k].chords.includes(names[0])).map(k=>[k,SETS[k].chords.filter(c=>names.includes(c)).length]).sort((a,b)=>b[1]-a[1])[0];
-    add(70+wl.length*3,`Brush up the chord${names.length>1?'s':''} ${names.join(', ')}`,wl.slice(0,3).map(w=>`<b>${w.c}</b>${w.avg?' '+(w.avg/1000).toFixed(1)+' s':''}${w.mr>.25?' (often missed)':''}${w.cards?' (in '+w.cards+' hard drill cards)':''}`).join(' · ')+'. A few fast rounds in the Chord Trainer make the shapes automatic, so the patterns get easier.',
-      set&&set[1]?{tab:'trainer',set:set[0],mode:wl[0].mode||'recall',hand:wl[0].hand||'both',focus:names}:{tab:'trainer',focus:names})}
+  /* slow chords, grouped the way you practise them: one brush-up per hand (and mode) with a chord set that contains them */
+  const weakL=[];Object.entries(TR.stats).forEach(([k,s])=>{if(!s||s.n<3)return;const kp=k.split(':');const c=kp[kp.length-1],hand=kp[kp.length-2],mode=kp[0]==='R'?'recall':'learn';const mr=s.rm!=null?s.rm:(s.miss||0)/s.n;
+    if(s.avg<2000&&(s.rm==null||s.rm<.3))return;if(s.avg>2500||mr>.3)weakL.push({c,hand,mode,avg:s.avg,mr})});
+  const HN={l:'left hand',r:'right hand',both:'both hands'};const groups={};
+  weakL.forEach(w=>{const sets=Object.keys(SETS).filter(k=>SETS[k].chords.includes(w.c));if(!sets.length)return;
+    const set=sets.includes(TR.set)?TR.set:sets.map(k=>[k,weakL.filter(x=>x.hand===w.hand&&x.mode===w.mode&&SETS[k].chords.includes(x.c)).length]).sort((a,b)=>b[1]-a[1])[0][0];
+    const g=groups[set+'|'+w.hand+'|'+w.mode]||(groups[set+'|'+w.hand+'|'+w.mode]={set,hand:w.hand,mode:w.mode,ch:[]});if(!g.ch.some(x=>x.c===w.c))g.ch.push(w)});
+  Object.values(groups).forEach(g=>{g.ch.sort((a,b)=>b.avg-a.avg);const names=g.ch.map(x=>x.c);
+    add(70+names.length*3,`Brush up ${names.join(', ')} · ${SETS[g.set].name}, ${HN[g.hand]||g.hand}${g.mode==='recall'?', from memory':''}`,
+      g.ch.map(w=>`<b>${w.c}</b> ${(w.avg/1000).toFixed(1)} s${w.mr>.3?' (often missed)':''}`).join(' · ')+`. The round is weighted so ${names.length>1?'these chords come':'this chord comes'} up far more often.`,
+      {tab:'trainer',set:g.set,hand:g.hand,mode:g.mode,focus:names})});
   /* 4. with the band: what the Jam results say */
   const jl=Object.entries(JAM.stats).filter(([k,s])=>s&&s.R&&s.last).sort((a,b)=>b[1].last-a[1].last).slice(0,6);
   if(jl.length){const R=jl.map(x=>x[1].R);const parts=jl.map(x=>x[0].split('|'));const role=parts[0][0],groove=parts[0][1],key=parts[0][2];
@@ -1527,7 +1530,7 @@ function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag
   if(!Object.keys(JAM.stats).length)add(24,'Play with the band','Try the Kumzitz Jam, part 1 (Pad under the band), slow. It\'s the closest thing to a real kumzitz.',{tab:'jam',role:'pad',groove:'kz44'});
   /* next step: the trainer's own suggested level once a level is all green */
   /* every suggestion says exactly what clears it */
-  out.forEach(x=>{const t=x.title;x.clear=t.startsWith('Brush up the chord')?'each of those chords comes up in under 2.5 s from memory, with no misses. Usually 2–3 quick rounds of the Chord Trainer.':
+  out.forEach(x=>{const t=x.title;x.clear=(x.go&&x.go.tab==='trainer'&&x.go.focus)?'each of those chords comes up in under 2.5 s from memory, with no misses. Usually 2–3 quick rounds of the Chord Trainer.':
     t.startsWith('Brush up: ')?'<b>one card with no wrong notes</b> on this level (or on a harder level that includes it).':
     x.go&&DRILLS[x.go.tab]&&x.go.lv?'all the cards on this level are green. A card turns green after two clean runs in a row (no wrong notes).':
     x.go&&x.go.tab==='jam'?'your next Jam card shows it fixed.':t.startsWith('Start')||t.startsWith('Play with')?'you play one round.':''});
