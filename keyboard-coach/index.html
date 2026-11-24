@@ -483,7 +483,7 @@ const TR={set:store.get('tr-set','am'),hand:store.get('tr-hand','l'),mode:store.
 function trStatKey(c,h){return (TR.mode==='recall'?'R:':'')+h+':'+c}
 function trBuild(){const S=SETS[TR.set].chords;const st=TR.stats;
   // 12 cards; slower / missed chords come up more often
-  const w=S.map(c=>{const s=st[trStatKey(c,TR.hand)];if(!s)return 3;return 1+Math.min(4,(s.avg||3000)/1500)+(s.miss||0)/Math.max(1,s.n)*4});
+  const F=TR.focus;TR.focus=null;const w=S.map(c=>{const s=st[trStatKey(c,TR.hand)];const base=!s?3:1+Math.min(4,(s.avg||3000)/1500)+(s.miss||0)/Math.max(1,s.n)*4;return F&&F.includes(c)?base*6:base});
   const q=[];let last='';for(let n=0;n<12;n++){let pick;do{let r=Math.random()*w.reduce((a,b)=>a+b,0);pick=S.find((c,j)=>(r-=w[j])<0)||S[0]}while(pick===last&&S.length>1);q.push(pick);last=pick}
   TR.queue=q;TR.i=0;TR.log=[];TR.miss=false;TR.fb='';TR.shownAt=performance.now()}
 function trZone(k){return k<60?'l':'r'}
@@ -1473,8 +1473,8 @@ const COACH={plan:null,loaded:false};
 (function(){try{fetch('coach.json?'+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{COACH.plan=j;COACH.loaded=true;const s=document.getElementById('coachStrip');if(s||cur==='coach')render()}).catch(()=>{COACH.loaded=true})}catch(e){}})();
 const DAY=86400000;
 function coachGo(a){if(!a)return;
-  if(a.tab==='trainer'){if(a.set&&SETS[a.set]){TR.set=a.set;store.set('tr-set',a.set)}if(a.hand){TR.hand=a.hand;store.set('tr-hand',a.hand)}if(a.mode){TR.mode=a.mode;store.set('tr-mode',a.mode)}TR.summary=null;trBuild()}
-  else if(DRILLS[a.tab]){const S=DS[a.tab],D=DRILLS[a.tab];if(a.lv&&D.levels.some(x=>x.id===a.lv)){S.lv=a.lv;store.set(D.store+'-lv',a.lv)}if(a.key&&dKeys(a.tab)[a.key]){S.key=a.key;store.set(D.store+'-key',a.key)}if(a.lh&&a.tab==='rh')store.set('rh-lh',a.lh);dBuild(a.tab)}
+  if(a.tab==='trainer'){if(a.set&&SETS[a.set]){TR.set=a.set;store.set('tr-set',a.set)}if(a.hand){TR.hand=a.hand;store.set('tr-hand',a.hand)}if(a.mode){TR.mode=a.mode;store.set('tr-mode',a.mode)}TR.focus=a.focus||null;TR.summary=null;trBuild()}
+  else if(DRILLS[a.tab]){const S=DS[a.tab],D=DRILLS[a.tab];if(a.lv&&D.levels.some(x=>x.id===a.lv)){S.lv=a.lv;store.set(D.store+'-lv',a.lv)}if(a.key&&dKeys(a.tab)[a.key]){S.key=a.key;store.set(D.store+'-key',a.key)}if(a.lh&&a.tab==='rh')store.set('rh-lh',a.lh);if(a.mem!=null){S.mem=a.mem;store.set(D.store+'-mem',a.mem)}dBuild(a.tab)}
   else if(a.tab==='jam'){['role','groove','key'].forEach(k=>{if(a[k]){JAM[k]=a[k];store.set('jam-'+k,a[k])}});if(a.bpm){JAM.bpm[JAM.groove]=a.bpm;store.set('jam-bpm',JAM.bpm)}jamStop(true);jamBuild()}
   else if(a.tab==='ear'&&a.lv){EAR.lv=a.lv;store.set('ear-lv',a.lv);EAR.stop();EAR.newRound()}
   cur=a.tab;save();render();scrollTo(0,0)}
@@ -1487,24 +1487,24 @@ function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag
     add(100-i,it.title,it.why||'',g||null,'claude')});
   /* 2. chords that are slow or missed in the Chord Trainer */
   /* a chord is weak only while it is slow or missed NOW: recent average over 2.5 s, or recent misses; once it's fast again it drops off */
-  const weak={};Object.entries(TR.stats).forEach(([k,s])=>{if(!s||s.n<3)return;const c=k.split(':').pop();const mr=s.rm!=null?s.rm:(s.miss||0)/s.n;if(s.avg<2000&&(s.rm==null||s.rm<.3))return;if(s.avg>2500||mr>.3){const w=weak[c]||(weak[c]={c,avg:0,mr:0,n:0});w.avg=Math.max(w.avg,s.avg);w.mr=Math.max(w.mr,mr);w.n++}});
+  const weak={};Object.entries(TR.stats).forEach(([k,s])=>{if(!s||s.n<3)return;const c=k.split(':').pop();const mr=s.rm!=null?s.rm:(s.miss||0)/s.n;if(s.avg<2000&&(s.rm==null||s.rm<.3))return;if(s.avg>2500||mr>.3){const w=weak[c]||(weak[c]={c,avg:0,mr:0,n:0});if(s.avg>=w.avg){const kp=k.split(':');w.mode=kp[0]==='R'?'recall':'learn';w.hand=kp[kp.length-2]}w.avg=Math.max(w.avg,s.avg);w.mr=Math.max(w.mr,mr);w.n++}});
   /* 3. drill cards that keep failing */
   const chordHits={};const drillWeak=[];
   Object.entries(DRILLS).forEach(([id,D])=>{const S=DS[id];const live=new Set((D.cards?[D.cards]:Object.values(dKeys(id)).map(K=>K.pairs)).flat().map(pr=>pr.join('-')));
-    Object.entries(S.stats).forEach(([k,st])=>{if(!st||st.green||st.n<2)return;const parts=k.split('|');const lv=parts[0];const prog=parts[parts.length-1];if(!live.has(prog))return;
+    Object.entries(S.stats).forEach(([k,st])=>{if(!st||st.green||st.n<2)return;const parts=k.split('|');const lv=parts[0];const prog=parts[parts.length-1];if(!live.has(prog))return;const kk=k;
       /* a level you've since got all green (in any key) doesn't need these leftovers */if(skillGreen(id,lv))return;
-      const L=D.levels.find(x=>x.id===lv);if(!L)return;drillWeak.push({id,lv,prog,st,L});if(id!=='sc')prog.split('-').forEach(c=>chordHits[c]=(chordHits[c]||0)+1)})});
+      const L=D.levels.find(x=>x.id===lv);if(!L)return;drillWeak.push({id,lv,prog,st,L,k:kk});if(id!=='sc')prog.split('-').forEach(c=>chordHits[c]=(chordHits[c]||0)+1)})});
   const byLv={};drillWeak.forEach(x=>{const k=x.id+'|'+x.lv;(byLv[k]=byLv[k]||[]).push(x)});
   Object.values(byLv).forEach(arr=>{const x=arr[0];const D=DRILLS[x.id];const uneven=arr.filter(a=>(a.st.cv||0)>=.3).length;const tries=arr.reduce((s,a)=>s+a.st.n,0);
     const cards=arr.map(a=>a.prog.replace(/-/g,' → ')).slice(0,3).join(', ');
     add(60+Math.min(20,tries),`${D.title} · ${x.L.name}`,`Not green yet after ${tries} tries: ${cards}.${uneven?` ${uneven===arr.length?'Mostly':'Partly'} <b>uneven</b> (some notes wait longer than others): go slower and steadier.`:' Mostly wrong notes: use <b>Keys shown</b> for a round, then From memory.'}`,
-      {tab:x.id,lv:x.lv,key:x.id==='sc'?null:keyOfProg(x.id,x.prog)})});
+      {tab:x.id,lv:x.lv,key:x.id==='sc'?null:keyOfProg(x.id,x.prog),lh:x.id==='rh'?(x.st&&x.k?x.k.split('|')[1]:null):null,mem:uneven===arr.length?null:false})});
   /* chords that show up in many failing cards count as weak too */
   Object.entries(chordHits).forEach(([c,n])=>{if(n>=2){const w=weak[c]||(weak[c]={c,avg:0,mr:0,n:0});w.cards=n}});
   const wl=Object.values(weak).sort((a,b)=>(b.avg+(b.cards||0)*800)-(a.avg+(a.cards||0)*800));
-  if(wl.length){const names=wl.slice(0,3).map(w=>w.c);const set=Object.keys(SETS).map(k=>[k,SETS[k].chords.filter(c=>names.includes(c)).length]).sort((a,b)=>b[1]-a[1])[0];
+  if(wl.length){const names=wl.slice(0,3).map(w=>w.c);/* the set must contain the slowest chord; among those, the one with the most of the others */const set=Object.keys(SETS).filter(k=>SETS[k].chords.includes(names[0])).map(k=>[k,SETS[k].chords.filter(c=>names.includes(c)).length]).sort((a,b)=>b[1]-a[1])[0];
     add(70+wl.length*3,`Brush up the chord${names.length>1?'s':''} ${names.join(', ')}`,wl.slice(0,3).map(w=>`<b>${w.c}</b>${w.avg?' '+(w.avg/1000).toFixed(1)+' s':''}${w.mr>.25?' (often missed)':''}${w.cards?' (in '+w.cards+' hard drill cards)':''}`).join(' · ')+'. A few fast rounds in the Chord Trainer make the shapes automatic, so the patterns get easier.',
-      set&&set[1]?{tab:'trainer',set:set[0],mode:'recall'}:{tab:'trainer'})}
+      set&&set[1]?{tab:'trainer',set:set[0],mode:wl[0].mode||'recall',hand:wl[0].hand||'both',focus:names}:{tab:'trainer',focus:names})}
   /* 4. with the band: what the Jam results say */
   const jl=Object.entries(JAM.stats).filter(([k,s])=>s&&s.R&&s.last).sort((a,b)=>b[1].last-a[1].last).slice(0,6);
   if(jl.length){const R=jl.map(x=>x[1].R);const parts=jl.map(x=>x[0].split('|'));const role=parts[0][0],groove=parts[0][1],key=parts[0][2];
@@ -1515,15 +1515,15 @@ function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag
     if(R.some(r=>r.gapAvg>150))add(60,'No gaps between chuppah chords',`Your chord-change gap was up to ${Math.max(...R.map(r=>r.gapAvg||0))} ms. Pattern Trainer level 10 (chuppah drone) trains lift-and-land in one motion.`,{tab:'pt',lv:'drone'});
     if(R.some(r=>r.lift!=null&&r.lift<80))add(60,'Lift after beat 1 (simcha left hand)','The left hand stayed down through the bar. Inversion Trainer level 2 (strike on beat 1, lift) builds it.',{tab:'inv',lv:'beat1'});}
   /* 5. brush-ups: green skills not touched for a while */
-  const stale=[];Object.entries(DRILLS).forEach(([id,D])=>{D.levels.forEach(L=>{const g=Object.entries(DS[id].stats).filter(([k,s])=>k.split('|')[0]===L.id&&s&&s.green&&s.last);if(!g.length)return;const last=Math.max(...g.map(([,s])=>s.last));const d=Math.floor((now-last)/DAY);if(d>=5)stale.push({id,L,d})})});
-  stale.sort((a,b)=>b.d-a.d).slice(0,2).forEach(s=>add(35+Math.min(15,s.d),`Brush up: ${DRILLS[s.id].title} · ${s.L.name}`,`Green, but last practised ${s.d} days ago. One quick round keeps it in your hands.`,{tab:s.id,lv:s.L.id}));
+  const stale=[];Object.entries(DRILLS).forEach(([id,D])=>{D.levels.forEach(L=>{const g=Object.entries(DS[id].stats).filter(([k,s])=>k.split('|')[0]===L.id&&s&&s.green&&s.last);if(!g.length)return;const last=Math.max(...g.map(([,s])=>s.last));const lk=g.find(([,s])=>s.last===last)[0];const d=Math.floor((now-last)/DAY);if(d>=5)stale.push({id,L,d,key:id==='sc'?null:keyOfProg(id,lk.split('|').pop()),lh:id==='rh'?lk.split('|')[1]:null})})});
+  stale.sort((a,b)=>b.d-a.d).slice(0,2).forEach(s=>add(35+Math.min(15,s.d),`Brush up: ${DRILLS[s.id].title} · ${s.L.name}`,`Green, but last practised ${s.d} days ago. One quick round keeps it in your hands.`,{tab:s.id,lv:s.L.id,key:s.key||undefined,lh:s.lh||undefined}));
   /* 6. the kumzitz focus: trainers not started yet */
   if(!Object.keys(DS.rh.stats).length)add(25,'Start the Right-Hand Trainer','Kumzitz is two hands. Level 1 (a melody note on each chord, left hand holding the open 5th) is the first step to playing the tune over your left hand.',{tab:'rh',lv:'mel',lh:'o5'});
   if(!Object.keys(JAM.stats).length)add(24,'Play with the band','Try the Kumzitz Jam, part 1 (Pad under the band), slow. It\'s the closest thing to a real kumzitz.',{tab:'jam',role:'pad',groove:'kz44'});
   /* next step: the trainer's own suggested level once a level is all green */
   /* never send you to something locked: point at the first missing skill instead */
   out.forEach(x=>{const g=x.go;if(!g)return;const lv=g.tab==='jam'?g.role:g.lv;if(!lv||!(DRILLS[g.tab]||g.tab==='jam'))return;
-    let need=lockedBy(g.tab,lv),guard=0;while(need.length&&guard++<6){const [i,l]=need[0];const deeper=i==='tr'?[]:lockedBy(i,l);if(!deeper.length){x.why=`It unlocks <b>${x.title}</b>. `+x.why;x.title=skillName(i,l);x.go=i==='tr'?{tab:'trainer',set:l,hand:'both',mode:'recall'}:{tab:i,lv:l};break}need=deeper}});
+    let need=lockedBy(g.tab,lv),guard=0;while(need.length&&guard++<6){const [i,l]=need[0];const deeper=i==='tr'?[]:lockedBy(i,l);if(!deeper.length){x.why=`It unlocks <b>${x.title}</b>. `+x.why;x.title=skillName(i,l);x.go=i==='tr'?{tab:'trainer',set:l,hand:'both',mode:'recall'}:{tab:i,lv:l,key:(g.key&&dKeys(i)[g.key])?g.key:(dKeys(i).am?'am':undefined)};break}need=deeper}});
   /* one entry per place to go: suggestions that lead to the same trainer + level (+ key) are merged, the earliest one keeps its spot */
   out.sort((a,b)=>b.pri-a.pri);const seen=new Map(),res=[];
   out.forEach(x=>{const g=x.go||{};const k=g.tab?[g.tab,g.lv||g.role||g.set||''].join('|'):'t:'+x.title;
