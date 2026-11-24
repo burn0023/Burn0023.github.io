@@ -1514,7 +1514,7 @@ function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag
       g.ch.map(w=>`<b>${w.c}</b> ${(w.avg/1000).toFixed(1)} s${w.mr>.3?' (often missed)':''}`).join(' · ')+`. The round is weighted so ${names.length>1?'these chords come':'this chord comes'} up far more often.`,
       {tab:'trainer',set:g.set,hand:g.hand,mode:g.mode,focus:names})});
   /* 4. with the band: what the Jam results say */
-  const jl=Object.entries(JAM.stats).filter(([k,s])=>s&&s.R&&s.last).sort((a,b)=>b[1].last-a[1].last).slice(0,6);
+  const jl=Object.entries(JAM.stats).filter(([k,s])=>s&&s.R&&s.last&&now-s.last<7*DAY).sort((a,b)=>b[1].last-a[1].last).slice(0,6);
   if(jl.length){const R=jl.map(x=>x[1].R);const parts=jl.map(x=>x[0].split('|'));const role=parts[0][0],groove=parts[0][1],key=parts[0][2];
     const land=R.reduce((s,r)=>s+r.land,0),landN=R.reduce((s,r)=>s+r.landN,0);const avg=Math.round(R.reduce((s,r)=>s+(r.avg||0),0)/R.length);
     if(landN&&land/landN<.9)add(75,'Chord changes with the band',`${land} of ${landN} changes landed in your last Jam cards${avg>60?`, about ${avg} ms late`:''}. Practise landing the open 5th without the band, then come back ${avg>60?'a little slower':''}.`,{tab:'pt',lv:'o5',key:DRILL_KEYS[key]?key:'am'});
@@ -1557,7 +1557,8 @@ function boardDone(it){const g=it.go||{},d=it.done||(g.beat?'beat':'green');
   if(g.tab==='trainer'&&g.set){const t=trGreens(g.set);return g.hand==='both'||!g.hand?t.both:t[g.hand]}
   return false}
 function boardItems(){const P=COACH.plan;if(!P||!Array.isArray(P.items))return [];return P.items.map(it=>({...it,ok:boardDone(it)}))}
-function coachHTML(){const L=coachList();window.__coachTop=L;const P=COACH.plan;const B=boardItems();window.__board=B;const nDone=B.filter(x=>x.ok).length;const next=B.findIndex(x=>!x.ok);
+function coachHTML(){const P=COACH.plan;const B=boardItems();window.__board=B;const onBoard=new Set(B.filter(x=>!x.ok&&x.go).map(x=>x.go.tab+'|'+(x.go.lv||x.go.role||x.go.set||'')));
+  const L=coachList().filter(x=>!(x.go&&onBoard.has(x.go.tab+'|'+(x.go.lv||x.go.role||x.go.set||''))));window.__coachTop=L;const nDone=B.filter(x=>x.ok).length;const next=B.findIndex(x=>!x.ok);
   return `<div class="head"><div class="eyebrow">Coach</div><h2>Your board</h2><p><b>Clear the board, top to bottom.</b> Each task ticks itself off the moment you meet its goal (it checks after every round). When the board is clear, tell Claude <b>"check my results"</b> and you get the next board, built from your results. Below it: extra brush-ups the app noticed by itself.</p></div>
   ${B.length?`<div class="card" style="gap:10px"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px"><h3 style="margin:0">From Claude${P&&P.date?` <span style="font-size:13px;color:var(--muted);font-weight:400">${P.date}</span>`:''}</h3><b>${nDone} of ${B.length} done</b></div>
     <div style="height:8px;border-radius:4px;background:var(--rule);overflow:hidden"><div style="height:100%;width:${Math.round(nDone/B.length*100)}%;background:var(--ok)"></div></div>
