@@ -499,7 +499,7 @@ function trJudge(){const c=chordInfo(TR.queue[TR.i]);const held=[...MIDI.held].s
     else if(h==='l'&&ns[0]<36){msgs.push('')}});
   if(!enough)return;
   if(allOk){const t=performance.now()-TR.shownAt;const name=TR.queue[TR.i];TR.log.push({c:name,t,miss:TR.miss});
-    const k=trStatKey(name,TR.hand);const s=TR.stats[k]||{n:0,avg:0,miss:0};s.avg=s.n?Math.round((s.avg*Math.min(s.n,4)+t)/(Math.min(s.n,4)+1)):Math.round(t);s.n++;s.last=Date.now();if(TR.miss)s.miss++;if(s.n>=2&&s.avg<2000)s.green=true;TR.stats[k]=s;store.set('tr-stats',TR.stats);
+    const k=trStatKey(name,TR.hand);const s=TR.stats[k]||{n:0,avg:0,miss:0};s.avg=s.n?Math.round((s.avg*Math.min(s.n,4)+t)/(Math.min(s.n,4)+1)):Math.round(t);s.n++;s.last=Date.now();if(TR.miss)s.miss++;s.rm=(s.rm==null?(s.n>1?s.miss/s.n:0):s.rm)*.7+(TR.miss?.3:0);if(s.n>=2&&s.avg<2000)s.green=true;TR.stats[k]=s;store.set('tr-stats',TR.stats);
     TR.fb=`✓ ${name} in ${(t/1000).toFixed(1)} s`;TR.miss=false;TR.i++;TR.shownAt=performance.now();
     if(TR.i>=TR.queue.length){trDone();return}}
   else{TR.miss=true;TR.fb='✗ '+msgs.filter(Boolean).join('<br>')}
@@ -1486,10 +1486,13 @@ function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag
     if(g&&DRILLS[g.tab]&&g.lv&&skillGreen(g.tab,g.lv))return;if(g&&g.tab==='jam'&&g.role&&typeof jamRoleGreen==='function'&&(g.key?(()=>{const o=JAM.key;JAM.key=g.key;const r=jamRoleGreen(g.role);JAM.key=o;return r})():jamRoleGreen(g.role))&&!g.bpm)return;
     add(100-i,it.title,it.why||'',g||null,'claude')});
   /* 2. chords that are slow or missed in the Chord Trainer */
-  const weak={};Object.entries(TR.stats).forEach(([k,s])=>{if(!s||s.n<3)return;const c=k.split(':').pop();const mr=(s.miss||0)/s.n;if(s.avg>2500||mr>.25){const w=weak[c]||(weak[c]={c,avg:0,mr:0,n:0});w.avg=Math.max(w.avg,s.avg);w.mr=Math.max(w.mr,mr);w.n++}});
+  /* a chord is weak only while it is slow or missed NOW: recent average over 2.5 s, or recent misses; once it's fast again it drops off */
+  const weak={};Object.entries(TR.stats).forEach(([k,s])=>{if(!s||s.n<3)return;const c=k.split(':').pop();const mr=s.rm!=null?s.rm:(s.miss||0)/s.n;if(s.avg<2000&&(s.rm==null||s.rm<.3))return;if(s.avg>2500||mr>.3){const w=weak[c]||(weak[c]={c,avg:0,mr:0,n:0});w.avg=Math.max(w.avg,s.avg);w.mr=Math.max(w.mr,mr);w.n++}});
   /* 3. drill cards that keep failing */
   const chordHits={};const drillWeak=[];
-  Object.entries(DRILLS).forEach(([id,D])=>{const S=DS[id];Object.entries(S.stats).forEach(([k,st])=>{if(!st||st.green||st.n<2)return;const parts=k.split('|');const lv=parts[0];const prog=parts[parts.length-1];
+  Object.entries(DRILLS).forEach(([id,D])=>{const S=DS[id];const live=new Set((D.cards?[D.cards]:Object.values(dKeys(id)).map(K=>K.pairs)).flat().map(pr=>pr.join('-')));
+    Object.entries(S.stats).forEach(([k,st])=>{if(!st||st.green||st.n<2)return;const parts=k.split('|');const lv=parts[0];const prog=parts[parts.length-1];if(!live.has(prog))return;
+      /* a level you've since got all green (in any key) doesn't need these leftovers */if(skillGreen(id,lv))return;
       const L=D.levels.find(x=>x.id===lv);if(!L)return;drillWeak.push({id,lv,prog,st,L});if(id!=='sc')prog.split('-').forEach(c=>chordHits[c]=(chordHits[c]||0)+1)})});
   const byLv={};drillWeak.forEach(x=>{const k=x.id+'|'+x.lv;(byLv[k]=byLv[k]||[]).push(x)});
   Object.values(byLv).forEach(arr=>{const x=arr[0];const D=DRILLS[x.id];const uneven=arr.filter(a=>(a.st.cv||0)>=.3).length;const tries=arr.reduce((s,a)=>s+a.st.n,0);
