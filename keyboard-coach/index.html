@@ -1326,7 +1326,7 @@ function dDone(id,pr,r,bt){const S=DS[id];const {cv,avg}=ptEven(r.times,bt);let 
   /* with the beat on, "even" means on the click: at least 80% of the changes within 0.2 beat (min 0.12 s) */
   let beat=null;if(r.offs&&r.offs.length){const tol=Math.max(120,60000/(r.bpm||60)*.2);const on=r.offs.filter(o=>Math.abs(o)<=tol).length;const late=r.offs.reduce((s,o)=>s+o,0)/r.offs.length;beat={pct:Math.round(on/r.offs.length*100),avg:Math.round(late),bpm:r.bpm};even=beat.pct>=80}const ok=r.miss===0&&(even||cleanRow>=2);const k=dSKey(id,S.lv,pr);
   const st=S.stats[k]||{n:0,green:false};st.n++;st.last=Date.now();st.cv=cv;st.avg=avg;st.miss=r.miss;st.cleanRow=cleanRow;if(ok)st.green=true;S.stats[k]=st;store.set(DRILLS[id].store+'-stats',S.stats);
-  S.res.push({pr,miss:r.miss,cv,avg,ok,beat});
+  S.res.push({pr,miss:r.miss,cv,avg,ok,beat});if(beat&&ok){const bd=S.stats.__beatDone||(S.stats.__beatDone={});bd[S.lv]=Date.now()}
   const msg=r.miss?`${r.miss} wrong note${r.miss>1?'s':''}. Again, slower.`:(ok&&!even)?`<b style="color:var(--ok)">✓ Two clean runs in a row.</b> ${pr.join(' → ')} is green. (It was a bit uneven; the 🥁 beat trains steadiness when you want it.)`:!even?(beat?`Right notes, but only ${beat.pct}% landed on the click (${beat.avg>0?'mostly late':'mostly early'}). Look at the next chord during the last beat and change <b>on</b> the click. Slower if you need it.`:`Right notes, but uneven: some notes waited longer than others (${Math.round(cv*100)}% wobble). Go slower and keep it steady.`):`<b style="color:var(--ok)">✓ Clean and ${beat?'on the beat ('+beat.pct+'%)':'even'}.</b> ${pr.join(' → ')} is green.`;
   setTimeout(()=>{if(ok||S.res.filter(x=>x.pr===pr).length>=3){S.qi++;if(S.qi>=S.queue.length)dFinish(id);else dPaint(id)}else dPaint(id,msg)},ok?900:2200);
   return msg}
@@ -1483,7 +1483,7 @@ function coachList(){const out=[],now=Date.now();const add=(pri,title,why,go,tag
   /* 1. Claude's notes from the results sheet */
   const P=COACH.plan;if(P&&Array.isArray(P.items))P.items.forEach((it,i)=>{const g=it.go;
     /* Claude's suggestion drops off by itself once that skill is green */
-    if(g&&DRILLS[g.tab]&&g.lv&&skillGreen(g.tab,g.lv))return;if(g&&g.tab==='jam'&&g.role&&typeof jamRoleGreen==='function'&&(g.key?(()=>{const o=JAM.key;JAM.key=g.key;const r=jamRoleGreen(g.role);JAM.key=o;return r})():jamRoleGreen(g.role))&&!g.bpm)return;
+    if(g&&DRILLS[g.tab]&&g.lv&&skillGreen(g.tab,g.lv)&&!(it.keepUntil&&Date.now()<Date.parse(it.keepUntil)&&!(DS[g.tab].stats.__beatDone||{})[g.lv]))return;if(g&&g.tab==='jam'&&g.role&&typeof jamRoleGreen==='function'&&(g.key?(()=>{const o=JAM.key;JAM.key=g.key;const r=jamRoleGreen(g.role);JAM.key=o;return r})():jamRoleGreen(g.role))&&!g.bpm)return;
     add(100-i,it.title,it.why||'',g||null,'claude')});
   /* 2. chords that are slow or missed in the Chord Trainer */
   /* a chord is weak only while it is slow or missed NOW: recent average over 2.5 s, or recent misses; once it's fast again it drops off */
