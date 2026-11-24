@@ -1,22 +1,32 @@
 {
- "date": "18 Nov 2026, 13:57",
- "note": "<b>Two-Hand level 1 (Together) is green.</b> Every card is right; E → Am was played clean 6 times in a row. Next on the path to smooth changes: Two-Hand level 2 (right holds, left steady) and Pattern level 5 (open 5th).",
+ "date": "24 Nov 2026, 14:12",
+ "note": "Great session. <b>Pattern 5 (open 5th) is green</b>, and with the beat on you were 100% on the click (within a few thousandths of a second). <b>Pattern 4 (broken chord in 4s) is green too</b>, but unevenly: most cards wobbled 40–60%, meaning some notes waited longer than others. Chord Trainer, A minor, left hand from memory: about 1.3 s per chord, which is solid. Earlier (19 Nov): G minor both hands from memory 12/12, and Pattern 3 green. The open 5th unlocks the <b>Right-Hand Trainer</b>.",
  "items": [
   {
+   "title": "Pattern Trainer · 4 · Broken chord in 4s, with the 🥁 beat",
+   "why": "It's green, but uneven (40–60% wobble). Your open-5th run with the beat was perfect, so the beat clearly works for you: one round of broken 4s with the click at 60 will even it out.",
+   "go": {
+    "tab": "pt",
+    "lv": "b4",
+    "key": "am"
+   }
+  },
+  {
    "title": "Two-Hand Trainer · 2 · Right holds, left steady",
-   "why": "Level 1 is done. Now the right hand holds the chord while the left hand plays its pattern: the start of real two-hand independence.",
+   "why": "With the open 5th green, this is the last step before Two-Hand 7 (smooth changes) and the smooth-shapes pad in the Jam.",
    "go": {
     "tab": "th",
     "lv": "hs"
    }
   },
   {
-   "title": "Pattern Trainer · 5 · Open 5th",
-   "why": "The open 5th (pinky + thumb) is the kumzitz left-hand sound. It unlocks the Right-Hand Trainer and the smooth changes.",
+   "title": "Right-Hand Trainer · 1 · Melody note on each chord",
+   "why": "Newly unlocked by the open 5th: the left hand holds the open 5th, and the right hand plays one tune note per chord. This is the first real two-hand kumzitz skill.",
    "go": {
-    "tab": "pt",
-    "lv": "o5",
-    "key": "am"
+    "tab": "rh",
+    "lv": "mel",
+    "key": "am",
+    "lh": "o5"
    }
   }
  ]
