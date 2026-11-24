@@ -8,9 +8,11 @@
    "go": {
     "tab": "pt",
     "lv": "b4",
-    "key": "am"
+    "key": "am",
+    "beat": true
    },
-   "keepUntil": "2026-12-08"
+   "done": "beat",
+   "goal": "One round of Pattern 4 with the 🥁 beat on (60 bpm) that turns green: changes on the click, nothing hanging."
   },
   {
    "title": "Two-Hand Trainer · 2 · Right holds, left steady",
@@ -18,7 +20,8 @@
    "go": {
     "tab": "th",
     "lv": "hs"
-   }
+   },
+   "goal": "All the cards green (in any key)."
   },
   {
    "title": "Right-Hand Trainer · 1 · Melody note on each chord",
@@ -28,7 +31,9 @@
     "lv": "mel",
     "key": "am",
     "lh": "o5"
-   }
+   },
+   "goal": "All the cards green with the left hand holding the open 5th."
   }
- ]
+ ],
+ "date_iso": "2026-11-24T12:00:00Z"
 }
